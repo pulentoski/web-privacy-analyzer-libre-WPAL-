@@ -1,0 +1,481 @@
+/* Tipografías del tema «Unidad Púrpura»: Barlow Condensed (títulos) y JetBrains Mono (valores
+   capturados), licencia SIL OFL 1.1, servidas desde este mismo origen (paquetes @fontsource;
+   Vite copia los .woff2 a /assets). La CSP no se relaja: font-src 'self'. Solo el subconjunto
+   latino, que cubre el español. */
+@import "@fontsource/barlow-condensed/latin-600.css";
+@import "@fontsource/barlow-condensed/latin-700.css";
+@import "@fontsource/jetbrains-mono/latin-400.css";
+@import "@fontsource/jetbrains-mono/latin-700.css";
+@import "tailwindcss";
+
+/* ---------- Variables por tema ----------
+   Clásico (por defecto): el aspecto sobrio de la versión 1.0.
+   Unidad Púrpura (opcional): interfaz de mando oscura; sus reglas están al final del archivo.
+   Los pares texto/fondo de ambos cumplen WCAG AA (lo comprueba la E2E de contraste). */
+:root {
+  --ink: #111111;
+  --paper: #f1f5f9;
+  --dot: #f1f5f9;
+  --surface: #ffffff;
+  --muted: #475569;
+  --line: #cbd5e1;
+  --line-width: 1px;
+  --shadow: none;
+  --accent: #1d4ed8;
+  --accent-ink: #ffffff;
+  --link: var(--accent);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --pop: #fde047;
+  --radius: 0.5rem;
+  --font-body: ui-sans-serif, system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-display: var(--font-body);
+  --display-spacing: 0;
+  --display-weight: 700;
+}
+
+body { font-family: var(--font-body); color: var(--ink); background-color: var(--paper); }
+.app-root { min-height: 100vh; color: var(--ink); background-color: var(--paper); }
+.app-header { background: var(--surface); border-bottom: var(--line-width) solid var(--line); }
+h1, h2, .display { font-family: var(--font-display); letter-spacing: var(--display-spacing); font-weight: var(--display-weight); }
+
+/* Texto secundario. En modo presentación pasa a contraste alto. */
+.muted { color: var(--muted); }
+
+.panel { border: var(--line-width) solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
+/* Un panel dentro de otro no repite la sombra: sería ruido. */
+.panel .panel { box-shadow: none; }
+.link { color: var(--link); text-decoration: underline; cursor: pointer; }
+.captured { font-family: var(--font-mono); word-break: break-all; white-space: pre-wrap; }
+.row-highlight { outline: 3px solid #2563eb; outline-offset: -3px; background: #eff6ff; }
+
+/* Botones */
+.btn { display: inline-block; border: 1px solid #64748b; border-radius: 0.375rem; padding: 0.3rem 0.8rem; background: var(--surface); color: var(--ink); font-weight: 600; cursor: pointer; }
+.btn-primary { background: var(--accent); color: var(--accent-ink); border-color: #1e3a8a; }
+.btn-danger { background: #b91c1c; color: #ffffff; border-color: #7f1d1d; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ---------- Frase técnica: recuadro destacado ---------- */
+.bubble { position: relative; background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: var(--radius); padding: 0.5rem 0.75rem; }
+.bubble-text { font-size: 1.05rem; font-weight: 700; line-height: 1.35; overflow-wrap: anywhere; }
+/* Recuadros pequeños dentro de listas y tablas: sin sombra. */
+.bubble.bubble-inline .bubble-text { font-size: 0.95rem; }
+
+/* ---------- Viñetas (tarjetas del resumen) ---------- */
+.vignette { border: var(--line-width) solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); overflow: hidden; }
+.vignette-caption { font-size: 0.875rem; color: var(--muted); padding: 0.5rem 0.75rem 0; }
+.vignette-body { padding: 0.25rem 0.75rem 0.6rem; }
+
+/* ---------- Menú del scan: pestañas con ícono, nombre y subtítulo ---------- */
+.tabmenu { display: grid; gap: 0.5rem; }
+.tab { display: flex; align-items: center; gap: 0.75rem; text-align: left; padding: 0.5rem 0.75rem; background: var(--surface); color: var(--ink);
+  border: var(--line-width) solid var(--line); border-radius: var(--radius); text-decoration: none; }
+.tab-number { font-family: var(--font-display); font-size: 1.25rem; min-width: 1.2rem; text-align: center; }
+.tab-icon { flex: none; width: 1.9rem; height: 1.9rem; }
+.tab-title { display: block; font-weight: 700; line-height: 1.2; }
+.tab-technical { font-weight: 400; font-size: 0.85em; }
+.tab-subtitle { display: block; font-size: 0.85rem; color: var(--muted); line-height: 1.25; }
+.tab[aria-current="page"] { background: #1e293b; color: #ffffff; border-color: #0f172a; }
+.tab[aria-current="page"] .tab-subtitle { color: #e2e8f0; }
+
+/* ---------- Barra de progreso por etapas ---------- */
+.stages { display: flex; flex-wrap: wrap; gap: 0.4rem; counter-reset: stage; }
+.stage { display: flex; align-items: center; gap: 0.4rem; border: 1px solid #94a3b8; border-radius: 999px; padding: 0.2rem 0.75rem; font-size: 0.9rem; background: var(--surface); color: var(--muted); }
+.stage[data-state="done"] { background: #d1fae5; color: #064e3b; border-color: #047857; }
+.stage[data-state="current"] { background: var(--accent); color: #ffffff; border-color: #1e3a8a; font-weight: 700; }
+.stage[data-state="failed"] { background: #fee2e2; color: #7f1d1d; border-color: #b91c1c; font-weight: 700; }
+.stage-counter { font-variant-numeric: tabular-nums; }
+.timebar { height: 0.8rem; border: 1px solid #64748b; border-radius: 999px; background: var(--surface); overflow: hidden; }
+.timebar-fill { height: 100%; background: var(--accent); }
+
+/* ---------- Logo (v1.2) ----------
+   Archivo local con el exterior transparente. El fondo blanco circular lo mantiene legible
+   sobre cualquier fondo oscuro (el interior del logo ya es blanco; esto cubre el borde). */
+.logo { display: block; flex: none; border-radius: 50%; background: #ffffff; object-fit: contain; }
+.logo-header { width: 2.25rem; height: 2.25rem; }
+.logo-hero { width: 6rem; height: 6rem; }
+html.presentation .logo-header { width: 3.25rem; height: 3.25rem; }
+html.presentation .logo-hero { width: 7.5rem; height: 7.5rem; }
+.brand-link { display: inline-flex; align-items: center; gap: 0.6rem; }
+.app-header nav a[aria-current="page"] { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+
+/* ---------- Modo compacto (v1.2): subtítulo de una línea bajo el título ---------- */
+.panel-subtitle { line-height: 1.3; }
+
+/* ---------- Panel: «presente en k de N sitios» ---------- */
+.presence { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--muted); }
+.presence-bar { width: 5rem; height: 0.5rem; flex: none; }
+.presence-track { fill: #e2e8f0; }
+.presence-fill { fill: var(--accent); }
+html.presentation[data-theme="classic"] .presence { color: #111827; }
+html.presentation[data-theme="classic"] .presence-track { fill: #d1d5db; }
+
+/* ---------- Medición de texto de los gráficos ----------
+   Recharts agrega al <body> un <span id="recharts_measurement_span"> para medir los rótulos del
+   eje y deja dentro el último texto medido (p. ej. un dominio truncado). Con visibility:hidden
+   se sigue pudiendo medir (conserva su caja) pero no se pinta ni entra en el texto de la página. */
+#recharts_measurement_span { visibility: hidden !important; position: fixed !important; top: -20000px !important; left: 0 !important; pointer-events: none !important; }
+
+/* ---------- Glosario: término con tooltip ---------- */
+.term { position: relative; display: inline; border-bottom: 2px dotted currentColor; cursor: help; }
+.term-tip { display: none; position: absolute; left: 0; top: calc(100% + 6px); z-index: 30; width: min(22rem, 80vw); padding: 0.5rem 0.7rem;
+  background: #111827; color: #ffffff; border-radius: 0.5rem; font-family: var(--font-body); font-size: 0.85rem; font-weight: 400; line-height: 1.35;
+  letter-spacing: 0; text-align: left; white-space: normal; text-transform: none; }
+.term:hover > .term-tip, .term:focus > .term-tip, .term:focus-within > .term-tip { display: block; }
+.term-tip strong { color: var(--pop); }
+/* ⓘ de "Mi exposición": mismo tooltip, sin subrayado. En la última columna se abre hacia la izquierda. */
+.term.info { border-bottom: 0; font-weight: 700; line-height: 1; }
+.tip-right .term-tip { left: auto; right: 0; }
+.term-tip em { display: block; margin-top: 0.3rem; font-style: normal; color: #e5e7eb; }
+
+/* ---------- Paso de «Hallazgos por grupo» ---------- */
+.step-number { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 2.2rem; height: 2.2rem; border-radius: 999px;
+  background: #1e293b; color: #ffffff; font-family: var(--font-display); font-size: 1.3rem; }
+.step[data-observed="false"] { opacity: 1; }
+.step[data-observed="false"] .step-number { background: #e2e8f0; color: #334155; }
+
+/* ---------- Modo presentación: tipografía grande y alto contraste, para proyector ----------
+   Funciona en ambos temas. Todo usa rem, así que subir la base escala la interfaz completa.
+   Clásico pasa a negro sobre blanco; Unidad Púrpura conserva su fondo oscuro (ver más abajo). */
+html.presentation { font-size: 22px; }
+html.presentation[data-theme="classic"] body, html.presentation[data-theme="classic"] .app-root { background: #ffffff; background-image: none; color: #000000; }
+html.presentation[data-theme="classic"] .muted, html.presentation[data-theme="classic"] .tab-subtitle, html.presentation[data-theme="classic"] .vignette-caption { color: #111827; }
+html.presentation[data-theme="classic"] .tab[aria-current="page"] .tab-subtitle { color: #ffffff; }
+html.presentation[data-theme="classic"] .panel, html.presentation[data-theme="classic"] .vignette, html.presentation[data-theme="classic"] .tab { border-color: #000000; background: #ffffff; border-width: 2px; }
+html.presentation[data-theme="classic"] .tab[aria-current="page"] { background: #000000; }
+html.presentation[data-theme="classic"] table th, html.presentation[data-theme="classic"] table td { border-color: #000000; }
+html.presentation .badge { border-width: 2px; font-weight: 700; }
+/* Solo los enlaces de texto: pestañas y botones conservan su propio contraste. */
+html.presentation[data-theme="classic"] .link { color: #0000cc; text-decoration: underline; font-weight: 600; }
+html.presentation .link { text-decoration: underline; font-weight: 600; }
+
+/* ---------- Analizar un sitio: ilustración junto al formulario (v1.3) ----------
+   Archivo local (CSP sin cambios). La imagen es oscura sobre blanco: el marco blanco la mantiene
+   legible en el tema clásico, en Unidad Púrpura y en modo presentación. */
+.analyze-layout { display: grid; gap: 1rem; align-items: start; }
+.analyze-art { display: block; justify-self: center; }
+.analyze-art img { display: block; width: 11rem; height: 11rem; max-width: 100%; object-fit: contain; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 50%; padding: 0.35rem; }
+@media (min-width: 768px) {
+  .analyze-layout { grid-template-columns: minmax(0, 1fr) auto; }
+  .analyze-art img { width: 14rem; height: 14rem; }
+}
+html.presentation .analyze-art img { width: 16rem; height: 16rem; }
+@media (min-width: 768px) { html.presentation .analyze-art img { width: 19rem; height: 19rem; } }
+
+/* ---------- Ilustración que gira durante el scan o la importación de HAR (v1.3.3) ----------
+   Archivo local (CSP sin cambios). Marco circular; en Clásico el borde es neutro. */
+.progress-layout { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
+.progress-layout > div { flex: 1 1 16rem; }
+.scan-spinner { display: inline-block; flex: none; line-height: 0; }
+.scan-spinner img { display: block; width: 5.5rem; height: 5.5rem; border-radius: 50%; object-fit: cover; background: #ffffff;
+  border: 2px solid #64748b; animation: scan-spin 8s linear infinite; }
+html.presentation .scan-spinner img { width: 7rem; height: 7rem; }
+@keyframes scan-spin { to { transform: rotate(360deg); } }
+@keyframes scan-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+/* Sin giro para quien pide menos movimiento: pulso suave. */
+@media (prefers-reduced-motion: reduce) { .scan-spinner img { animation: scan-pulse 3s ease-in-out infinite; } }
+
+/* ---------- Grafo: colores por tipo de nodo (clases, para que cada tema los ajuste) ---------- */
+.graph-edge { stroke: #cbd5e1; }
+.graph-unknown { fill: #ffffff; }
+
+/* =====================================================================================
+   Tema «Unidad Púrpura»: interfaz de mando oscura. Diseño propio: solo color, líneas,
+   esquinas cortadas y tipografía; sin personajes, logos ni textos ajenos al proyecto.
+   Paleta: fondo #0b0614 · morado #4b1f7a / #6b2fb3 · verde neón #7cff4f (activo y datos) ·
+   naranja #ff7a1a (alertas y bandas altas) · rojo (banda «Muy alto»).
+   ===================================================================================== */
+html[data-theme="purple"] {
+  color-scheme: dark;
+  --ink: #ece6f7;
+  --paper: #0b0614;
+  --dot: #130a22;          /* tono más claro de la cuadrícula hexagonal (peor caso de contraste) */
+  --surface: #150b26;
+  --surface-2: #1e1036;
+  --muted: #bcaedb;
+  --line: #6b2fb3;
+  --line-soft: #4b1f7a;
+  --line-width: 1px;
+  --shadow: none;
+  --accent: #6b2fb3;
+  --accent-ink: #ffffff;
+  --link: #7cff4f;
+  --neon: #7cff4f;
+  --alert: #ff7a1a;
+  --danger: #ff5a6e;
+  --pop: #7cff4f;
+  --radius: 0;
+  --cut: 0.7rem;
+  --font-display: "Barlow Condensed", "Arial Narrow", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --display-spacing: 0.06em;
+  --display-weight: 700;
+}
+/* Cuadrícula hexagonal tenue: solo gradientes cónicos (sin imágenes ni data:). */
+html[data-theme="purple"] .app-root {
+  --s: 26px;
+  --hex: #0000, var(--dot) 0.5deg 119.5deg, #0000 120deg;
+  --g1: conic-gradient(from 60deg at 56.25% calc(425% / 6), var(--hex));
+  --g2: conic-gradient(from 180deg at 43.75% calc(425% / 6), var(--hex));
+  --g3: conic-gradient(from -60deg at 50% calc(175% / 12), var(--hex));
+  background-image: var(--g1), var(--g1), var(--g2), var(--g2), var(--g3), var(--g3);
+  background-position: 0 0, var(--s) calc(1.73 * var(--s)), 0 0, var(--s) calc(1.73 * var(--s)), var(--s) 0, 0 calc(1.73 * var(--s));
+  background-size: calc(2 * var(--s)) calc(3.46 * var(--s));
+}
+html[data-theme="purple"] .app-header { background: #0f0820; border-bottom: 1px solid var(--line); box-shadow: 0 2px 0 var(--line-soft); }
+html[data-theme="purple"] h1, html[data-theme="purple"] h2, html[data-theme="purple"] h3, html[data-theme="purple"] .display { font-family: var(--font-display); letter-spacing: var(--display-spacing); text-transform: uppercase; }
+html[data-theme="purple"] h1 { font-size: 1.7rem; line-height: 1.15; }
+html[data-theme="purple"] h2 { font-size: 1.4rem; line-height: 1.2; }
+/* Lo capturado se muestra tal cual: sin mayúsculas ni espaciado del tema (una URL distingue mayúsculas). */
+html[data-theme="purple"] .captured { color: var(--neon); text-transform: none; letter-spacing: 0; }
+html[data-theme="purple"] ::selection { background: var(--accent); color: #ffffff; }
+html[data-theme="purple"] :focus-visible { outline: 2px solid var(--neon); outline-offset: 2px; }
+
+/* Paneles angulares: borde fino y dos esquinas cortadas. Las esquinas se dibujan encima con el
+   color del fondo (no con clip-path, que recortaría los tooltips del glosario). */
+html[data-theme="purple"] .panel, html[data-theme="purple"] .vignette, html[data-theme="purple"] .bubble { position: relative; }
+html[data-theme="purple"] .panel::before, html[data-theme="purple"] .panel::after,
+html[data-theme="purple"] .vignette::before, html[data-theme="purple"] .vignette::after {
+  content: ""; position: absolute; width: var(--cut); height: var(--cut); pointer-events: none;
+}
+html[data-theme="purple"] .panel::before, html[data-theme="purple"] .vignette::before {
+  top: -1px; left: -1px;
+  background: linear-gradient(135deg, var(--paper) 0 calc(50% - 1px), var(--line) calc(50% - 1px) calc(50% + 0.5px), transparent calc(50% + 0.5px));
+}
+html[data-theme="purple"] .panel::after, html[data-theme="purple"] .vignette::after {
+  bottom: -1px; right: -1px;
+  background: linear-gradient(315deg, var(--paper) 0 calc(50% - 1px), var(--line) calc(50% - 1px) calc(50% + 0.5px), transparent calc(50% + 0.5px));
+}
+/* Un panel dentro de otro: la esquina se corta contra la superficie del panel que lo contiene. */
+html[data-theme="purple"] .panel .panel { border-color: var(--line-soft); }
+html[data-theme="purple"] .panel .panel::before, html[data-theme="purple"] .panel .panel::after,
+html[data-theme="purple"] .panel .vignette::before, html[data-theme="purple"] .panel .vignette::after { --paper: var(--surface); --line: var(--line-soft); }
+html[data-theme="purple"] .vignette-caption { color: var(--muted); font-family: var(--font-display); letter-spacing: 0.05em; text-transform: uppercase; border-bottom: 1px solid var(--line-soft); padding: 0.3rem 0.9rem; }
+html[data-theme="purple"] .vignette-value { font-family: var(--font-mono); color: var(--neon); }
+html[data-theme="purple"] .bubble { border-color: var(--line-soft); border-left: 3px solid var(--neon); }
+
+/* Botones: esquinas cortadas. El foco se dibuja por dentro porque clip-path recorta el exterior. */
+html[data-theme="purple"] .btn {
+  border: 1px solid var(--line); border-radius: 0; background: var(--surface-2); color: var(--ink);
+  font-family: var(--font-display); letter-spacing: 0.05em; text-transform: uppercase; font-weight: 600;
+  clip-path: polygon(0.5rem 0, 100% 0, 100% calc(100% - 0.5rem), calc(100% - 0.5rem) 100%, 0 100%, 0 0.5rem);
+}
+html[data-theme="purple"] .btn:focus-visible { outline: 2px solid var(--neon); outline-offset: -4px; }
+html[data-theme="purple"] .btn:hover:not(:disabled):not(.btn-primary):not(.btn-danger):not([aria-pressed="true"]) { background: var(--line-soft); }
+html[data-theme="purple"] .btn-primary:hover:not(:disabled):not([aria-pressed="true"]) { background: #7d3fcb; }
+html[data-theme="purple"] .btn-primary { background: var(--accent); color: #ffffff; border-color: #a06bff; }
+html[data-theme="purple"] .btn[aria-pressed="true"] { background: var(--neon); color: #0b0614; border-color: var(--neon); }
+html[data-theme="purple"] .btn-danger { background: #b91c1c; color: #ffffff; border-color: #ff5a6e; }
+html[data-theme="purple"] .btn:disabled { opacity: 1; background: #1a1228; color: #a79bc0; border-color: #3a2460; }
+html[data-theme="purple"] input, html[data-theme="purple"] select, html[data-theme="purple"] textarea { border-radius: 0; color: var(--ink); }
+html[data-theme="purple"] input::placeholder, html[data-theme="purple"] textarea::placeholder { color: #a79bc0; opacity: 1; }
+
+/* Menú del scan, etapas y barras. */
+html[data-theme="purple"] .tab { border-color: var(--line-soft); }
+html[data-theme="purple"] .tab-number { color: var(--neon); }
+html[data-theme="purple"] .tab[aria-current="page"] { background: #24113f; color: #ffffff; border-color: var(--neon); box-shadow: inset 3px 0 0 var(--neon); }
+html[data-theme="purple"] .tab[aria-current="page"] .tab-subtitle { color: #e2d9f5; }
+html[data-theme="purple"] .stage { border-color: var(--line-soft); border-radius: 0; }
+html[data-theme="purple"] .stage[data-state="done"] { background: #0f2a0a; color: var(--neon); border-color: var(--neon); }
+html[data-theme="purple"] .stage[data-state="current"] { background: var(--accent); color: #ffffff; border-color: #a06bff; }
+html[data-theme="purple"] .stage[data-state="failed"] { background: #3a0a12; color: #ffc2c8; border-color: var(--danger); }
+html[data-theme="purple"] .timebar { border-color: var(--line); border-radius: 0; background: var(--surface-2); }
+html[data-theme="purple"] .timebar-fill, html[data-theme="purple"] .presence-fill { background: var(--neon); fill: var(--neon); }
+html[data-theme="purple"] .presence-track { fill: #2a1a45; }
+html[data-theme="purple"] .row-highlight { outline-color: var(--neon); background: #1c2a14; }
+html[data-theme="purple"] .term-tip { background: #05030a; border: 1px solid var(--neon); border-radius: 0; }
+html[data-theme="purple"] .step-number { background: var(--accent); color: #ffffff; border-radius: 0; clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%); }
+html[data-theme="purple"] .step[data-observed="false"] .step-number { background: #2a1a45; color: #d6cbea; }
+html[data-theme="purple"] .app-header nav a[aria-current="page"] { color: var(--neon); }
+html[data-theme="purple"] table th { font-family: var(--font-display); letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+
+html[data-theme="purple"] .scan-spinner img { border-color: var(--neon); box-shadow: 0 0 0.75rem rgba(124, 255, 79, 0.55); }
+
+/* Títulos de panel con franja de advertencia (v1.3.3), como «Límites de la medición»: franja
+   diagonal arriba, fondo oscuro con línea del tono y esquina cortada. Tonos: alert (naranja, por
+   defecto), danger (rojo, avisos de bloqueo y fallos) y neutral (morado con verde). Los paneles
+   anidados usan el neutro para que el naranja no sature. La franja no queda detrás del texto. */
+html[data-theme="purple"] .panel-head, html[data-theme="purple"] .hazard { --tone: var(--alert); --tone-bg: #2b1503; --tone-gap: #0b0614; }
+html[data-theme="purple"] .panel-head[data-tone="danger"], html[data-theme="purple"] .hazard[data-tone="danger"] { --tone: var(--danger); --tone-bg: #3a0a12; }
+html[data-theme="purple"] .panel-head[data-tone="neutral"], html[data-theme="purple"] .panel .panel .panel-head:not([data-tone="danger"]) { --tone: var(--line); --tone-bg: var(--surface-2); --tone-gap: var(--neon); }
+html[data-theme="purple"] .panel-head {
+  position: relative; margin: -1rem -1rem 0.9rem; padding: 1.05rem 1rem 0.55rem;
+  background-color: var(--tone-bg); border-bottom: 1px solid var(--tone);
+  background-image: repeating-linear-gradient(-45deg, var(--tone) 0 0.6rem, var(--tone-gap) 0.6rem 1.2rem);
+  background-size: 100% 0.4rem; background-repeat: no-repeat; background-position: top left;
+}
+/* Sin clip-path: recortaría los tooltips del título. La esquina cortada es la del panel, que se dibuja encima. */
+html[data-theme="purple"] .panel-head[data-tone="neutral"], html[data-theme="purple"] .panel .panel .panel-head:not([data-tone="danger"]) { background-image: repeating-linear-gradient(-45deg, var(--tone) 0 0.6rem, var(--tone-gap) 0.6rem 0.7rem, var(--tone) 0.7rem 1.2rem); }
+html[data-theme="purple"] .panel .panel > .panel-head { margin: -1rem -1rem 0.9rem; }
+
+/* Avisos de bloqueo y «Límites de la medición»: franja diagonal de advertencia arriba. */
+html[data-theme="purple"] .hazard {
+  background-image: repeating-linear-gradient(-45deg, var(--tone) 0 0.6rem, #0b0614 0.6rem 1.2rem);
+  background-size: 100% 0.5rem; background-repeat: no-repeat; background-position: top left;
+  padding-top: 1.25rem; border-color: var(--tone); background-color: var(--tone-bg);
+}
+html[data-theme="purple"] .hazard::before, html[data-theme="purple"] .hazard::after { --line: var(--tone); }
+
+/* Colores de utilidad (Tailwind) usados por la interfaz, llevados a la paleta oscura. Así los
+   badges de nivel, las bandas y los avisos conservan su significado sin fondos claros. */
+html[data-theme="purple"] .bg-white, html[data-theme="purple"] .bg-slate-50 { background-color: var(--surface); }
+html[data-theme="purple"] .bg-slate-100, html[data-theme="purple"] .bg-slate-200 { background-color: var(--surface-2); }
+html[data-theme="purple"] .text-slate-900, html[data-theme="purple"] .text-slate-800 { color: var(--ink); }
+html[data-theme="purple"] .text-slate-700, html[data-theme="purple"] .text-slate-600 { color: var(--muted); }
+html[data-theme="purple"] .border-slate-200, html[data-theme="purple"] .border-slate-300 { border-color: #3a2460; }
+html[data-theme="purple"] .border-slate-400, html[data-theme="purple"] .border-slate-500, html[data-theme="purple"] .border-slate-600 { border-color: var(--line); }
+html[data-theme="purple"] .bg-emerald-100 { background-color: #0f2a0a; }
+html[data-theme="purple"] .text-emerald-900 { color: var(--neon); }
+html[data-theme="purple"] .border-emerald-700 { border-color: var(--neon); }
+html[data-theme="purple"] .bg-amber-50, html[data-theme="purple"] .bg-amber-100, html[data-theme="purple"] .bg-yellow-100, html[data-theme="purple"] .bg-orange-100 { background-color: #2b1503; }
+html[data-theme="purple"] .text-amber-900, html[data-theme="purple"] .text-orange-900 { color: #ffb37a; }
+html[data-theme="purple"] .text-yellow-900 { color: #ffe08a; }
+html[data-theme="purple"] .border-amber-600, html[data-theme="purple"] .border-amber-700, html[data-theme="purple"] .border-orange-600 { border-color: var(--alert); }
+html[data-theme="purple"] .border-yellow-600 { border-color: #e0b84a; }
+html[data-theme="purple"] .bg-red-50, html[data-theme="purple"] .bg-red-100 { background-color: #3a0a12; }
+html[data-theme="purple"] .text-red-800, html[data-theme="purple"] .text-red-900 { color: #ffc2c8; }
+html[data-theme="purple"] .border-red-600, html[data-theme="purple"] .border-red-700, html[data-theme="purple"] .border-red-900 { border-color: var(--danger); }
+html[data-theme="purple"] .bg-sky-100 { background-color: #0a2233; }
+html[data-theme="purple"] .text-sky-900 { color: #9bdcff; }
+html[data-theme="purple"] .border-sky-700 { border-color: #4db8ff; }
+html[data-theme="purple"] .bg-violet-100 { background-color: #2a1250; }
+html[data-theme="purple"] .text-violet-900 { color: #dcc8ff; }
+html[data-theme="purple"] .border-violet-700 { border-color: #a06bff; }
+html[data-theme="purple"] .text-blue-800 { color: var(--neon); }
+html[data-theme="purple"] .bg-blue-700 { background-color: var(--accent); }
+html[data-theme="purple"] .border-blue-700 { border-color: #a06bff; }
+html[data-theme="purple"] .badge { border-radius: 0; font-family: var(--font-display); letter-spacing: 0.05em; text-transform: uppercase; }
+/* Bandas: naranja para las altas, rojo solo para «Muy alto». */
+html[data-theme="purple"] .badge[data-band="Bajo"] { background: var(--surface-2); color: var(--ink); border-color: var(--line); }
+html[data-theme="purple"] .badge[data-band="Posible"] { background: #2b2203; color: #ffe08a; border-color: #e0b84a; }
+html[data-theme="purple"] .badge[data-band="Moderado"] { background: #2b1503; color: #ffb37a; border-color: var(--alert); }
+html[data-theme="purple"] .badge[data-band="Alto"] { background: var(--alert); color: #1a0a00; border-color: #ffb37a; }
+html[data-theme="purple"] .badge[data-band="Muy alto"] { background: #c8102e; color: #ffffff; border-color: #ff5a6e; }
+
+/* Gráficos y grafo. */
+html[data-theme="purple"] .recharts-text { fill: #d6cbea; }
+html[data-theme="purple"] .recharts-cartesian-grid line, html[data-theme="purple"] .recharts-cartesian-axis-line, html[data-theme="purple"] .recharts-cartesian-axis-tick-line { stroke: #3a2460; }
+html[data-theme="purple"] .recharts-bar-rectangle path { fill: var(--neon); }
+html[data-theme="purple"] .recharts-default-tooltip { background-color: #05030a !important; border-color: var(--neon) !important; }
+html[data-theme="purple"] .recharts-tooltip-item { color: var(--neon) !important; }
+html[data-theme="purple"] [data-testid="graph"] text { fill: var(--ink); }
+html[data-theme="purple"] .graph-edge { stroke: #4b1f7a; }
+html[data-theme="purple"] .graph-site { fill: #a06bff; }
+html[data-theme="purple"] .graph-category { fill: #bcaedb; }
+html[data-theme="purple"] .graph-entity { fill: #8f7bb5; stroke: #8f7bb5; }
+html[data-theme="purple"] .graph-unknown { fill: var(--surface); stroke: #8f7bb5; }
+html[data-theme="purple"] .graph-firstParty { fill: #4db8ff; }
+html[data-theme="purple"] .graph-thirdParty { fill: #8f7bb5; }
+html[data-theme="purple"] .graph-tracker { fill: var(--alert); }
+html[data-theme="purple"] .graph-fingerprinting { fill: var(--neon); }
+
+/* Ilustraciones: marco blanco circular (son oscuras sobre blanco) con borde del tema. */
+/* Marco circular, como la ilustración del progreso: borde verde neón con brillo suave. */
+html[data-theme="purple"] .analyze-art img { border: 2px solid var(--neon); box-shadow: 0 0 0.75rem rgba(124, 255, 79, 0.45); }
+
+/* Modo presentación: mismo fondo oscuro, más contraste en lo secundario y líneas más visibles. */
+html.presentation[data-theme="purple"] { --muted: #e2d9f5; --line-soft: #6b2fb3; --line: #a06bff; }
+html.presentation[data-theme="purple"] .panel, html.presentation[data-theme="purple"] .vignette, html.presentation[data-theme="purple"] .tab { border-width: 2px; }
+
+/* ---------- Captura interactiva (v1.4) ---------- */
+.vnc-screen { width: 100%; aspect-ratio: 1440 / 900; background: #111111; border: var(--line-width) solid var(--line); border-radius: var(--radius); overflow: hidden; }
+/* El indicador de recursos es fijo en la esquina inferior; reserva un hueco igual a su alto
+   (--rc-reserved, lo publica ResourceIndicator) para no tapar el pie de las páginas largas.
+   El valor por defecto cubre el arranque y el caso sin indicador. */
+.app-main { padding-bottom: var(--rc-reserved, 4.5rem); }
+
+/* ---------- Modos de «Analizar un sitio» (v1.4.2) ----------
+   ÚNICO lugar donde se definen los colores de acento de cada modo. Cada modo usa el suyo en borde,
+   título, ícono y botón principal; `-ink` es el texto sobre el botón. Todos cumplen WCAG AA sobre el
+   fondo de su tema (texto ≥ 4,5:1; borde ≥ 3:1): lo comprueba e2e/tests/test_v142.py.
+   El color nunca va solo: cada modo conserva su título y su ícono. */
+:root {
+  --acc-scan: #15803d;        --acc-scan-ink: #ffffff;        /* verde */
+  --acc-advanced: #6d28d9;    --acc-advanced-ink: #ffffff;    /* morado */
+  --acc-consent: #0e7490;     --acc-consent-ink: #ffffff;     /* cian */
+  --acc-profile: #a21caf;     --acc-profile-ink: #ffffff;     /* magenta */
+  --acc-incoherent: #b45309;                                  /* naranja de advertencia */
+  --acc-runs: #a16207;        --acc-runs-ink: #ffffff;        /* amarillo */
+  --acc-interactive: #c2410c; --acc-interactive-ink: #ffffff; /* naranja */
+  --acc-har: #1d4ed8;         --acc-har-ink: #ffffff;         /* azul */
+  --acc-status: #475569;      --acc-status-ink: #ffffff;      /* gris neutro */
+}
+html[data-theme="purple"] {
+  --acc-scan: #39ff14;        --acc-scan-ink: #0b0614;        /* verde neón */
+  --acc-advanced: #b388ff;    --acc-advanced-ink: #0b0614;
+  --acc-consent: #22d3ee;     --acc-consent-ink: #0b0614;
+  --acc-profile: #ff5cf0;     --acc-profile-ink: #0b0614;
+  --acc-incoherent: #ff9f1c;
+  --acc-runs: #ffe14d;        --acc-runs-ink: #0b0614;
+  --acc-interactive: #ff7a1a; --acc-interactive-ink: #0b0614;
+  --acc-har: #5aa9ff;         --acc-har-ink: #0b0614;
+  --acc-status: #b4adc6;      --acc-status-ink: #0b0614;
+}
+.mode { --mode: var(--acc-status); --mode-ink: var(--acc-status-ink); border: 2px solid var(--mode); border-left-width: 6px; border-radius: var(--radius); background: var(--surface); }
+.mode[data-mode="scan"] { --mode: var(--acc-scan); --mode-ink: var(--acc-scan-ink); }
+.mode[data-mode="advanced"] { --mode: var(--acc-advanced); --mode-ink: var(--acc-advanced-ink); }
+.mode[data-mode="consent"] { --mode: var(--acc-consent); --mode-ink: var(--acc-consent-ink); }
+.mode[data-mode="profile"] { --mode: var(--acc-profile); --mode-ink: var(--acc-profile-ink); }
+.mode[data-mode="runs"] { --mode: var(--acc-runs); --mode-ink: var(--acc-runs-ink); }
+.mode[data-mode="interactive"] { --mode: var(--acc-interactive); --mode-ink: var(--acc-interactive-ink); }
+.mode[data-mode="har"] { --mode: var(--acc-har); --mode-ink: var(--acc-har-ink); }
+.mode[data-mode="status"] { --mode: var(--acc-status); --mode-ink: var(--acc-status-ink); }
+html .mode .mode-title, html .mode > .panel-head .mode-title { color: var(--mode); display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; font-weight: 700; }
+.mode .mode-title svg { color: var(--mode); flex: none; }
+html .mode .btn.btn-mode, html[data-theme="purple"] .mode .btn.btn-mode { background: var(--mode); color: var(--mode-ink); border-color: var(--mode); }
+html .mode .btn.btn-mode:disabled, html[data-theme="purple"] .mode .btn.btn-mode:disabled { opacity: 1; background: var(--surface); color: var(--mode); border-style: dashed; }
+.mode .mode-warning { color: var(--acc-incoherent); font-weight: 700; }
+.mode fieldset.mode, .mode div.mode { border-width: 1px; border-left-width: 4px; }
+/* Aviso de privacidad de la captura interactiva: franja diagonal de advertencia (en Unidad Púrpura la pone .hazard). */
+html[data-theme="classic"] .mode .hazard { background-image: repeating-linear-gradient(-45deg, var(--acc-incoherent) 0 0.6rem, #fde68a 0.6rem 1.2rem);
+  background-size: 100% 0.4rem; background-repeat: no-repeat; background-position: top left; padding-top: 1rem; border-color: var(--acc-incoherent); }
+html[data-theme="purple"] .panel.mode { border-color: var(--mode); }
+html[data-theme="purple"] .panel.mode > .panel-head { --tone: var(--mode); --tone-bg: var(--surface-2); --tone-gap: #0b0614; }
+html[data-theme="purple"] .panel.mode::before, html[data-theme="purple"] .panel.mode::after { --line: var(--mode); }
+
+/* ---------- Indicador de recursos: consola de mando retro (v1.4.2, diseño propio) ----------
+   Colores en un solo lugar. Unidad Púrpura: fondo negro, marco y texto naranja, placas verde menta.
+   Clásico: versión sobria, mismos datos y misma disposición, sin inclinación ni negro. */
+.rc { --rc-bg: #ffffff; --rc-line: #475569; --rc-text: #1e293b; --rc-plate: #e2e8f0; --rc-plate-ink: #0f172a; --rc-core: #94a3b8;
+  --rc-alert: #b91c1c; --rc-alert-ink: #ffffff; --rc-tilt: 0;
+  position: fixed; right: 0.5rem; bottom: 0.5rem; z-index: 40; max-width: calc(100vw - 1rem); display: flex; flex-direction: column; align-items: flex-end; gap: 0.3rem;
+  font-family: var(--font-mono); text-transform: none; letter-spacing: 0; }
+html[data-theme="purple"] .rc { --rc-bg: #000000; --rc-line: #ff7a1a; --rc-text: #ff7a1a; --rc-plate: #7fffd4; --rc-plate-ink: #000000; --rc-core: #ff7a1a;
+  --rc-alert: #ff2d2d; --rc-alert-ink: #000000; --rc-tilt: 1; }
+/* Pie persistente: botón de minimizar encima de la consola mini, ambos pegados a la esquina. */
+.rc-foot { display: flex; flex-direction: column; align-items: flex-end; gap: 0.2rem; }
+.rc-collapse { display: inline-flex; align-items: center; justify-content: center; min-width: 1.6rem; height: 1.2rem; padding: 0 0.4rem; background: var(--rc-bg); border: 2px solid var(--rc-line); color: var(--rc-text); cursor: pointer; font: inherit; font-size: 0.9rem; line-height: 1; }
+/* Ícono al que se minimiza la consola: cuadrado pequeño en la misma esquina. */
+.rc-restore { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; background: var(--rc-bg); border: 2px solid var(--rc-line); color: var(--rc-text); cursor: pointer; font: inherit; }
+.rc-restore-icon { font-size: 1.1rem; line-height: 1; }
+.rc-restore-dot { position: absolute; top: -0.3rem; right: -0.3rem; width: 0.7rem; height: 0.7rem; border-radius: 50%; background: var(--rc-alert); border: 1px solid var(--rc-bg); }
+.rc-collapse:focus-visible, .rc-restore:focus-visible, .rc-mini:focus-visible { outline: 2px solid var(--rc-line); outline-offset: 2px; }
+.rc-mini { display: flex; align-items: stretch; gap: 0.25rem; padding: 0.25rem; background: var(--rc-bg); border: 2px solid var(--rc-line); color: var(--rc-text); cursor: pointer; font: inherit; font-size: 0.7rem; line-height: 1.15; }
+.rc-box { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 3.4rem; padding: 0.15rem 0.35rem; background: var(--rc-plate); color: var(--rc-plate-ink); }
+.rc-box b { font-size: 0.6rem; letter-spacing: 0.08em; }
+.rc-box span { font-weight: 700; font-size: 0.8rem; }
+.rc-box small { font-size: 0.55rem; }
+.rc-flag { display: flex; align-items: center; padding: 0 0.4rem; border: 2px solid var(--rc-alert); color: var(--rc-alert); background: var(--rc-bg); font-weight: 700; letter-spacing: 0.1em; }
+.rc-full { width: min(28rem, calc(100vw - 1rem)); max-height: calc(100vh - 5rem); overflow: auto; background: var(--rc-bg); color: var(--rc-text); border: 2px solid var(--rc-line); padding: 0.6rem; font-size: 0.75rem; }
+.rc-full::before { content: ""; display: block; height: 0.35rem; margin: -0.6rem -0.6rem 0.5rem; background: repeating-linear-gradient(90deg, var(--rc-line) 0 1.2rem, transparent 1.2rem 1.5rem); }
+.rc-meta { display: flex; justify-content: space-between; gap: 0.5rem; border-bottom: 1px solid var(--rc-line); padding-bottom: 0.3rem; letter-spacing: 0.08em; }
+.rc-console { display: grid; grid-template-columns: 14rem minmax(0, 1fr); gap: 0.6rem; align-items: center; margin: 0.6rem 0; }
+.rc-triangle { position: relative; width: 14rem; height: 12.4rem; }
+.rc-core { position: absolute; left: 50%; top: 5.7rem; width: 3.2rem; height: 3.2rem; margin: -1.6rem 0 0 -1.6rem; border-radius: 50%; background: var(--rc-core); box-shadow: 0 0 0 0.3rem var(--rc-bg), 0 0 0 0.4rem var(--rc-line); }
+.rc-plate { position: absolute; width: 5.6rem; padding: 0.3rem 0.4rem; background: var(--rc-plate); color: var(--rc-plate-ink); text-align: center; border: 1px solid var(--rc-line); }
+.rc-plate .rc-value { display: block; font-size: 1.15rem; font-weight: 700; line-height: 1.15; white-space: nowrap; }
+.rc-plate .rc-name { display: block; font-size: 0.65rem; letter-spacing: 0.14em; font-weight: 700; }
+.rc-plate .rc-sub { display: block; font-size: 0.6rem; }
+.rc-plate-a { left: 50%; top: 0; margin-left: -2.8rem; transform: rotate(calc(var(--rc-tilt) * -3deg)); }
+.rc-plate-b { left: 0; top: 7.9rem; transform: rotate(calc(var(--rc-tilt) * 7deg)); }
+.rc-plate-c { right: 0; top: 7.9rem; transform: rotate(calc(var(--rc-tilt) * -7deg)); }
+.rc-status { margin: 0; white-space: pre-line; line-height: 1.6; letter-spacing: 0.06em; }
+.rc-alert { margin: 0.4rem 0; padding: 0.35rem 0.5rem; border: 3px solid var(--rc-alert); color: var(--rc-alert); font-weight: 700; letter-spacing: 0.12em; animation: rc-blink 1s steps(2, start) infinite; }
+.rc-alert span { display: block; letter-spacing: 0.02em; font-weight: 400; }
+@keyframes rc-blink { to { border-color: transparent; } }
+@media (prefers-reduced-motion: reduce) { .rc-alert { animation: none; } }
+.rc-table { width: 100%; border-collapse: collapse; }
+.rc-table th, .rc-table td { text-align: left; padding: 0.15rem 0.4rem 0.15rem 0; border-top: 1px solid var(--rc-line); font-weight: 400; }
+.rc-table th { letter-spacing: 0.08em; }
+.rc-table tr[data-alert="true"] td { color: var(--rc-alert); font-weight: 700; }
+.rc-note { margin-top: 0.4rem; font-size: 0.65rem; opacity: 0.95; }
+@media (max-width: 30rem) { .rc-console { grid-template-columns: 1fr; justify-items: center; } }

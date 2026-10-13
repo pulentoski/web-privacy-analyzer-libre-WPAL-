@@ -1,0 +1,32 @@
+# Librerías de uso conocido que leen un canvas sin que eso sea fingerprinting (v1.4.2).
+#
+# Un generador de códigos QR, una librería de gráficos o un visor de PDF dibujan en un canvas y
+# leen el resultado como parte de su función. Si el script que hizo la lectura coincide con una
+# de estas librerías, el patrón NO se marca como «canvas fingerprinting» (inferencia); la lectura
+# queda igualmente registrada como EVIDENCIA («lectura de canvas por librería conocida»).
+#
+# Coincidencia: texto contenido en la RUTA de la URL del script (no en el host ni en la query), en
+# minúsculas. Límite declarado: un script puede llamarse como una librería sin serlo; por eso la
+# lectura nunca se oculta.
+version: 1
+
+libraries:
+  - id: qrcode
+    label: "generador de códigos QR"
+    patterns: [qrcode, qr-code, qrious, kjua, qr.min.js, jsqr]
+  - id: charts
+    label: "librería de gráficos"
+    patterns: [chart.js, chart.min.js, chart.umd, chartjs, echarts, highcharts, apexcharts, plotly, recharts, amcharts]
+  - id: pdf
+    label: "visor o generador de PDF"
+    patterns: [pdf.js, pdf.min.js, pdf.worker, pdfjs, jspdf, pdf-lib]
+  - id: capture
+    label: "captura o edición de imágenes"
+    patterns: [html2canvas, dom-to-image, cropper, croppie, compressor.js, compressorjs, pica.min.js, blurhash, signature_pad,
+               signature-pad, fabric.min.js, fabric.js, konva]
+  - id: barcode
+    label: "generador de códigos de barras"
+    patterns: [jsbarcode, bwip-js]
+  - id: animation
+    label: "animación o efectos visuales"
+    patterns: [lottie, canvas-confetti, confetti.min.js, particles.min.js, tsparticles]

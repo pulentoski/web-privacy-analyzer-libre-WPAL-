@@ -1,0 +1,100 @@
+# IDs de cuenta del sitio (v1.2).
+#
+# Un ID de cuenta identifica al SITIO ante un proveedor (su propiedad de Analytics, su
+# contenedor de Tag Manager, su pixel de anuncios). Es igual para todo visitante: no sirve
+# para reconocer a una persona. El analizador los muestra como "ID de cuenta del sitio" y
+# los EXCLUYE de "identificadores que persisten" y de "sincronización entre organizaciones".
+#
+# Nivel: el valor observado en la request es EVIDENCIA; que sea un ID de cuenta se deduce del
+# host, el parámetro y la forma documentados por cada proveedor (INFERENCIA).
+#
+# Campos de cada regla:
+#   hosts          sufijos de host (el host es igual o termina en ".<sufijo>")
+#   host_pattern   expresión regular alternativa sobre el host completo
+#   path_prefix    opcional: la ruta debe empezar así
+#   params         nombres de parámetro (último segmento, en minúsculas)
+#   pattern        forma que debe tener el valor completo
+#   path_pattern   opcional: el ID viaja en la ruta; se toma el grupo "value"
+version: 1
+
+# Solo con ALLOW_FIXTURES=1: hosts del sitio de fixtures que hacen de cualquier proveedor
+# (la regla se decide entonces por ruta, parámetro y forma).
+test_hosts: [tracker-a.fixtures.test]
+
+rules:
+  - id: ga_measurement_id
+    vendor: Google Analytics
+    label: ID de medición (tid)
+    hosts: [google-analytics.com, analytics.google.com, googletagmanager.com, doubleclick.net]
+    host_pattern: '(^|\.)google\.[a-z]{2,3}(\.[a-z]{2})?$'
+    params: [tid, id]
+    pattern: '^(G-[A-Z0-9]{4,20}|UA-\d{3,12}-\d{1,4})$'
+
+  - id: gtm_container_id
+    vendor: Google Tag Manager
+    label: ID de contenedor
+    hosts: [googletagmanager.com]
+    params: [id]
+    pattern: '^GTM-[A-Z0-9]{4,12}$'
+
+  - id: gtm_container_version
+    vendor: Google Tag Manager
+    label: Versión del contenedor (gtm)
+    hosts: [googletagmanager.com, google-analytics.com, analytics.google.com, doubleclick.net, googleadservices.com, googlesyndication.com]
+    host_pattern: '(^|\.)google\.[a-z]{2,3}(\.[a-z]{2})?$'
+    params: [gtm]
+    pattern: '^[0-9a-z]{6,48}$'
+
+  - id: google_ads_id
+    vendor: Google Ads
+    label: ID de conversión
+    hosts: [googletagmanager.com, googleadservices.com, doubleclick.net, googlesyndication.com]
+    host_pattern: '(^|\.)google\.[a-z]{2,3}(\.[a-z]{2})?$'
+    params: [id, tid]
+    pattern: '^AW-\d{6,14}$'
+    path_pattern: '^/(?:pagead|ccm)/(?:conversion|viewthroughconversion|1p-conversion|1p-user-list|landing|collect)/(?P<value>\d{6,14})(?:/|$)'
+
+  - id: google_ads_label
+    vendor: Google Ads
+    label: Etiqueta de conversión (label)
+    hosts: [googleadservices.com, doubleclick.net, googlesyndication.com]
+    host_pattern: '(^|\.)google\.[a-z]{2,3}(\.[a-z]{2})?$'
+    path_prefix: /pagead/
+    params: [label]
+    pattern: '^[A-Za-z0-9_-]{6,48}$'
+
+  - id: meta_pixel_id
+    vendor: Meta
+    label: ID del pixel
+    hosts: [facebook.com, facebook.net]
+    path_prefix: /tr
+    params: [id]
+    pattern: '^\d{10,20}$'
+
+  - id: pinterest_tag_id
+    vendor: Pinterest
+    label: ID del tag (tid)
+    hosts: [ct.pinterest.com]
+    params: [tid]
+    pattern: '^\d{10,16}$'
+
+  - id: snapchat_pixel_id
+    vendor: Snapchat
+    label: ID del pixel (pid)
+    hosts: [tr.snapchat.com, sc-static.net]
+    params: [pid, pixel_id]
+    pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+
+  - id: tiktok_pixel_id
+    vendor: TikTok
+    label: ID del pixel
+    hosts: [analytics.tiktok.com, analytics-sg.tiktok.com, business-api.tiktok.com]
+    params: [sdkid, pixel_code, code]
+    pattern: '^[A-Z0-9]{16,24}$'
+
+  - id: linkedin_partner_id
+    vendor: LinkedIn
+    label: ID de socio (pid)
+    hosts: [px.ads.linkedin.com, px4.ads.linkedin.com, dc.ads.linkedin.com, snap.licdn.com]
+    params: [pid]
+    pattern: '^\d{4,10}$'

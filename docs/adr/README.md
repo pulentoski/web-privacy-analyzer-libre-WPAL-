@@ -1,0 +1,37 @@
+# Registro de decisiones de arquitectura (ADR)
+
+Una decisión por archivo, en orden cronológico. Las decisiones no se reescriben: si
+una cambia, un ADR posterior lo dice.
+
+| ADR | Fase | Decisión |
+|---|---|---|
+| [001](001-chromium-sandbox.md) | F1 | Chromium corre con su sandbox activo dentro del contenedor, con un perfil seccomp propio. |
+| [002](002-politica-egress-proxy.md) | F1 | El proxy Squid es la única salida del worker y valida la IP resuelta en cada conexión. |
+| [003](003-fixtures-de-captura.md) | F2 | Un sitio de fixtures sirve de verdad de referencia para la captura; solo existe con `ALLOW_FIXTURES=1`. |
+| [004](004-motor-de-reglas-adblock.md) | F3 | Las listas de filtros se evalúan con `adblock` (adblock-rust), un motor por lista. |
+| [005](005-licencias-de-listas.md) | F3 | Se documenta cada licencia; el mapa de entidades de DuckDuckGo es no comercial y reemplazable. |
+| [006](006-arquitectura-del-analisis.md) | F3 | El análisis corre en el worker, separado de la captura, y se puede repetir sin volver a navegar. |
+| [007](007-instrumentacion-de-fingerprinting.md) | F4 | Un init script envuelve las APIs de fingerprinting y atribuye cada llamada a su script. |
+| [008](008-perfil-base-del-navegador.md) | F4 | El navegador base es Chromium con ventana real, sin marcas de automatización y sin falsear nada. |
+| [009](009-experimento-de-control-instrumentacion.md) | F4 | Experimento de control: la instrumentación no cambia de forma medible el comportamiento del sitio; un scan aislado no es representativo. |
+| [010](010-librerias-del-frontend.md) | F5 | Frontend con React, Vite, Tailwind y Recharts; sin dependencias que inyecten HTML. |
+| [011](011-mi-exposicion-privacidad.md) | F6 | "Mi exposición" se calcula en el navegador; el servidor no guarda nada del visitante. |
+| [012](012-contexto-seguro-en-red-local.md) | F6 | La demo en LAN publica solo "Mi exposición", con https autofirmado para tener contexto seguro. |
+| [013](013-trafico-propio-de-chromium.md) | F7 | Políticas gestionadas apagan el tráfico propio de Chromium para que no contamine la captura. |
+| [014](014-privacy-test.md) | F7 | El Privacy Test compara grupos de scans con agregados; nunca promete anonimato ni adivina un botón. |
+| [015](015-consentimiento-por-api.md) | F8 | El consentimiento se lee por la API TCF y por Consent Mode en las requests; el tcString no se guarda. |
+| [016](016-atribucion-de-conexiones-por-scan.md) | F8 | Cada scan se autentica en el proxy con su propio usuario para saber a qué IP fue cada conexión. |
+| [017](017-inteligencia-por-destino-y-cname.md) | F8 | Dueño del dominio y red de la IP se muestran sin arbitrar; el resolutor de CNAME no es una vía de SSRF. |
+| [018](018-reportes-exportables.md) | F8 | Reportes HTML y PDF generados del mismo JSON, enmascarados por defecto y con su sha256 impreso. |
+| [019](019-perfil-de-licencias.md) | F9 | `LICENSE_PROFILE=comercial` excluye las fuentes NC o sin licencia y usa AdGuard companiesdb; pérdida de cobertura medida. |
+| [020](020-endurecimiento-y-operacion.md) | F9 | Secretos envueltos y rotables, cascada y retención de datos, imágenes parcheadas y desviaciones de la fase final. |
+| [021](021-experiencia-de-usuario.md) | F10 | Frases técnicas por plantilla que respetan el nivel, «Hallazgos por grupo» en 7 grupos, progreso real, borrado del historial, filtro de constantes compartidas y temas visuales con fuentes locales. |
+| [022](022-mi-exposicion-como-panel.md) | F10.1 | «Mi exposición» como panel: tarjetas de resumen, nivel de identificabilidad cualitativo en YAML, acceso local (Docker/loopback) y nombres que se conservan por compatibilidad. |
+| [023](023-claridad-y-precision.md) | v1.2 | Menú por tarea, Panel sobre el scan más reciente de cada sitio, URL de entrada limpia, IDs de cuenta del sitio fuera de los cruces de identificadores, conclusión de una línea, modo compacto, origen del texto suelto y logo. |
+| [024](024-terceros-por-organizacion-y-representatividad.md) | v1.2.1 | Terceros por organización (propio / misma organización / tercero), fuga al mismo dueño como dato informativo, alerta de visita posiblemente bloqueada, lista de parámetros de seguimiento en `data/`, giro del servicio y conclusión de consentimiento por plantilla. |
+| [025](025-importar-exportar-y-comparar-har.md) | v1.3 | Terceros del resumen por organización (`request_analysis.party`), importar HAR depurado (mismo analizador, sin fingerprinting instrumentado), exportar HAR sin cookies, comparar scan vs HAR, fuga de búsqueda y ola de sincronización. |
+| [026](026-antibot-200-e-indice-parcial-del-har.md) | v1.3.1 | Antibot que responde 200 (firmas en documentos/frames, anomalía de rastreo), índice parcial del HAR fuera del ranking |
+| [027](027-tema-unidad-purpura.md) | v1.3.2 | Tema oscuro «Unidad Púrpura» en lugar del tema Cómic: paleta, tipografías OFL locales, migración de la preferencia guardada |
+| [028](028-telemetria-propia.md) | v1.3.4 | Telemetría propia (eventos al propio sitio o a la misma organización): conteo aparte, componente del índice y nota en vez de marca de bloqueo |
+| [029](029-captura-interactiva-e-indicador-de-recursos.md) | v1.4 | Captura interactiva (Xvfb + x11vnc en la red interna, relé WebSocket en la api, noVNC solo en loopback, mismos proxy e instrumentación, límites y riesgos) e indicador de recursos por cgroup v2 sin docker.sock, con su consumo medido. |
+| [030](030-registro-de-interaccion-agrupacion-y-acentos.md) | v1.4.2 | Registro de interacción (escucha, payloads y correlación con la interacción del usuario), ocho grupos, hallazgos agrupados, catálogo ampliado, Conversions API en hosts de nube, librerías benignas, scripts inline, HAR por página, pruebas sin residuos, acentos por modo y consola de recursos. |

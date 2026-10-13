@@ -1,0 +1,48 @@
+# Valores que NO cuentan como "mismo valor enviado a varias organizaciones" (F10, docs/adr/021).
+#
+# Un identificador sirve para reconocer a UN visitante. Una versión de software, un trozo del
+# User-Agent o una clave de configuración del sitio viajan igual para la mayoría de las
+# personas: que dos empresas los reciban no les permite reconocer a nadie como "la misma
+# persona". El analizador los descarta del cruce entre organizaciones y deja constancia de
+# cuántos descartó y por qué (site.summary.shared_values_excluded).
+#
+# Todo es INFERENCIA sobre la FORMA o el origen del valor. Límite conocido: en una sola
+# visita no se puede saber qué valores comparten "la mayoría de los usuarios"; eso solo se
+# mide comparando visitas limpias (Privacy Test).
+version: 1
+
+# Formas de versión de software: "153.0.8010.12", "v4.2.1", "5.10.0-beta.2", "2026.10.01".
+version_patterns:
+  - '^v?\d{1,5}(\.\d{1,6}){2,4}([-+._][0-9A-Za-z.]{1,24})?$'
+  - '^\d{1,4}(\.\d{1,6}){1,4}[-_ ][A-Za-z]{1,12}(\.\d{1,6})*$'
+
+# Cabeceras cuyo contenido es común a todos los usuarios de un mismo navegador. Un valor
+# compartido que aparece dentro de ellas (o que las contiene enteras) es un dato del
+# navegador, no un identificador.
+environment_headers: [user-agent, sec-ch-ua, sec-ch-ua-full-version-list, sec-ch-ua-platform,
+                      sec-ch-ua-platform-version, sec-ch-ua-arch, sec-ch-ua-model, accept-language, accept]
+# Largo mínimo del valor para buscarlo dentro de esas cabeceras (evita coincidencias casuales).
+environment_min_chars: 12
+
+# APIs instrumentadas cuyo valor leído es un atributo común del navegador o del equipo.
+# No se incluyen canvas, audio ni WebGL: su contenido sí distingue equipos.
+environment_apis:
+  - navigator.userAgent
+  - navigator.platform
+  - navigator.languages
+  - navigator.userAgentData.getHighEntropyValues
+  - intl.timeZone
+
+# Claves de configuración del sitio o del proveedor: iguales para todo visitante.
+# Cada patrón se evalúa contra el valor completo.
+constant_patterns:
+  - {id: google_tag_id, pattern: '^(G|GTM|AW|UA|DC|GT)-[A-Z0-9][A-Z0-9-]{3,24}$', description: "ID de medición o de contenedor de Google (identifica al sitio, no al visitante)"}
+  - {id: ad_sizes, pattern: '^\d{2,4}x\d{2,4}([|,;]\d{2,4}x\d{2,4})*$', description: "tamaños de anuncios"}
+  - {id: hostname, pattern: '^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}(/[^\s]*)?$', description: "nombre de dominio o ruta"}
+  - {id: gpt_build, pattern: '^gpt_m\d{8,14}$', description: "versión de la librería de anuncios de Google"}
+
+# Parámetros cuyo valor es, por documentación del proveedor, una constante del sitio o de
+# la librería (no del visitante). Nombre exacto, en minúsculas.
+#   gtm           versión del contenedor de Google Tag Manager
+#   prev_iu_szs   tamaños de anuncios ya pedidos (Google Publisher Tag)
+constant_params: [gtm, sdkv, sdk_version, lib_version, prev_iu_szs, iu_sizes]

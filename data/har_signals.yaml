@@ -1,0 +1,47 @@
+# Señales añadidas en v1.3 (docs/adr/025). Valen igual para scans y para capturas HAR importadas.
+version: 1
+
+# --- Fuga de búsqueda ---
+# Un término de búsqueda es texto que el usuario escribió o que el sitio le propuso en el
+# buscador. Se informa cuando viaja a un host distinto del de la página (EVIDENCIA: el texto está
+# en la request). No se afirma quién lo escribió.
+search:
+  # Nombres de parámetro de búsqueda (se compara el último tramo del nombre, sin mayúsculas).
+  names: [q, query, keywords, search, k]
+  min_chars: 3
+  max_chars: 150
+  # Valores que no son un término aunque el parámetro se llame así.
+  ignored_values: ["true", "false", "null", "undefined", "none"]
+  # Telemetría de búsqueda con otro nombre: si en el mismo grupo de parámetros hay un marcador
+  # (parámetro `marker` con valor `equals`), el valor de `term` es el término.
+  contextual:
+    # Alibaba/AliExpress (aplus): exposición de la caja de búsqueda con el texto mostrado.
+    - marker: exp_type
+      equals: search_door
+      term: exp_page_area
+
+# --- Ola de sincronización ---
+# Ráfaga de requests de sincronización de cookies/IDs hacia varias organizaciones en pocos
+# segundos (un socio publicitario avisa a los demás quién es el visitante).
+sync_wave:
+  # Subcadenas del host o de la ruta (sync, csync, usersync, cookiematch, cookiematching…).
+  patterns: [sync, cookiematch, usermatch]
+  window_s: 3          # separación máxima entre requests consecutivas de la misma ola
+  min_requests: 4
+  min_organizations: 3
+
+# --- Comparación scan vs HAR importado ---
+# Conclusión de una línea por plantilla. Variables: solo_har, solo_scan, comunes (organizaciones
+# de terceros), n y k (requests y organizaciones de la ola), iniciador, bloqueadas.
+comparison:
+  conclusions:
+    only_har: "El navegador real recibió una ola de sincronización ({n} requests a {k} organizaciones, iniciada por {iniciador}) que el scan automatizado no observó; {solo_har} organizaciones aparecen solo en el HAR y {solo_scan} solo en el scan."
+    only_scan: "El scan automatizado observó una ola de sincronización ({n} requests a {k} organizaciones, iniciada por {iniciador}) que no está en el HAR; {solo_har} organizaciones aparecen solo en el HAR y {solo_scan} solo en el scan."
+    both: "Ambas capturas muestran una ola de sincronización (en el HAR: {n} requests a {k} organizaciones, iniciada por {iniciador}); {solo_har} organizaciones aparecen solo en el HAR y {solo_scan} solo en el scan."
+    none: "Ninguna de las dos capturas muestra una ola de sincronización; {solo_har} organizaciones aparecen solo en el HAR y {solo_scan} solo en el scan."
+    unknown: "No se pudo comparar la ola de sincronización (una de las capturas no tiene esa medición: reanalícela); {solo_har} organizaciones aparecen solo en el HAR y {solo_scan} solo en el scan."
+  blocked_suffix: "Una extensión del navegador bloqueó {bloqueadas} requests en el HAR."
+  tracking_suffix: "Requests de rastreo: {rastreo_har} en el HAR y {rastreo_scan} en el scan."
+  scan_blocked_suffix: "El scan está marcado como visita posiblemente bloqueada: su tráfico puede no ser representativo."
+  index_note: "El índice de exposición no se compara: el del HAR es un índice parcial (sin cookies ni fingerprinting)."
+  note: "Son dos visitas distintas, en momentos y navegadores distintos: la diferencia se observó, pero su causa (sesión iniciada, cookies previas, extensión, detección del navegador automatizado) no queda demostrada."

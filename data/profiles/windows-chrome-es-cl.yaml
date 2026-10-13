@@ -1,0 +1,25 @@
+# Perfil de emulación (F7). Solo motores Chromium: {major} se sustituye por la versión real del
+# navegador del worker, para que User-Agent y Client Hints sean coherentes con el motor.
+# La IP NO forma parte de un perfil: no cambia.
+name: windows-chrome-es-cl
+label: "Windows 11 · Chrome · es-CL"
+coherent: true
+user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{major}.0.0.0 Safari/537.36"
+platform: "Win32"
+ua_platform: "Windows"
+ua_platform_version: "15.0.0"
+architecture: "x86"
+bitness: "64"
+model: ""
+mobile: false
+locale: "es-CL"
+timezone: "America/Santiago"
+viewport: [1366, 768]
+screen: [1366, 768]
+device_scale_factor: 1
+has_touch: false
+max_touch_points: 0
+hardware_concurrency: 8
+device_memory: 8
+webgl_vendor: "Google Inc. (Intel)"
+webgl_renderer: "ANGLE (Intel, Intel(R) UHD Graphics 620 (0x00003EA0) Direct3D11 vs_5_0 ps_5_0, D3D11)"

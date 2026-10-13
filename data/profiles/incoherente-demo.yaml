@@ -1,0 +1,26 @@
+# Perfil de emulación (F7). Solo motores Chromium: {major} se sustituye por la versión real del
+# navegador del worker, para que User-Agent y Client Hints sean coherentes con el motor.
+# La IP NO forma parte de un perfil: no cambia.
+# Deliberadamente INCOHERENTE: sirve para mostrar que una mezcla de atributos imposible se detecta.
+name: incoherente-demo
+label: "INCOHERENTE (demo): UA Windows, plataforma Mac, GPU Linux, zona Santiago, idioma en-US"
+coherent: false
+user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{major}.0.0.0 Safari/537.36"
+platform: "MacIntel"
+ua_platform: "Windows"
+ua_platform_version: "15.0.0"
+architecture: "x86"
+bitness: "64"
+model: ""
+mobile: false
+locale: "en-US"
+timezone: "America/Santiago"
+viewport: [1366, 768]
+screen: [1366, 768]
+device_scale_factor: 1
+has_touch: false
+max_touch_points: 0
+hardware_concurrency: 8
+device_memory: 8
+webgl_vendor: "Mesa/X.org"
+webgl_renderer: "llvmpipe (LLVM 15.0.7, 256 bits)"

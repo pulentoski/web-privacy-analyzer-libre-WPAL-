@@ -1,0 +1,47 @@
+# Parámetros de seguimiento en la URL de entrada (v1.2.1).
+#
+# Una URL copiada de un anuncio, un correo o una red social suele traer identificadores de
+# clic y etiquetas de campaña. Por defecto se quitan antes de escanear (ver api/app/url_cleaning.py
+# y docs/SPEC.md §"URL de entrada"). Un nombre está aquí porque su único propósito conocido es el
+# seguimiento: quitarlo no cambia la página, solo evita reenviar la etiqueta a los proveedores.
+#
+# `exact`: nombre completo (sin distinguir mayúsculas). `prefixes`: cualquier nombre que empiece así.
+exact:
+  # --- identificadores de clic de plataformas publicitarias ---
+  - gclid            # Google Ads
+  - gclsrc           # Google Ads
+  - gbraid           # Google Ads (iOS)
+  - wbraid           # Google Ads (web-to-app)
+  - dclid            # Google Display/Campaign Manager
+  - gad_source       # Google Ads (origen del clic)
+  - gad_campaignid   # Google Ads (id de campaña)
+  - fbclid           # Meta (Facebook/Instagram)
+  - msclkid          # Microsoft Ads
+  - ttclid           # TikTok Ads
+  - yclid            # Yandex
+  - rb_clickid       # Rebrandly / redirecciones de clic
+  # --- etiquetas de sesión/correo/producto ---
+  - _gl              # Google cross-domain linker
+  - mc_eid           # Mailchimp (id de destinatario)
+  - srsltid          # Google Merchant (Shopping)
+  - spm              # Alibaba/AliExpress (posición del enlace)
+  - scm              # Alibaba/AliExpress (contexto de recomendación)
+  - algo_pvid        # Alibaba/AliExpress (id de la vista del algoritmo de recomendación)
+  - algo_exp_id      # Alibaba/AliExpress (id del experimento de recomendación)
+  - pdp_npi          # Alibaba/AliExpress (contexto de la ficha de producto)
+  - pdp_ext_f        # Alibaba/AliExpress (datos extra de la ficha: precio/orden mostrados)
+  - utparam          # Alibaba/AliExpress (parámetros de seguimiento UT)
+  - gatewayadapt     # Alibaba/AliExpress (gatewayAdapt: redirección regional)
+  - igshid           # Instagram (id de sesión de compartido)
+  - si               # id de sesión de compartido (YouTube, Spotify y otros)
+  - _hsenc           # HubSpot (correo, cifrado)
+  - _hsmi            # HubSpot (id de correo)
+  - mkt_tok          # Marketo / Adobe (token de correo)
+  - oly_anon_id      # Omeda (id anónimo)
+  - oly_enc_id       # Omeda (id cifrado)
+  - s_cid            # Adobe Campaign (id de campaña)
+  - vero_id          # Vero (correo del destinatario)
+  - wickedid         # WickedReports (id de clic)
+  - ref_src          # Twitter/X (origen del referido)
+prefixes:
+  - utm_             # etiquetas UTM de campaña (utm_source, utm_medium, ...)

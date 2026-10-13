@@ -1,0 +1,134 @@
+# Pesos del scoring. Nada de esto está en el código: cambiar aquí y re-analizar
+# (POST /api/scans/{id}/reanalyze). Fórmulas documentadas en docs/SPEC.md §Scores.
+version: 1
+
+bands:            # límite superior inclusivo de cada banda
+  - {name: Bajo, max: 20}
+  - {name: Posible, max: 40}
+  - {name: Moderado, max: 60}
+  - {name: Alto, max: 80}
+  - {name: Muy alto, max: 100}
+tracker_min_band: Moderado   # /trackers y "tracker" en el reporte: banda >= esta
+
+# tracking_score de una request = suma de las señales presentes, acotada a 0..100.
+# level: nivel de evidencia de la razón que se muestra.
+signals:
+  # --- listas (si coinciden varias, solo cuenta la de mayor peso) ---
+  list_easyprivacy:        {weight: 40, level: EVIDENCIA}
+  list_easylist:           {weight: 35, level: EVIDENCIA}
+  list_test-fixtures:      {weight: 40, level: EVIDENCIA}
+  # --- contexto ---
+  third_party:             {weight: 5,  level: EVIDENCIA}    # por sí solo NO hace tracker
+  # --- datos observados ---
+  id_sync:                 {weight: 25, level: EVIDENCIA}    # mismo valor enviado a varios dominios
+  persistent_id:           {weight: 20, level: EVIDENCIA}    # valor == cookie o storage (solo third-party)
+  url_leak:                {weight: 20, level: EVIDENCIA}    # valor contiene la URL de la página (solo third-party)
+  third_party_set_cookie:  {weight: 10, level: EVIDENCIA}
+  referer_full_url:        {weight: 10, level: EVIDENCIA}    # Referer con ruta/query hacia un tercero
+  fp_exfiltration:         {weight: 30, level: EVIDENCIA}    # la request lleva un valor leído por una API instrumentada
+  # --- inferencias ---
+  fp_script:               {weight: 20, level: INFERENCIA}   # el recurso es un script con patrón de fingerprinting
+  fp_script_initiator:     {weight: 15, level: INFERENCIA}   # la request la inició un script así
+  identifier_param:        {weight: 15, level: INFERENCIA}   # nombre de identificador + valor con forma de id
+  session_token_third_party: {weight: 15, level: INFERENCIA} # token de sesión o JWT hacia un tercero
+  mechanism_pixel:         {weight: 10, level: INFERENCIA}
+  mechanism_beacon:        {weight: 10, level: INFERENCIA}
+  encoded_payload_third_party: {weight: 5, level: INFERENCIA} # cuerpo codificado hacia un tercero
+  # --- señales negativas (restan) ---
+  first_party_static:      {weight: -20, level: EVIDENCIA}   # asset estático first-party sin parámetros
+  third_party_static_clean: {weight: -10, level: EVIDENCIA}  # CSS/fuente/imagen/script de terceros sin
+                                                             # parámetros, cookies ni cuerpo, y sin lista
+
+# site_exposure_score = floor(Σ componentes), con
+#   componente = cap · (1 − e^(−n / k))
+# Cada componente tiende a su tope sin alcanzarlo; los topes suman 100, así que el
+# score nunca llega a 100 (no satura). k = cuántos ítems hacen falta para ~63 % del tope.
+site_exposure:
+  tracker_domains:          {cap: 26, k: 8}    # dominios registrables de terceros con >=1 request tracker (30 hasta v1.3.3)
+  id_sync:                  {cap: 15, k: 3}    # valores enviados a dominios de varias organizaciones
+  url_leak_recipients:      {cap: 12, k: 4}    # terceros que recibieron la URL de la página (parámetro o Referer)
+  persistent_id_recipients: {cap: 13, k: 4}    # terceros que recibieron un valor igual a cookie/storage
+  third_party_domains:      {cap: 5,  k: 15}   # amplitud: dominios de terceros contactados
+  stored_items:             {cap: 5,  k: 10}   # cookies + ítems de storage que deja el sitio
+  fp_scripts:               {cap: 10, k: 2}    # scripts con patrón compatible con fingerprinting
+  fp_exfiltration:          {cap: 10, k: 2}    # APIs cuyos valores leídos aparecen en requests
+  first_party_telemetry:    {cap: 4,  k: 6}    # v1.3.4: endpoints de eventos propios + scripts de analítica propia
+
+# Señales de que el sitio detectó el navegador automatizado y la visita pudo no ser
+# representativa (v1.2.1). Si hay al menos una, el scan se marca y se excluye del ranking del Panel.
+blocking:
+  min_requests: 20          # una visita real a una página carga normalmente muchas más requests
+  bad_statuses: [403, 429, 503]   # prohibido / demasiadas peticiones / no disponible
+  # Textos de verificación antibot en el título o el contenido (minúsculas, sin acentos).
+  title_keywords:
+    - robot
+    - captcha
+    - recaptcha
+    - hcaptcha
+    - unusual traffic
+    - verify you are human
+    - verifying you are human
+    - are you a human
+    - checking your browser
+    - just a moment          # pantalla de desafío de Cloudflare
+    - attention required     # bloqueo de Cloudflare
+    - access denied
+    - acceso denegado
+    - pardon our interruption
+    - press and hold
+    - enable javascript and cookies
+  # v1.3.1 — Pantallas antibot que responden 200 (sin título ni estado de error).
+  # Firmas buscadas SOLO en la URL de documentos (navegación, iframes) y de frames: los SDK de
+  # seguridad se cargan también en visitas normales como scripts (p. ej. o.alicdn.com/baxia/…),
+  # así que un script con la firma no cuenta.
+  challenge_url_signatures:
+    - punish                 # Alibaba/AliExpress: página de castigo
+    - _____tmd_____          # Alibaba: desvío al desafío
+    - x5sec                  # Alibaba: token del desafío (x5secdata)
+    - baxia                  # Alibaba: SDK de seguridad, cuando es el documento
+    - captcha
+    - challenge-platform     # Cloudflare
+    - cf-chl                 # Cloudflare
+    - px-captcha             # PerimeterX / HUMAN
+    - datadome
+    - captcha-delivery       # DataDome
+  # Widgets de captcha que los sitios incrustan en formularios normales (login, contacto): su
+  # iframe no indica por sí solo que la visita fue desafiada.
+  challenge_url_ignore:
+    - google.com/recaptcha/
+    - recaptcha.net/recaptcha/
+    - hcaptcha.com/
+    - challenges.cloudflare.com/turnstile/
+  # v1.3.2 — Firma + rastreo normal = «bloqueo parcial» (un componente mostró la verificación):
+  # aviso informativo, no excluye del ranking. Por debajo de estos umbrales, o si la firma está en
+  # la dirección de la propia página, o si hay otra señal, sigue siendo «posiblemente bloqueada».
+  challenge_partial:
+    min_trackers: 10          # requests de rastreo mínimas para considerar que la página cargó
+    min_tracker_ratio: 0.05   # y al menos el 5 % del total
+  # Anomalía: muy pocas requests de rastreo para el total de requests.
+  tracker_anomaly:
+    # Con historial: scans anteriores del mismo sitio no marcados (incluye HAR importados).
+    history:
+      max_scans: 5                 # cuántos scans anteriores se miran (los más recientes)
+      min_requests: 30             # total mínimo del scan actual para comparar
+      min_baseline_trackers: 10    # mediana mínima de requests de rastreo en el historial
+      max_fraction_of_expected: 0.25   # se marca si rastreo < 25 % de lo esperado para el total
+    # Sin historial: umbral conservador. Un sitio con 0 requests de rastreo nunca se marca
+    # (p. ej. wikipedia): solo páginas grandes con rastreo presente pero casi nulo.
+    no_history:
+      min_requests: 100
+      min_trackers: 1
+      max_tracker_ratio: 0.015
+
+# Umbrales de las heurísticas de fingerprinting (criterios de OpenWPM).
+fingerprinting:
+  canvas_min_size: 16     # lado mínimo del canvas y del área leída
+  font_threshold: 50      # fuentes distintas medidas con measureText
+  sweep_threshold: 8      # propiedades distintas de navigator/screen leídas por un mismo script
+  min_value_chars: 10     # largo mínimo de un valor leído para buscarlo en las requests
+
+# Categoría por defecto de una request que coincide con una lista (INFERENCIA).
+list_categories:
+  easylist: advertising
+  easyprivacy: analytics
+  test-fixtures: analytics

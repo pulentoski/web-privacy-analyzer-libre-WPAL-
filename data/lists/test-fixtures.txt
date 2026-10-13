@@ -1,0 +1,6 @@
+[Adblock Plus 2.0]
+! Title: Fixtures de test (propia del proyecto)
+! Se carga SOLO con ALLOW_FIXTURES=1. Reglas para el sitio de fixtures de F2/F3.
+! cdn-b no tiene reglas a propósito: sus assets deben quedar en banda Bajo y su
+! pixel de sincronización debe detectarse solo por evidencia, sin ayuda de listas.
+||tracker-a.fixtures.test^$third-party

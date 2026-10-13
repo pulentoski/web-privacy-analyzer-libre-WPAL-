@@ -1,0 +1,17 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Fixture banner desconocido</title><link rel="icon" href="data:,"></head>
+<body>
+  <h1>Banner propio, no reconocido</h1>
+  <!-- Ningún selector conocido: el analizador NO debe adivinar qué botón pulsar. -->
+  <div id="aviso-cookies-propio" role="dialog">
+    Este sitio usa cookies.
+    <button id="btn-ok">Aceptar</button> <button id="btn-no">Rechazar</button>
+  </div>
+  <script>
+    document.getElementById('btn-ok').addEventListener('click', function () { new Image().src = 'http://tracker-a.fixtures.test/cmp/clicked-unknown.gif?uid=c0a1b2c3d4e5f607'; });
+    document.getElementById('btn-no').addEventListener('click', function () { new Image().src = 'http://tracker-a.fixtures.test/cmp/clicked-unknown.gif?uid=c0a1b2c3d4e5f607'; });
+    new Image().src = 'http://tracker-a.fixtures.test/cmp/pre.gif?uid=c0a1b2c3d4e5f60718293a4b5c6d7e8f&d=none';
+  </script>
+</body>
+</html>

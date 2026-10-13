@@ -1,0 +1,33 @@
+# Plataformas de consentimiento (CMP) reconocidas y los botones que se pulsan en cada escenario.
+# Regla: solo se hace clic en un selector listado aquí. Si el banner no se reconoce, o el CMP
+# no tiene un botón conocido para el escenario (reject: null), el escenario queda
+# "no_aplicable" con su evidencia. Nunca se adivina un botón por su texto.
+wait_ms: 5000            # cuánto se espera a que aparezca un banner tras la carga
+settle_ms: 1500          # espera tras el clic antes de leer el estado
+cmps:
+  - id: onetrust
+    name: OneTrust
+    banner: "#onetrust-banner-sdk"
+    accept: "#onetrust-accept-btn-handler"
+    reject: "#onetrust-reject-all-handler"
+    cookies: [OptanonConsent, OptanonAlertBoxClosed]
+  - id: didomi
+    name: Didomi
+    banner: "#didomi-notice"
+    accept: "#didomi-notice-agree-button"
+    reject: "#didomi-notice-disagree-button"
+    cookies: [didomi_token, euconsent-v2]
+  - id: cookiebot
+    name: Cookiebot
+    banner: "#CybotCookiebotDialog"
+    accept: "#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll"
+    reject: "#CybotCookiebotDialogBodyButtonDecline"
+    cookies: [CookieConsent]
+  - id: quantcast
+    name: Quantcast Choice
+    banner: ".qc-cmp2-container"
+    accept: '.qc-cmp2-summary-buttons button[mode="primary"]'
+    # El botón secundario es "rechazar" o "más opciones" según la configuración del sitio:
+    # no se puede saber sin leer su texto, así que no se pulsa.
+    reject: null
+    cookies: [euconsent-v2]

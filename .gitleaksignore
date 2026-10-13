@@ -1,0 +1,16 @@
+# Falsos positivos de gitleaks, revisados uno a uno el 2026-10-07 (docs/SECURITY-SCAN.md).
+# Ninguno es un secreto: son datos de prueba o hashes de commits. Formato: huella de gitleaks.
+# identificador ficticio de un test de enmascarado
+4460bf920ccc4832d11a95e549ffb1bfea48cd14:api/tests/test_reports_api.py:generic-api-key:24
+# hash de commit de git citado en un comentario de EasyList
+a7c8577d2f06607e9cda4f878c5d36d4fb6f6e41:data/lists/easylist.txt:sourcegraph-access-token:6
+# hash de commit de git citado en un comentario de EasyList
+a7c8577d2f06607e9cda4f878c5d36d4fb6f6e41:data/lists/easylist.txt:sourcegraph-access-token:831
+# hash de commit de git citado en un comentario de EasyList
+a7c8577d2f06607e9cda4f878c5d36d4fb6f6e41:data/lists/easylist.txt:sourcegraph-access-token:14616
+# JWT de prueba del sitio de fixtures (firma no válida)
+9ff71f32ebdcca922427d2e8cb33554643ad37bb:fixtures/static/manifest.json:jwt:34
+# JWT de prueba del sitio de fixtures (firma no válida)
+a7c8577d2f06607e9cda4f878c5d36d4fb6f6e41:fixtures/static/manifest.json:jwt:34
+# JWT de prueba del sitio de fixtures (firma no válida)
+a7c8577d2f06607e9cda4f878c5d36d4fb6f6e41:fixtures/static/tracker.js:jwt:20

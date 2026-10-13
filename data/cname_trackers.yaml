@@ -1,0 +1,31 @@
+# Destinos de CNAME que delatan "CNAME cloaking": un subdominio del propio sitio que en
+# realidad apunta a la infraestructura de un tercero de medición o publicidad.
+# Lista propia, corta y ampliable: dominio registrable del destino -> organización.
+# Es INFERENCIA que haya tracking; lo observado (EVIDENCIA) es la cadena CNAME.
+targets:
+  omtrdc.net: Adobe (Analytics)
+  2o7.net: Adobe (Analytics)
+  adobedc.net: Adobe (Experience Platform)
+  demdex.net: Adobe (Audience Manager)
+  eulerian.net: Eulerian
+  at-o.net: AT Internet (Piano)
+  xiti.com: AT Internet (Piano)
+  keyade.com: Keyade
+  dnsdelegation.io: Criteo
+  storetail.io: Criteo
+  tagcommander.com: Commanders Act
+  wizaly.com: Wizaly
+  affex.org: Ingenious Technologies
+  intentmedia.net: Intent
+  oghub.io: OpenGraph (TraceDock)
+  webtrekk.net: Mapp (Webtrekk)
+  wt-eu02.net: Mapp (Webtrekk)
+  pardot.com: Salesforce (Pardot)
+  eloqua.com: Oracle (Eloqua)
+  hs-analytics.net: HubSpot
+# Solo con ALLOW_FIXTURES=1.
+test_targets:
+  tracker-a.fixtures.test: Tracker A (fixture)
+# Solo con ALLOW_FIXTURES=1: DNS simulado del sitio de fixtures (no existe en DNS real).
+test_dns:
+  metrics.site.fixtures.test: [tracker-a.fixtures.test]

@@ -1,0 +1,46 @@
+# Reglas del detector de inconsistencias (F7). Se evalúan sobre lo que ve un script dentro de
+# la página y sobre lo que ve el servidor en las cabeceras.
+# Cada fuente se traduce a un sistema operativo; si dos fuentes dan sistemas distintos, hay
+# inconsistencia. "software" (render por CPU) no delata ningún sistema y se ignora.
+os_from:
+  user_agent:            # primera coincidencia gana
+    - {contains: "Windows NT", os: windows}
+    - {contains: "Android", os: android}
+    - {contains: "Mac OS X", os: macos}
+    - {contains: "CrOS", os: chromeos}
+    - {contains: "Linux", os: linux}
+  platform:
+    - {prefix: "Win", os: windows}
+    - {prefix: "Mac", os: macos}
+    - {prefix: "Linux arm", os: android}
+    - {prefix: "Linux aarch", os: android}
+    - {prefix: "Linux", os: linux}
+  ua_ch_platform: {Windows: windows, macOS: macos, Android: android, Linux: linux, "Chrome OS": chromeos, "Chromium OS": chromeos}
+  webgl_renderer:
+    - {contains: "SwiftShader", os: software}
+    - {contains: "Direct3D", os: windows}
+    - {contains: "D3D11", os: windows}
+    - {contains: "Apple", os: macos}
+    - {contains: "Metal", os: macos}
+    - {contains: "Adreno", os: android}
+    - {contains: "Mali", os: android}
+    - {contains: "PowerVR", os: android}
+    - {contains: "llvmpipe", os: linux}
+    - {contains: "Mesa", os: linux}
+# País esperado de una zona horaria (lista corta, ampliable). Sin entrada no se evalúa.
+timezone_country:
+  America/Santiago: CL
+  America/Punta_Arenas: CL
+  Pacific/Easter: CL
+  America/Argentina/Buenos_Aires: AR
+  America/Lima: PE
+  America/Bogota: CO
+  America/Mexico_City: MX
+  America/Sao_Paulo: BR
+  Europe/Madrid: ES
+  America/New_York: US
+  America/Chicago: US
+  America/Los_Angeles: US
+  Europe/London: GB
+mobile_max_screen_width: 1000     # un "móvil" con pantalla más ancha es sospechoso
+inference: "Combinación poco común o detectable: un sitio puede usarla para distinguir este navegador o para sospechar que los datos están alterados."

@@ -1,0 +1,21 @@
+# Categoría por dominio registrable. Lista propia, corta y ampliable: solo
+# servicios muy conocidos. Tiene prioridad sobre la categoría por lista de filtros.
+# Produce INFERENCIA (que un dominio sea "de analítica" no dice qué hizo esta request).
+analytics:
+  [google-analytics.com, googletagmanager.com, hotjar.com, mixpanel.com, segment.com, segment.io,
+   amplitude.com, chartbeat.com, chartbeat.net, scorecardresearch.com, matomo.cloud, clarity.ms,
+   newrelic.com, nr-data.net, quantserve.com, comscore.com, parsely.com, parse.ly, yandex.ru]
+advertising:
+  [doubleclick.net, googlesyndication.com, googleadservices.com, adnxs.com, criteo.com, criteo.net,
+   taboola.com, outbrain.com, rubiconproject.com, pubmatic.com, openx.net, amazon-adsystem.com,
+   adsrvr.org, casalemedia.com, smartadserver.com, teads.tv, bidswitch.net, 3lift.com, adform.net,
+   moatads.com, 2mdn.net, mgid.com]
+social:
+  [facebook.com, facebook.net, fbcdn.net, twitter.com, x.com, twimg.com, linkedin.com, licdn.com,
+   instagram.com, tiktok.com, pinterest.com, addthis.com, sharethis.com, disqus.com]
+fingerprinting:
+  [fingerprint.com, fpjs.io, fpjs.pro, threatmetrix.com, online-metrix.net, iovation.com, iesnare.com]
+session:
+  [fullstory.com, logrocket.com, mouseflow.com, smartlook.com, inspectlet.com, luckyorange.com]
+telemetry:
+  [sentry.io, bugsnag.com, rollbar.com, datadoghq.com, datadoghq-browser-agent.com]

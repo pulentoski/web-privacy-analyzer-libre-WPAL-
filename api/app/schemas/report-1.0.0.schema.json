@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://web-privacy-analyzer.local/schemas/report-1.0.0.schema.json",
+  "title": "Reporte de análisis de un scan",
+  "description": "Versión 1.0.0. Cambios incompatibles => nueva versión mayor y nuevo archivo; el campo schema_version del reporte dice contra cuál se validó.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "generated_at", "scan", "analysis", "site", "capture", "trackers", "findings", "limitations"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "scan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["job_id", "url", "final_url", "status", "http_status", "title", "started_at", "finished_at"],
+      "properties": {
+        "job_id": {"type": "string", "format": "uuid"},
+        "url": {"type": "string"},
+        "final_url": {"type": "string", "description": "\"no_disponible\" si la navegación falló"},
+        "status": {"enum": ["completed", "failed"]},
+        "http_status": {"type": ["integer", "null"]},
+        "title": {"type": ["string", "null"]},
+        "started_at": {"type": ["string", "null"]},
+        "finished_at": {"type": ["string", "null"]}
+      }
+    },
+    "analysis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["analyzer_version", "lists_version", "lists", "analyzed_at", "partial", "duration_ms"],
+      "properties": {
+        "analyzer_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+        "lists_version": {"type": "string"},
+        "lists": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "noncommercial"],
+            "properties": {
+              "id": {"type": "string"},
+              "version": {"type": ["string", "null"]},
+              "retrieved_at": {"type": ["string", "null"]},
+              "sha256": {"type": ["string", "null"]},
+              "license": {"type": ["string", "null"]},
+              "noncommercial": {"type": "boolean"}
+            }
+          }
+        },
+        "analyzed_at": {"type": "string"},
+        "partial": {"type": "boolean"},
+        "duration_ms": {"type": "integer", "minimum": 0}
+      }
+    },
+    "site": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["exposure_score", "band", "breakdown", "data_categories", "mechanisms", "summary"],
+      "properties": {
+        "exposure_score": {"$ref": "#/$defs/score"},
+        "band": {"$ref": "#/$defs/band"},
+        "breakdown": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["component", "count", "per_item", "cap", "points"],
+            "properties": {
+              "component": {"type": "string"},
+              "count": {"type": "integer", "minimum": 0},
+              "per_item": {"type": "integer"},
+              "cap": {"type": "integer"},
+              "points": {"type": "integer", "minimum": 0}
+            }
+          }
+        },
+        "data_categories": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["category", "status", "item", "evidence_refs"],
+            "properties": {
+              "category": {"enum": ["DEVICE", "IDENTIFIERS", "BEHAVIOR", "NETWORK", "LOCATION", "ADVERTISING", "SESSION"]},
+              "status": {"enum": ["observado", "inferido", "potencial"]},
+              "item": {"type": "string"},
+              "evidence_refs": {"$ref": "#/$defs/evidence_refs"}
+            }
+          }
+        },
+        "mechanisms": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+        "summary": {"type": "object"}
+      }
+    },
+    "capture": {
+      "type": "object",
+      "required": ["total_requests", "first_party", "third_party", "blocked", "capture_truncated"],
+      "properties": {
+        "total_requests": {"type": "integer", "minimum": 0},
+        "first_party": {"type": "integer", "minimum": 0},
+        "third_party": {"type": "integer", "minimum": 0},
+        "blocked": {"type": "integer", "minimum": 0},
+        "capture_truncated": {"type": ["boolean", "null"]}
+      }
+    },
+    "trackers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["entity", "domains", "request_count", "max_score", "max_band", "categories", "requests"],
+        "properties": {
+          "entity": {"type": "string", "description": "\"no_disponible\" si el dominio no está en el mapa de entidades"},
+          "domains": {"type": "array", "items": {"type": "string"}},
+          "request_count": {"type": "integer", "minimum": 1},
+          "max_score": {"$ref": "#/$defs/score"},
+          "max_band": {"$ref": "#/$defs/band"},
+          "categories": {"type": "array", "items": {"type": "string"}},
+          "requests": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["request_id", "url", "score", "band", "category", "mechanism", "reasons"],
+              "properties": {
+                "request_id": {"type": "integer"},
+                "url": {"type": ["string", "null"]},
+                "score": {"$ref": "#/$defs/score"},
+                "band": {"$ref": "#/$defs/band"},
+                "category": {"type": "string"},
+                "mechanism": {"type": "string"},
+                "reasons": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "required": ["signal", "weight", "level", "evidence_ref"],
+                    "properties": {
+                      "signal": {"type": "string"},
+                      "weight": {"type": "integer"},
+                      "level": {"$ref": "#/$defs/level"},
+                      "evidence_ref": {"type": "integer"},
+                      "detail": {"type": "string"}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "claim", "level", "evidence_refs"],
+        "properties": {
+          "type": {"type": "string"},
+          "claim": {"type": "string", "minLength": 1},
+          "level": {"$ref": "#/$defs/level"},
+          "evidence_refs": {"$ref": "#/$defs/evidence_refs"},
+          "details": {"type": "object"}
+        }
+      }
+    },
+    "limitations": {"type": "array", "minItems": 1, "items": {"type": "string"}}
+  },
+  "$defs": {
+    "score": {"type": "integer", "minimum": 0, "maximum": 100},
+    "band": {"enum": ["Bajo", "Posible", "Moderado", "Alto", "Muy alto"]},
+    "level": {"enum": ["EVIDENCIA", "INFERENCIA", "POSIBLE", "DESCONOCIDO"]},
+    "evidence_refs": {"type": "array", "minItems": 1, "items": {"type": "integer"}}
+  }
+}

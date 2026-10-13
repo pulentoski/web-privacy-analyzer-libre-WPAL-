@@ -1,0 +1,64 @@
+# Registro de interacción (v1.4.2, docs/adr/030): cómo se reconoce que un sitio observa clics,
+# desplazamiento, movimiento del mouse o teclado, y que los envía.
+#
+# Tres fuentes, con niveles distintos:
+#   1. Escucha (EVIDENCIA): la instrumentación registra qué script llamó a addEventListener o asignó
+#      un manejador onX para estos eventos. Que escuche es un hecho; para qué, una inferencia.
+#   2. Datos de interacción en payloads (INFERENCIA): parámetros cuyo NOMBRE corresponde a
+#      coordenadas, profundidad de desplazamiento, permanencia, elemento clicado o exposición.
+#      El nombre no prueba el contenido.
+#   3. Correlación en capturas interactivas (EVIDENCIA de la secuencia temporal): envíos a otra
+#      organización dentro de `window_s` segundos después de un clic, desplazamiento o tecla del
+#      usuario. Nunca se guarda qué se tecleó ni dónde se hizo clic: solo la hora y el tipo.
+version: 1
+
+# Eventos instrumentados -> nombre que se muestra. La clave es el sufijo de la API `events.<clave>`.
+events:
+  click: "clic"
+  mousemove: "movimiento del mouse"
+  scroll: "desplazamiento"
+  keydown: "teclado"
+  input: "escritura en campos"
+  touch: "toque"
+  visibilitychange: "visibilidad de la pestaña"
+
+# Parámetros por nombre. Se compara el último segmento del nombre (tras «.» o «[»), en minúsculas.
+#   names:    coincidencia exacta.
+#   contains: el segmento contiene el texto.
+payload:
+  coordinates:
+    label: "coordenadas del puntero"
+    names: [clientx, clienty, pagex, pagey, mousex, mousey, clickx, clicky, click_x, click_y, cursor_x, cursor_y,
+            mouse_x, mouse_y, pointer_x, pointer_y, coords, coordinates]
+  scroll:
+    label: "profundidad de desplazamiento"
+    names: [scrolltop, scrolly, max_scroll, sd_pct]
+    contains: [scroll]
+  dwell:
+    label: "tiempo de permanencia o de actividad"
+    names: [_et, engagement_time_msec, time_on_page, timeonpage, time_spent, timespent, stay_time, staytime, engaged_time,
+            active_time, visible_time, dwell_ms]
+    contains: [dwell]
+  element:
+    label: "elemento con el que se interactuó"
+    names: [selector, css_selector, element_id, elementid, element_selector, click_target, clicked_element, target_selector,
+            xpath, dom_path, link_text, click_text, button_text, click_element, click_id, click_classes, click_url, link_url]
+  exposure:
+    label: "exposición de elementos en pantalla"
+    names: [exposure, viewability, viewable, in_view, inview, visible_pct, viewable_time, exposure_time, viewport_pct]
+
+# Nombre de evento con valor de interacción (p. ej. en=scroll de Google Analytics 4).
+event_names: [en, ev, event, event_name, event_type, ea, eventname, eventtype]
+event_values: [click, scroll, user_engagement, mousemove, mouse_move, keydown, keypress, tap, touch, hover, page_scroll,
+               scroll_depth, link_click, button_click, element_click, outbound_click, form_start, form_submit, rage_click, dead_click]
+event_label: "evento de interacción"
+
+# Correlación en capturas interactivas.
+correlation:
+  window_s: 2
+  # Mínimo de interacciones distintas seguidas de un envío a la misma organización.
+  min_interactions: 2
+  # Los envíos observados tras las interacciones deben superar esto × lo esperable por el ritmo
+  # normal de envíos de esa organización durante la sesión (descarta balizas periódicas).
+  min_ratio: 2.0
+  max_timeline: 200

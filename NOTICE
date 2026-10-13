@@ -1,0 +1,41 @@
+Web Privacy & Tracker Analyzer
+Copyright (c) 2026 pulentoski
+
+Este producto se licencia bajo Apache License 2.0 (ver LICENSE), SALVO lo que se
+indica a continuación.
+
+LOGO E ILUSTRACIONES DE MARCA
+El logo y las ilustraciones del proyecto (branding/logo-fuente.jpeg, branding/logo.png,
+branding/analizar.jpeg, branding/historial.jpeg, branding/scanning.jpeg y todas las versiones
+derivadas: docs/logo.png, frontend/public/logo-256.png, frontend/public/favicon*.png,
+frontend/public/favicon.ico, frontend/public/apple-touch-icon.png y
+api/app/assets/logo-report.png) son propiedad de su autor (pulentoski).
+
+NO se licencian bajo Apache-2.0. Solo se autoriza su uso para identificar este proyecto
+(por ejemplo, al enlazarlo, reseñarlo o distribuir una copia sin modificar). No se autoriza
+usarlos para identificar proyectos derivados, productos o servicios de terceros, ni de un modo
+que sugiera respaldo del autor.
+
+CAPTURAS DE PANTALLA
+Las capturas en docs/images/ son de la propia interfaz del proyecto y acompañan a la
+documentación.
+
+DATOS DE TERCEROS (no incluidos en este repositorio)
+Las listas de filtros, los mapas de entidades, la base de IP y la lista de CMP NO se
+distribuyen aquí: cada una tiene su propia licencia y se descarga en el equipo al ejecutar
+./scripts/start.sh (o ./scripts/fetch-data.sh). Sus licencias y atribuciones están en
+data/lists/LICENSES.md, data/ipdb/LICENSES.md y data/iab/LICENSES.md. En resumen:
+  - EasyList y EasyPrivacy — GPL-3.0-or-later OR CC-BY-SA-3.0 (https://easylist.to).
+  - DuckDuckGo Tracker Radar (mapa de entidades) — CC-BY-NC-SA-4.0; NO COMERCIAL. Es la fuente
+    del perfil por defecto (LICENSE_PROFILE=no_comercial).
+  - DB-IP Lite (país y ASN) — CC-BY-4.0. "IP Geolocation by DB-IP (https://db-ip.com)".
+  - Lista de CMP de IAB Europe — sin licencia explícita; se usa solo para traducir cmpId -> nombre.
+  - AdGuard companiesdb (opcional, solo perfil comercial) — CC-BY-SA-4.0.
+
+COMPONENTES DE LA CAPTURA INTERACTIVA
+noVNC (@novnc/novnc 1.4.0, MPL-2.0) se distribuye dentro del bundle del frontend, sin modificar.
+x11vnc (GPL-2.0-or-later) se instala en la imagen del worker desde los repositorios de Ubuntu y
+se ejecuta como proceso aparte; no se enlaza con el código de este proyecto.
+
+Otras dependencias de software (FastAPI, Playwright, PostgreSQL, Squid, nginx, React, Vite, etc.)
+conservan sus respectivas licencias.

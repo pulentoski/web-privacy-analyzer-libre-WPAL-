@@ -1,0 +1,16 @@
+fastapi==0.142.2
+uvicorn==0.54.0
+# WebSocket del relé VNC de la captura interactiva (docs/adr/029).
+websockets==17.2
+sqlalchemy[asyncio]==2.1.3
+asyncpg==0.31.0
+alembic==1.20.0
+pydantic-settings==2.15.0
+# Validación del reporte contra su JSON Schema.
+jsonschema==4.26.0
+# Lector de las bases offline de IP (DB-IP Lite, formato MMDB). Oficial de MaxMind, Apache-2.0.
+maxminddb==3.2.0
+PyYAML==6.0.3
+# tests
+pytest==9.1.1
+httpx2==2.13.1

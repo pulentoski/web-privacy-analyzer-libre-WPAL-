@@ -1,0 +1,360 @@
+name: web-privacy-analyzer
+
+# Ver docs/SPEC.md §Arquitectura y §Seguridad antes de tocar redes o el worker.
+
+# Endurecimiento común (docs/THREAT-MODEL.md, tabla por servicio; scripts/hardening-check.sh lo
+# verifica contra los contenedores en ejecución). Cada servicio añade sus límites de recursos.
+x-base: &base
+  restart: unless-stopped
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+
+x-db-env: &db-env
+  POSTGRES_USER: ${POSTGRES_USER:?definir en .env}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?definir en .env}
+  POSTGRES_DB: ${POSTGRES_DB:?definir en .env}
+
+x-ssrf-test-env: &ssrf-test-env
+  LAN_GATEWAY: ${LAN_GATEWAY:?definir en .env}
+  HOST_LAN_IP: ${HOST_LAN_IP:?definir en .env}
+  INTERNAL_GATEWAY: 172.30.2.1
+
+# ALLOW_FIXTURES=1 solo en stacks de test (docs/adr/003-fixtures-de-captura.md).
+x-fixtures-env: &fixtures-env
+  ALLOW_FIXTURES: ${ALLOW_FIXTURES:-0}
+
+services:
+  db:
+    <<: *base
+    # postgres:16-alpine fijado por digest, con parches de Alpine y sin gosu (db/Dockerfile).
+    build: ./db
+    # Corre como postgres desde el inicio: no necesita capabilities para cambiar de usuario.
+    user: postgres
+    mem_limit: 1g
+    cpus: 2.0
+    pids_limit: 200
+    read_only: true
+    tmpfs:
+      - /tmp
+      # Socket Unix y archivo de bloqueo; uid/gid 70 = postgres en la imagen alpine.
+      - /var/run/postgresql:uid=70,gid=70,mode=0775
+    environment:
+      <<: *db-env
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      # -h 127.0.0.1: el servidor temporal de initdb solo escucha en el socket Unix,
+      # así el healthcheck no da positivo antes de tiempo.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      # El primer arranque ejecuta initdb, que en discos lentos tarda más de un minuto.
+      start_period: 180s
+      start_interval: 2s
+
+  api:
+    <<: *base
+    build: ./api
+    environment:
+      <<: [*db-env, *ssrf-test-env, *fixtures-env]
+      POSTGRES_HOST: db
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      SCAN_RATE_LIMIT: ${SCAN_RATE_LIMIT:-10}
+      SCAN_RATE_WINDOW_S: ${SCAN_RATE_WINDOW_S:-60}
+      MAX_QUEUED_JOBS: ${MAX_QUEUED_JOBS:-20}
+      MAX_GROUP_JOBS: ${MAX_GROUP_JOBS:-10}
+      # Solo el nginx del frontend (IP fija) puede informar la IP real del cliente.
+      TRUSTED_PROXIES: 172.30.1.10
+      EXPOSURE_TTL_S: ${EXPOSURE_TTL_S:-7200}
+      EXPOSURE_MAX_PARTICIPANTS: ${EXPOSURE_MAX_PARTICIPANTS:-500}
+      EXPOSURE_PRESENTER_TOKEN: ${EXPOSURE_PRESENTER_TOKEN:-}
+      # Marca opcional de los reportes exportados (docs/adr/018). Vacío = encabezado neutro.
+      REPORT_BRAND_NAME: ${REPORT_BRAND_NAME:-}
+      # Lo pone scripts/demo.sh ("1" o "exposure"): en modo demo no se puede borrar el historial.
+      DEMO_MODE: ${DEMO_MODE:-0}
+      # Indicador de recursos (v1.4): aviso cuando la RAM de un contenedor supera este % de su límite.
+      RESOURCES_MEMORY_ALERT_PERCENT: ${RESOURCES_MEMORY_ALERT_PERCENT:-85}
+    volumes:
+      # Datos offline de solo lectura: bases de IP (scripts/update-ipdb.sh), perfiles, lista de CMP,
+      # trackers por CNAME.
+      - ./data:/app/data:ro
+      # Logo y nombre de la marca: un directorio del host FUERA del repo (REPORT_BRAND_DIR, ruta
+      # absoluta). Sin definir se monta un volumen vacío y el reporte sale sin marca.
+      - ${REPORT_BRAND_DIR:-brand}:/app/brand:ro
+    ports:
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+    networks:
+      - public
+      - internal
+    mem_limit: 512m
+    cpus: 1.0
+    pids_limit: 200
+    read_only: true
+    tmpfs:
+      - /tmp
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).status == 200 else 1)"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+
+  worker:
+    <<: *base
+    build: ./worker
+    security_opt:
+      - no-new-privileges:true
+      - seccomp=./worker/seccomp_profile.json
+    init: true
+    shm_size: 1gb
+    mem_limit: ${WORKER_MEM_LIMIT:-4g}
+    cpus: ${WORKER_CPUS:-4.0}
+    pids_limit: 2048
+    # Raíz de solo lectura: Chromium y Xvfb solo escriben en estos tmpfs (uid 1001 = pwuser).
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /tmp/.X11-unix:mode=1777
+      - /home/pwuser:uid=1001,gid=1001,mode=0700
+    environment:
+      <<: [*db-env, *ssrf-test-env, *fixtures-env]
+      POSTGRES_HOST: db
+      EGRESS_PROXY_URL: http://egress-proxy:3128
+      CHROMIUM_SANDBOX: ${CHROMIUM_SANDBOX:-true}
+      FP_INSTRUMENTATION: ${FP_INSTRUMENTATION:-true}
+      HEADLESS: ${HEADLESS:-false}
+      PROXY_SCAN_SECRET: ${PROXY_SCAN_SECRET:?definir en .env}
+      MAX_CONCURRENT_SCANS: ${MAX_CONCURRENT_SCANS:-2}
+      SCAN_TIMEOUT_S: ${SCAN_TIMEOUT_S:-60}
+      MAX_REQUESTS: ${MAX_REQUESTS:-1500}
+      MAX_BODY_CAPTURE_BYTES: ${MAX_BODY_CAPTURE_BYTES:-65536}
+      # Umbral de "muy pocas requests" de la alerta antibot (v1.2.1); vacío = el valor de data/scoring.yaml.
+      # En el stack de pruebas se baja porque las páginas de fixtures son pequeñas a propósito.
+      BLOCKING_MIN_REQUESTS: ${BLOCKING_MIN_REQUESTS:-}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      # Perfil de licencias de las fuentes (docs/adr/019): no_comercial | comercial.
+      LICENSE_PROFILE: ${LICENSE_PROFILE:-no_comercial}
+      # Los scans terminados más antiguos que esto se borran solos (0 = nunca).
+      SCAN_RETENTION_DAYS: ${SCAN_RETENTION_DAYS:-30}
+      # Captura interactiva (v1.4, docs/adr/029): cierre por inactividad, duración máxima y tope de requests.
+      # Su VNC escucha solo en la red `internal`; el worker sigue sin publicar puertos.
+      INTERACTIVE_IDLE_S: ${INTERACTIVE_IDLE_S:-600}
+      INTERACTIVE_MAX_S: ${INTERACTIVE_MAX_S:-1800}
+      INTERACTIVE_MAX_REQUESTS: ${INTERACTIVE_MAX_REQUESTS:-4000}
+    volumes:
+      # Listas de filtros y pesos del analizador. Los actualiza el host (scripts/update-lists.sh).
+      - ./data:/app/data:ro
+      # Log de conexiones del proxy, para saber a qué IP fue cada request (solo lectura).
+      - scanlog:/var/log/scanlog:ro
+    # Solo redes internal: true. La única salida a internet es egress-proxy. NO añadir otras.
+    networks:
+      - internal
+      - sandbox
+    sysctls:
+      net.ipv6.conf.all.disable_ipv6: 1
+    depends_on:
+      db:
+        condition: service_healthy
+      api:
+        condition: service_healthy # las migraciones las aplica api al arrancar
+      egress-proxy:
+        condition: service_healthy
+    healthcheck:
+      # Sin listeners: el loop de heartbeat toca este archivo cada 10 s.
+      test:
+        - CMD
+        - python
+        - -c
+        - "import os,sys,time; sys.exit(0 if time.time() - os.path.getmtime('/tmp/worker-heartbeat') < 30 else 1)"
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  egress-proxy:
+    <<: *base
+    build: ./egress-proxy
+    environment:
+      UPSTREAM_DNS: ${UPSTREAM_DNS:?definir en .env}
+      # PROXY_ALLOW_FIXTURES permite probar el bloqueo del proxy sin tocar api/worker.
+      ALLOW_FIXTURES: ${PROXY_ALLOW_FIXTURES:-${ALLOW_FIXTURES:-0}}
+      FIXTURES_IP: 172.30.4.10
+      PROXY_SCAN_SECRET: ${PROXY_SCAN_SECRET:?definir en .env}
+      SCANLOG_MAX_BYTES: ${SCANLOG_MAX_BYTES:-20000000}
+    networks:
+      - sandbox
+      - egress
+    sysctls:
+      net.ipv6.conf.all.disable_ipv6: 1
+    mem_limit: 512m
+    cpus: 1.0
+    pids_limit: 200
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/spool/squid
+      - /var/log/squid
+      - /run
+    volumes:
+      - scanlog:/var/log/scanlog
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/3128"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  frontend:
+    <<: *base
+    build: ./frontend
+    # Solo loopback. Para exponer en la LAN (demo) hay que usar scripts/demo.sh con DEMO_MODE=1,
+    # que añade docker-compose.demo.yml. No hay variable que lo cambie por accidente.
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-8080}:8080"
+    networks:
+      public:
+        ipv4_address: 172.30.1.10
+    mem_limit: 128m
+    cpus: 0.5
+    pids_limit: 100
+    read_only: true
+    tmpfs:
+      - /tmp
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  # Sitio de fixtures (ground truth de captura). Solo con `--profile test`.
+  fixtures:
+    <<: *base
+    profiles: [test]
+    build: ./fixtures
+    networks:
+      egress:
+        ipv4_address: 172.30.4.10
+        aliases:
+          - site.fixtures.test
+          - tracker-a.fixtures.test
+          - cdn-b.fixtures.test
+          # Subdominio del "propio sitio" que simula un CNAME hacia tracker-a (F8).
+          - metrics.site.fixtures.test
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 100
+    read_only: true
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1/__health', timeout=3).status == 200 else 1)"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # Control negativo de las pruebas de XSS: el MISMO frontend más una vista vulnerable a
+  # propósito. Solo con `--profile test`, sin puertos publicados. Nunca desplegar.
+  frontend-vulnerable:
+    <<: *base
+    profiles: [test]
+    build:
+      context: ./frontend
+      args:
+        VITE_XSS_CONTROL: "1"
+        NGINX_CONF: nginx.control.conf
+    networks:
+      - public
+    mem_limit: 128m
+    cpus: 0.5
+    pids_limit: 100
+    read_only: true
+    tmpfs:
+      - /tmp
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  # Pruebas E2E de la interfaz (navegador real contra el frontend). Solo con `--profile test`.
+  #   docker compose exec e2e pytest -q
+  e2e:
+    <<: *base
+    profiles: [test]
+    build: ./e2e
+    init: true
+    shm_size: 1gb
+    mem_limit: 2g
+    cpus: 2.0
+    pids_limit: 1024
+    # Solo perfil test. Raíz de solo lectura, igual que el worker.
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /home/pwuser:uid=1001,gid=1001,mode=0700
+    environment:
+      BASE_URL: http://frontend:8080
+      CONTROL_URL: http://frontend-vulnerable:8080
+      CONTROL_URL_NO_CSP: http://frontend-vulnerable:8081
+      PRESENTER_TOKEN: ${EXPOSURE_PRESENTER_TOKEN:-}
+      # Pruebas del modo demo (demo_tests/): requieren DEMO_MODE=exposure ./scripts/demo.sh
+      DEMO_HTTP_URL: http://${HOST_LAN_IP}:${EXPOSURE_HTTP_PORT:-8088}
+      DEMO_HTTPS_URL: https://${HOST_LAN_IP}:${EXPOSURE_HTTPS_PORT:-8443}
+    networks:
+      - public
+    healthcheck:
+      test: ["CMD", "python", "-c", "import playwright"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      frontend:
+        condition: service_healthy
+
+networks:
+  public:
+    ipam:
+      config:
+        - subnet: 172.30.1.0/24
+  internal:
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.30.2.0/24
+  sandbox:
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.30.3.0/24
+  egress:
+    ipam:
+      config:
+        - subnet: 172.30.4.0/24
+
+volumes:
+  pgdata:
+  scanlog:
+  brand:

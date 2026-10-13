@@ -1,0 +1,85 @@
+# Giro (tipo de servicio) de una organización o de un producto conocido (v1.2.1).
+#
+# Es CONTEXTO (Inferencia): describe a qué se dedica normalmente ese servicio, no qué hizo en
+# esta visita concreta. Se muestra junto a la organización en Rastreadores, Fingerprinting, Panel
+# y reportes. Si una organización o un dominio no está aquí, se muestra "tipo no identificado".
+#
+# Cada giro tiene:
+#   label:    frase corta que describe el giro (trato técnico, sin juicio).
+#   entities: nombres de organización tal como los devuelve el mapa de entidades (coincidencia exacta).
+#   domains:  dominios registrables o de script (coincidencia por dominio registrable o sufijo).
+version: 1
+
+types:
+  session_recording:
+    label: "grabación de sesión (registra clics, movimiento del mouse y desplazamiento)"
+    entities: [Microsoft Clarity, Hotjar, FullStory, Smartlook, Mouseflow, LogRocket, Inspectlet, Lucky Orange, Yandex Metrica]
+    domains: [clarity.ms, hotjar.com, hotjar.io, fullstory.com, smartlook.com, mouseflow.com, logrocket.com,
+              inspectlet.com, luckyorange.com, mc.yandex.ru]
+  antifraud:
+    label: "antifraude publicitario/antibot (verifica que el tráfico no sea automatizado)"
+    entities: []
+    domains: [adtrafficquality.google, ad.doubleclick.net, recaptcha.net, hcaptcha.com,
+              awsc.alibaba.com, acs.m.alibaba.com, aeis.alibaba.com, fp.alibaba.com,
+              threatmetrix.com, online-metrix.net, iovation.com, iesnare.com, perimeterx.net,
+              px-cloud.net, datadome.co, arkoselabs.com, funcaptcha.com, cloudflare.com, hcaptcha.net]
+  advertising:
+    label: "publicidad (venta y entrega de anuncios, segmentación)"
+    entities: [Google Ads, Criteo, The Trade Desk, Taboola, Outbrain, PubMatic, Rubicon Project,
+               OpenX, AppNexus, Index Exchange, Amazon Advertising, Media.net, Adform]
+    domains: [doubleclick.net, googlesyndication.com, googleadservices.com, adnxs.com, criteo.com,
+              criteo.net, taboola.com, outbrain.com, rubiconproject.com, pubmatic.com, openx.net,
+              amazon-adsystem.com, adsrvr.org, casalemedia.com, smartadserver.com, teads.tv,
+              bidswitch.net, 3lift.com, adform.net, moatads.com, 2mdn.net, mgid.com,
+              # v1.4.2: Appier, RTB House, LiveIntent, Improve Digital, Telaria, Media.net, Geniee, Opera Ads,
+              # Nativo, RhythmOne, Times Internet (Columbia), Unruly, Supership.
+              appier.net, creativecdn.com, rtbhouse.com, liadm.com, liveintent.com, 360yield.com, tremorhub.com,
+              telaria.com, media.net, gssprt.jp, geniee.co.jp, opera.com, adx.opera.com, postrelease.com, nativo.com,
+              1rx.io, rhythmone.com, clmbtech.com, unrulymedia.com, socdm.com, revcontent.com]
+  mobile_advertising:
+    label: "publicidad móvil (redes de anuncios para aplicaciones y web móvil)"
+    entities: []
+    domains: [zmaticoo.com, ymmobi.com]
+  # Producto concreto dentro de una organización: gana sobre el giro general de la organización.
+  conversion_pixel:
+    label: "publicidad (pixel de conversión)"
+    entities: []
+    domains: []
+    urls: [facebook.com/tr, fbevents.js, facebook.net/signals/]
+  dmp:
+    label: "plataforma de datos de audiencia (DMP: reúne y segmenta perfiles de audiencia)"
+    entities: []
+    domains: [demdex.net, everesttech.net, krxd.net, adsymptotic.com]
+  data_broker:
+    label: "broker de datos (compra, enriquece y vende datos de personas y hogares)"
+    entities: []
+    domains: [agkn.com, neustar.biz, rlcdn.com, liveramp.com, pippio.com, bluekai.com, bkrtx.com, crwdcntrl.net, lotame.com]
+  analytics:
+    label: "analítica web (mide visitas y comportamiento agregado)"
+    entities: [Google Analytics, Mixpanel, Amplitude, Segment, Matomo, Chartbeat, Parse.ly, Quantcast]
+    domains: [google-analytics.com, googletagmanager.com, mixpanel.com, segment.com, segment.io,
+              amplitude.com, chartbeat.com, chartbeat.net, matomo.cloud, quantserve.com,
+              parsely.com, parse.ly]
+  audience_measurement:
+    label: "medición de audiencia (paneles y rating de audiencias)"
+    entities: [comScore, Nielsen, Kantar]
+    domains: [scorecardresearch.com, comscore.com, imrworldwide.com]
+  social:
+    label: "red social (botones, pixeles y contenido incrustado)"
+    entities: [Facebook, Meta, Twitter, X Corp., LinkedIn, Pinterest, TikTok, Snap, Instagram]
+    domains: [facebook.com, facebook.net, fbcdn.net, twitter.com, x.com, twimg.com, linkedin.com,
+              licdn.com, instagram.com, tiktok.com, pinterest.com, snapchat.com]
+  cdn:
+    label: "red de distribución de contenido (CDN: sirve imágenes, scripts y archivos estáticos)"
+    entities: [Cloudflare, Akamai, Fastly, Amazon CloudFront, Google Hosted Libraries, jsDelivr, cdnjs]
+    domains: [cloudfront.net, akamaihd.net, akamaized.net, fastly.net, jsdelivr.net, cdnjs.cloudflare.com,
+              gstatic.com, bootstrapcdn.com, cloudflare.net, cloudflareinsights.com]
+  consent_platform:
+    label: "plataforma de consentimiento (muestra y gestiona el banner de cookies)"
+    entities: [OneTrust, Cookiebot, Quantcast, Didomi, Usercentrics, Sourcepoint, TrustArc, Osano]
+    domains: [onetrust.com, cookiebot.com, cookielaw.org, quantcast.com, didomi.io, usercentrics.eu,
+              sourcepoint.com, trustarc.com, osano.com, consensu.org]
+  fingerprinting:
+    label: "identificación de dispositivo (huella del navegador)"
+    entities: [FingerprintJS]
+    domains: [fingerprint.com, fpjs.io, fpjs.pro]

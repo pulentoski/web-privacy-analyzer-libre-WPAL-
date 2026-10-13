@@ -1,0 +1,372 @@
+# Frases técnicas (F10, docs/adr/021): una línea que nombra el mecanismo por su término
+# técnico y lo explica, ANTES del detalle. Son plantillas deterministas, no las escribe una IA:
+# cada una se rellena con los datos reales del hallazgo o de la request (organización,
+# parámetro, atributo leído).
+#
+# Reglas, que comprueban los tests:
+#   1. Registro técnico y trato de usted: sin exclamaciones, onomatopeyas ni analogías.
+#   2. La frase respeta el nivel de evidencia. Hay una variante por nivel; si un hallazgo llega
+#      con un nivel para el que no hay variante, se usa la de `fallback`. Toda variante que no sea
+#      EVIDENCIA debe contener uno de los `hedges` ("podría", "es compatible con"...): una
+#      inferencia nunca se redacta como hecho.
+#   3. No se promete anonimato ni se afirma para qué usa los datos una organización.
+#   4. Los valores entre llaves son texto capturado: la interfaz y el reporte los pintan como
+#      texto, nunca como HTML.
+#
+# Plural: {n|singular|plural} escribe el número y la forma que corresponde ("1 cookie", "3 cookies");
+# {n?singular|plural} escribe solo la forma.
+# Variables: {empresa} organización dueña del dominio (o el dominio, si no se conoce) ·
+# {empresas} varias, unidas con "y" · {parametro} nombre del parámetro · {dato} atributo leído ·
+# {n}, {dias} cantidades · las demás se documentan junto a su plantilla.
+version: 2
+
+hedges:
+  - "podría"
+  - "podrían"
+  - "es compatible con"
+  - "son compatibles con"
+  - "es posible que"
+  - "no se sabe"
+  - "no se pudo"
+
+fallback:
+  EVIDENCIA: "Hecho observado directamente durante la visita."
+  INFERENCIA: "Inferencia: lo observado es compatible con seguimiento, pero no se observó directamente."
+  POSIBLE: "Indicio: es posible que corresponda a seguimiento, pero existen otras explicaciones."
+  DESCONOCIDO: "Contenido no interpretable: se observó, pero no se sabe qué es."
+
+# Nombre técnico del atributo que lee cada API instrumentada.
+data_names:
+  canvas: "el resultado del renderizado en canvas"
+  fonts: "las fuentes tipográficas instaladas"
+  webgl_vendor: "el fabricante de la GPU (WebGL UNMASKED_VENDOR)"
+  webgl_renderer: "el modelo de la GPU (WebGL UNMASKED_RENDERER)"
+  webgl_parameters: "los parámetros y extensiones de WebGL"
+  audio: "la salida del procesamiento de audio (AudioContext)"
+  webrtc: "las direcciones de red expuestas por WebRTC"
+  user_agent: "la cadena User-Agent"
+  user_agent_client_hints: "los Client Hints de alta entropía (versión del navegador y del sistema)"
+  platform: "la plataforma (navigator.platform)"
+  hardware_concurrency: "el número de núcleos lógicos del procesador"
+  device_memory: "la memoria del dispositivo (navigator.deviceMemory)"
+  languages: "los idiomas configurados"
+  plugins: "los plugins y tipos MIME del navegador"
+  webdriver: "el indicador de automatización (navigator.webdriver)"
+  max_touch_points: "el número de puntos táctiles"
+  screen: "la resolución y profundidad de color de la pantalla"
+  timezone: "la zona horaria"
+  media_queries: "las preferencias de pantalla y del sistema (media queries)"
+  media_devices: "el número de dispositivos multimedia"
+  battery: "el estado de la batería"
+  permissions: "el estado de los permisos del sitio"
+  gpu_adapter: "el adaptador gráfico (WebGPU)"
+  speech_voices: "las voces de síntesis instaladas"
+  storage_estimate: "la cuota de almacenamiento disponible"
+  _default: "un atributo del dispositivo"
+
+# API instrumentada -> atributo (misma tabla que ATTRIBUTES del analizador; un test del worker
+# comprueba que no se desincronicen).
+api_attributes:
+  canvas.toDataURL: canvas
+  canvas.toBlob: canvas
+  canvas.getImageData: canvas
+  canvas.measureText: fonts
+  fonts.check: fonts
+  webgl.UNMASKED_VENDOR_WEBGL: webgl_vendor
+  webgl.UNMASKED_RENDERER_WEBGL: webgl_renderer
+  webgl.getParameter: webgl_parameters
+  webgl.getSupportedExtensions: webgl_parameters
+  webgl.readPixels: webgl_parameters
+  audio.OfflineAudioContext: audio
+  audio.startRendering: audio
+  audio.getChannelData: audio
+  audio.getFloatFrequencyData: audio
+  webrtc.RTCPeerConnection: webrtc
+  webrtc.createDataChannel: webrtc
+  webrtc.createOffer: webrtc
+  webrtc.onicecandidate: webrtc
+  navigator.userAgent: user_agent
+  navigator.userAgentData.getHighEntropyValues: user_agent_client_hints
+  navigator.platform: platform
+  navigator.hardwareConcurrency: hardware_concurrency
+  navigator.deviceMemory: device_memory
+  navigator.languages: languages
+  navigator.plugins: plugins
+  navigator.mimeTypes: plugins
+  navigator.webdriver: webdriver
+  navigator.maxTouchPoints: max_touch_points
+  screen.width: screen
+  screen.height: screen
+  screen.availWidth: screen
+  screen.availHeight: screen
+  screen.colorDepth: screen
+  screen.pixelDepth: screen
+  window.devicePixelRatio: screen
+  intl.timeZone: timezone
+  window.matchMedia: media_queries
+  mediaDevices.enumerateDevices: media_devices
+  navigator.getBattery: battery
+  permissions.query: permissions
+  gpu.requestAdapter: gpu_adapter
+  speechSynthesis.getVoices: speech_voices
+  storage.estimate: storage_estimate
+
+list_names:
+  easyprivacy: "EasyPrivacy"
+  easylist: "EasyList"
+  test-fixtures: "la lista de pruebas"
+
+# --- Una frase por REQUEST: se elige la señal presente de mayor prioridad ---
+# {otras}: las demás organizaciones que recibieron el mismo valor · {guardado}: dónde está
+# almacenado el valor en el navegador · {lista}: nombre de la lista.
+signals:
+  fp_exfiltration:
+    priority: 100
+    EVIDENCIA: "Exfiltración de atributos: un script leyó {dato} y el valor se transmitió a {empresa}."
+  id_sync:
+    priority: 95
+    EVIDENCIA: "Sincronización de identificadores (cookie syncing): {empresa} recibió un identificador que también recibió {otras}; el valor común permite correlacionar los registros del mismo navegador."
+  persistent_id:
+    priority: 90
+    EVIDENCIA: "Identificador persistente: la request transmitió a {empresa} el valor almacenado en {guardado}."
+  url_leak:
+    priority: 85
+    EVIDENCIA: "Fuga de URL: la URL de la página se envió a {empresa} en un parámetro de la request."
+  referer_full_url:
+    priority: 80
+    EVIDENCIA: "Fuga por Referer: la cabecera Referer transmitió a {empresa} la URL completa de la página."
+  third_party_set_cookie:
+    priority: 75
+    EVIDENCIA: "Set-Cookie de tercero: {empresa}, organización distinta del sitio, estableció una cookie mediante la cabecera Set-Cookie."
+  mechanism_pixel:
+    priority: 70
+    INFERENCIA: "Píxel de seguimiento (inferencia): se solicitó a {empresa} una imagen de tamaño mínimo con parámetros en la URL; el patrón es compatible con el registro de la visita."
+  mechanism_beacon:
+    priority: 68
+    INFERENCIA: "Beacon (inferencia): se envió a {empresa} una request en segundo plano (sendBeacon o ping); podría transmitir eventos de interacción con la página."
+  fp_script:
+    priority: 65
+    INFERENCIA: "Script de fingerprinting (inferencia): se descargó de {empresa} un script cuyo uso de APIs es compatible con la obtención de una huella del dispositivo."
+  fp_script_initiator:
+    priority: 60
+    INFERENCIA: "Iniciador con fingerprinting (inferencia): la request fue iniciada por un script cuyo uso de APIs es compatible con fingerprinting; podría transmitir atributos del dispositivo a {empresa}."
+  identifier_param:
+    priority: 55
+    INFERENCIA: "Parámetro identificador (inferencia): el parámetro «{parametro}» enviado a {empresa} podría contener un identificador de usuario."
+  session_token_third_party:
+    priority: 50
+    INFERENCIA: "Token de sesión a tercero (inferencia): el parámetro «{parametro}» enviado a {empresa} podría contener una credencial de sesión."
+  list_easyprivacy: &list_signal
+    priority: 45
+    EVIDENCIA: "Coincidencia con lista de filtros: la request a {empresa} coincide con una regla de {lista}."
+  list_easylist: *list_signal
+  list_test-fixtures: *list_signal
+  encoded_payload_third_party:
+    priority: 40
+    INFERENCIA: "Carga codificada (inferencia): se envió a {empresa} un valor codificado; podría contener datos no legibles directamente."
+  third_party:
+    priority: 20
+    EVIDENCIA: "Request a tercero: conexión con {empresa}, organización distinta del sitio; toda conexión expone la dirección IP y la cabecera User-Agent."
+  # v1.4.2: otro dominio del MISMO dueño que el sitio (party = same_org): no es un tercero.
+  same_org:
+    priority: 20
+    EVIDENCIA: "Recurso de la misma organización ({empresa}): conexión con otro dominio del mismo dueño que el sitio; no es un tercero."
+  third_party_static_clean:
+    priority: 10
+    EVIDENCIA: "Recurso estático de tercero: se descargó un recurso de {empresa} (imagen, hoja de estilo o script) sin parámetros adicionales."
+  first_party_static:
+    priority: 10
+    EVIDENCIA: "Recurso estático de primera parte: se descargó un recurso del propio sitio (imagen, hoja de estilo o script)."
+  # Sin ninguna señal: una conexión con el sitio analizado.
+  _first_party:
+    priority: 0
+    EVIDENCIA: "Request de primera parte: conexión con el sitio analizado."
+
+# --- Una frase por HALLAZGO, según su tipo y su nivel ---
+# `step`: en qué grupo de «Hallazgos» aparece (ver `steps`). Sin `step`, el hallazgo solo
+# figura en la lista técnica.
+findings:
+  # --- Identificadores persistentes ---
+  persistent_cookie:
+    step: etiquetado
+    EVIDENCIA: "Cookies persistentes: {quien} estableció {n|cookie persistente|cookies persistentes} en el navegador; la de mayor duración expira en {dias|día|días}."
+  third_party_set_cookie:
+    step: etiquetado
+    EVIDENCIA: "Set-Cookie de tercero: {empresa}, organización distinta del sitio, estableció una cookie mediante la cabecera Set-Cookie."
+  identifier_param:
+    step: etiquetado
+    INFERENCIA: "Parámetro identificador (inferencia): el parámetro «{parametro}» enviado a {empresa} podría contener un identificador de usuario; la inferencia se basa en el nombre y el formato del valor, no en su contenido."
+  cname_cloaking:
+    step: etiquetado
+    EVIDENCIA: "CNAME cloaking: el host {host}, que aparenta ser de primera parte, es un alias DNS (CNAME) de {destino}."
+  # --- Fingerprinting: la lectura es EVIDENCIA; el propósito, INFERENCIA ---
+  fp_read:
+    step: equipo
+    EVIDENCIA: "Lectura de atributos: un script de {empresa} leyó: {datos}."
+  webgl_unmasked_read:
+    step: equipo
+    EVIDENCIA: "Lectura WebGL: un script de {empresa} leyó el fabricante y el modelo de la GPU (UNMASKED_VENDOR_WEBGL y UNMASKED_RENDERER_WEBGL)."
+  canvas_fingerprinting:
+    step: equipo
+    INFERENCIA: "Canvas fingerprinting (inferencia): un script de {empresa} dibujó en un canvas y leyó el resultado (toDataURL o getImageData); el patrón es compatible con la obtención de una huella del dispositivo."
+  webgl_fingerprinting:
+    step: equipo
+    INFERENCIA: "WebGL fingerprinting (inferencia): la lectura de parámetros de la GPU por un script de {empresa} es compatible con la obtención de una huella del dispositivo."
+  audio_fingerprinting:
+    step: equipo
+    INFERENCIA: "Audio fingerprinting (inferencia): un script de {empresa} generó una señal con OfflineAudioContext y leyó el resultado; el patrón es compatible con la obtención de una huella del sistema de audio."
+  font_enumeration:
+    step: equipo
+    INFERENCIA: "Enumeración de fuentes (inferencia): un script de {empresa} midió texto con {n|fuente tipográfica|fuentes tipográficas distintas}; el patrón es compatible con la detección de las fuentes instaladas."
+  property_sweep:
+    step: equipo
+    INFERENCIA: "Barrido de propiedades (inferencia): un script de {empresa} leyó {n|propiedad|propiedades} del navegador y de la pantalla; el patrón es compatible con la construcción de una huella del dispositivo."
+  webrtc_ip_discovery:
+    step: equipo
+    INFERENCIA: "Descubrimiento de IP por WebRTC (inferencia): un script de {empresa} creó una RTCPeerConnection y esperó candidatos ICE; el patrón es compatible con un intento de obtener la dirección IP. En esta visita no se obtuvo."
+  # --- Fugas de URL y Referer ---
+  url_leak:
+    step: navegacion
+    EVIDENCIA: "Fuga de URL: la URL de la página se envió a {empresa} en el parámetro «{parametro}»."
+  referer_leak:
+    step: navegacion
+    EVIDENCIA: "Fuga por Referer: la cabecera Referer transmitió a {empresa} la URL completa de la página."
+  first_party_telemetry:
+    step: navegacion
+    INFERENCIA: "Telemetría propia: {n|request|requests} al propio sitio o a su misma organización ({hosts}), con un patrón que es compatible con el envío de eventos de medición; no son terceros, pero sí un método de recolección."
+  first_party_analytics_script:
+    step: navegacion
+    EVIDENCIA: "Analítica propia: la página cargó scripts de medición o publicidad de la misma organización ({nombres})."
+  search_leak:
+    step: navegacion
+    EVIDENCIA: "Fuga de búsqueda: el término de búsqueda «{termino}» se envió a {host} en el parámetro «{parametro}». No se determina si lo escribió el usuario o lo propuso el sitio."
+  # --- Exfiltración de atributos ---
+  exfiltration:
+    step: datos
+    EVIDENCIA: "Exfiltración de atributos: un script leyó {dato} y el valor se transmitió a {empresa}."
+  email_shape:
+    step: datos
+    POSIBLE: "Posible dirección de correo: un valor enviado a {empresa} tiene formato de dirección de correo electrónico; es posible que corresponda a una dirección real, pero no se sabe a quién pertenece."
+  opaque_payload:
+    step: datos
+    DESCONOCIDO: "Carga no interpretable: se envió a {empresa} un contenido que no se pudo decodificar; no se sabe qué contiene."
+  # --- Sincronización de identificadores ---
+  sync_wave:
+    step: identificador
+    EVIDENCIA: "Ola de sincronización: {n|request|requests} de sincronización de identificadores hacia {organizaciones} organizaciones en pocos segundos, iniciada por {iniciador}."
+  id_sync:
+    step: identificador
+    EVIDENCIA: "Sincronización de identificadores (cookie syncing): {empresas} recibieron el mismo identificador; el valor común permite correlacionar sus registros del mismo navegador."
+  persistent_id:
+    step: identificador
+    EVIDENCIA: "Identificador persistente: se transmitió a {empresa} el valor almacenado en {guardado}."
+  session_token_third_party:
+    step: identificador
+    INFERENCIA: "Token de sesión a tercero (inferencia): el parámetro «{parametro}» enviado a {empresa} podría contener una credencial de sesión; la inferencia se basa en el formato del valor, no en su contenido."
+  # --- Consentimiento ---
+  tcf_state:
+    step: consentimiento
+    EVIDENCIA: "TCF: el sitio utiliza una plataforma de gestión del consentimiento ({cmp}) que expone su estado mediante el estándar TCF."
+  consent_mode_state:
+    step: consentimiento
+    EVIDENCIA: "Consent Mode: {n|request a Google transmitió|requests a Google transmitieron} el estado de consentimiento: publicidad (ad_storage) {publicidad}, medición (analytics_storage) {medicion}."
+  consent_mode_granted_without_interaction:
+    step: consentimiento
+    EVIDENCIA: "Consent Mode sin interacción: se enviaron requests a Google con el consentimiento de {que} marcado como concedido, sin interacción previa con el aviso de consentimiento."
+  # --- Solo en la lista técnica ---
+  list_match:
+    EVIDENCIA: "Coincidencia con lista de filtros: {empresa} figura en {lista} ({n|request|requests} en esta visita)."
+
+  # --- v1.4.2 (docs/adr/030) ---
+  canvas_read_benign:
+    step: equipo
+    EVIDENCIA: "Lectura de canvas por librería conocida: un script de {empresa} leyó el contenido de un canvas; coincide con una librería de uso conocido y no se marca como fingerprinting."
+  server_side_meta:
+    step: identificador
+    INFERENCIA: "Rastreo del lado del servidor (inferencia): {empresa}, un host de nube genérico, recibió datos con el formato de un evento de Meta; es compatible con un servidor de Conversions API que los reenviaría a Meta."
+  interaction_listener:
+    step: interaccion
+    EVIDENCIA: "Escucha de interacción: un script de {empresa} registró escuchas de {eventos}. La escucha es un hecho observado; su propósito no se observa."
+  interaction_payload:
+    step: interaccion
+    INFERENCIA: "Datos de interacción (inferencia): {n|request a|requests a} {empresa} llevan parámetros con nombre de {que}; podrían contener ese dato, el nombre no lo prueba."
+  interaction_sent:
+    step: interaccion
+    EVIDENCIA: "Su interacción se envió a {empresa}: {n|envío|envíos} dentro de los 2 s siguientes a {k|interacción|interacciones} (clics, desplazamientos o teclas). Lo observado es la secuencia temporal."
+  session_recording:
+    step: interaccion
+    INFERENCIA: "Grabación de sesión (inferencia): se contactó a {empresa}, servicio que registra clics, movimiento del mouse y desplazamiento; la sesión podría estar siendo grabada."
+
+consent_states:
+  granted: "concedido"
+  denied: "denegado"
+  no_definido: "sin definir"
+
+# --- «Hallazgos»: ocho grupos, siempre en este orden ---
+# Cada grupo muestra hasta dos frases: `evidence` (si tiene hallazgos EVIDENCIA) e `inference`
+# (si tiene hallazgos de otro nivel; debe llevar un hedge). {n} = hallazgos de ese grupo,
+# {empresas} = hasta tres organizaciones, {k} = cuántas organizaciones distintas.
+# Un grupo sin hallazgos muestra `none`. El último es fijo: lo que una visita no permite observar.
+steps:
+  - id: etiquetado
+    title: "Identificadores persistentes"
+    technical: "cookies persistentes, Set-Cookie de terceros, parámetros identificadores y CNAME cloaking"
+    icon: tag
+    evidence: "{k|organización estableció|organizaciones establecieron} cookies en el navegador ({empresas}). Las cookies persistentes se conservan tras cerrar el navegador y permiten reconocerlo en visitas posteriores."
+    inference: "{n|parámetro enviado podría contener un identificador|parámetros enviados podrían contener identificadores}; la inferencia se basa en el nombre y el formato del valor."
+  - id: equipo
+    title: "Fingerprinting"
+    technical: "lectura de atributos del dispositivo mediante APIs del navegador: la lectura es Evidencia; el propósito, Inferencia"
+    icon: device
+    evidence: "Scripts de {k|organización|organizaciones} leyeron atributos del dispositivo ({empresas})."
+    inference: "En {n|caso|casos}, el patrón de lectura es compatible con fingerprinting: reconocimiento del dispositivo sin uso de cookies."
+  - id: navegacion
+    title: "Fugas de URL y Referer"
+    technical: "URL de la página en parámetros de la request o en la cabecera Referer completa"
+    icon: eye
+    evidence: "{k|organización recibió|organizaciones recibieron} la URL completa de la página visitada o un término de búsqueda ({empresas})."
+    inference: "Hay {n|indicio|indicios} de que la URL de la página podría haberse transmitido a terceros."
+  - id: datos
+    title: "Exfiltración de atributos"
+    technical: "un valor leído por una API instrumentada aparece en una request saliente"
+    icon: upload
+    evidence: "Valores leídos del dispositivo se transmitieron a {k|organización|organizaciones} ({empresas})."
+    inference: "{n?Se envió un contenido|Se enviaron varios contenidos} que no se pudo interpretar o que podrían corresponder a datos personales."
+  - id: identificador
+    title: "Sincronización de identificadores"
+    technical: "cookie syncing: el mismo identificador en requests a organizaciones distintas"
+    icon: share
+    evidence: "Se {n?observó una transmisión|observaron varias transmisiones} de identificadores a {k|organización|organizaciones} ({empresas}). Las organizaciones que recibieron el mismo valor pueden correlacionar sus registros."
+    inference: "{n|parámetro enviado podría contener una credencial o un identificador|parámetros enviados podrían contener credenciales o identificadores}; la inferencia se basa en el formato del valor."
+  - id: consentimiento
+    title: "Consentimiento (TCF / Consent Mode)"
+    technical: "estado declarado por la CMP (TCF) y parámetros gcs/gcd de Google Consent Mode"
+    icon: check
+    evidence: "{n?Se observó una señal|Se observaron varias señales} de consentimiento. Corresponden a lo que el sitio declara o transmite; no se verifica su cumplimiento."
+    inference: "Hay {n|indicio|indicios} sobre el consentimiento que podrían no ser concluyentes."
+  - id: interaccion
+    title: "Registro de interacción"
+    technical: "escucha de clics, desplazamiento, mouse y teclado; datos de interacción en los envíos; grabación de sesión"
+    icon: pointer
+    evidence: "Scripts de {k|organización|organizaciones} escuchan la interacción del usuario o recibieron envíos justo después de ella ({empresas}). La escucha y la secuencia son hechos; el propósito no se observa."
+    inference: "Hay {n|indicio|indicios} de que la interacción (clics, desplazamiento, permanencia) podría estar registrándose o enviándose."
+  - id: no_visible
+    title: "Fuera del alcance observable"
+    technical: "límites de una visita automatizada"
+    # v1.4.2: en una captura interactiva o importada navegó una persona; el texto cambia según el origen.
+    technical_by_source:
+      interactive: "límites de lo observable desde el navegador"
+      har_import: "límites de lo observable desde el navegador"
+    fixed_by_source:
+      interactive:
+        - "El tratamiento de estos datos en los servidores de cada organización no es observable externamente: el análisis registra únicamente lo que salió del navegador."
+        - "Hubo navegación humana (clics, desplazamiento y escritura en el navegador del analizador): lo que el sitio hizo ante esa interacción sí quedó registrado; lo que no se observa es qué hace cada organización con lo recibido."
+      har_import:
+        - "El tratamiento de estos datos en los servidores de cada organización no es observable externamente: el análisis registra únicamente lo que salió del navegador."
+        - "La captura proviene del navegador real del usuario: incluye su navegación, pero no la instrumentación de fingerprinting ni las cookies; lo que no se observa es qué hace cada organización con lo recibido."
+    icon: fog
+    fixed:
+      - "El tratamiento de estos datos en los servidores de cada organización no es observable externamente: el análisis registra únicamente lo que salió del navegador."
+      - "La visita fue automatizada, sin inicio de sesión, búsquedas ni clics: el comportamiento del sitio ante la interacción del usuario no queda registrado."
+
+none: "No se observó en esta visita."

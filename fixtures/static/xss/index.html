@@ -1,0 +1,14 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <!-- El título contiene HTML activo como TEXTO: quien lo muestre sin escapar lo ejecutaría. -->
+  <title>&lt;img src=x onerror="window.__XSS=(window.__XSS||0)+1"&gt;&lt;script&gt;window.__XSS=1&lt;/script&gt;</title>
+  <link rel="icon" href="data:,">
+</head>
+<body>
+  <h1>Fixture XSS</h1>
+  <script src="/static/xss/payloads.js"></script>
+  <script src="http://tracker-a.fixtures.test/xss/%3Cimg%20src%3Dx%20onerror%3Dwindow.__XSS%3D1%3E.js"></script>
+</body>
+</html>

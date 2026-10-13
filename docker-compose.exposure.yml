@@ -1,0 +1,12 @@
+# DEMO_MODE=exposure: publica en la red local SOLO la página "Mi exposición" (http 8081 y
+# https 8443). La interfaz completa (8080) sigue en loopback y la API de scans responde 403
+# en estos puertos. NO usar directamente: ejecutar scripts/demo.sh, que valida, genera el
+# certificado y avisa.
+services:
+  frontend:
+    ports:
+      - "${DEMO_BIND:?usar scripts/demo.sh}:${EXPOSURE_HTTP_PORT:-8088}:8081"
+      - "${DEMO_BIND:?usar scripts/demo.sh}:${EXPOSURE_HTTPS_PORT:-8443}:8443"
+    volumes:
+      - ./frontend/nginx.exposure-tls.conf:/etc/nginx/conf.d/exposure-tls.conf:ro
+      - ./.demo-certs:/etc/nginx/certs:ro

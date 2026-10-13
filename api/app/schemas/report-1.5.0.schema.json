@@ -1,0 +1,1474 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://web-privacy-analyzer.local/schemas/report-1.5.0.schema.json",
+  "title": "Reporte de análisis de un scan",
+  "description": "Versión 1.1.0 (F4): añade la sección fingerprinting y el desglose asintótico del site_exposure_score (cap, k, points decimal). Cambios incompatibles => nuevo archivo; el campo schema_version del reporte dice contra cuál se validó.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "scan",
+    "analysis",
+    "site",
+    "capture",
+    "trackers",
+    "findings",
+    "fingerprinting",
+    "limitations",
+    "consent",
+    "destinations",
+    "versions",
+    "attributions",
+    "evidence_levels",
+    "legal_notice",
+    "masked",
+    "license_profile",
+    "story"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.5.0"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "scan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "job_id",
+        "url",
+        "final_url",
+        "status",
+        "http_status",
+        "title",
+        "started_at",
+        "finished_at",
+        "source",
+        "import"
+      ],
+      "properties": {
+        "job_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "url": {
+          "type": "string"
+        },
+        "final_url": {
+          "type": "string",
+          "description": "\"no_disponible\" si la navegación falló"
+        },
+        "status": {
+          "enum": [
+            "completed",
+            "failed"
+          ]
+        },
+        "http_status": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "started_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "finished_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source": {
+          "enum": [
+            "scan",
+            "har_import"
+          ],
+          "description": "scan = navegador del worker; har_import = captura importada del navegador real del usuario"
+        },
+        "import": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "description": "Metadatos del HAR importado: carga elegida, bloqueos por extensión y cabeceras sensibles descartadas (solo conteos)"
+        }
+      }
+    },
+    "analysis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "analyzer_version",
+        "lists_version",
+        "lists",
+        "analyzed_at",
+        "partial",
+        "duration_ms"
+      ],
+      "properties": {
+        "analyzer_version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "lists_version": {
+          "type": "string"
+        },
+        "lists": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "noncommercial"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "retrieved_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "sha256": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "license": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "noncommercial": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "analyzed_at": {
+          "type": "string"
+        },
+        "partial": {
+          "type": "boolean"
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "site": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exposure_score",
+        "band",
+        "breakdown",
+        "data_categories",
+        "mechanisms",
+        "summary"
+      ],
+      "properties": {
+        "exposure_score": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 99,
+          "description": "Asintótico: nunca llega a 100"
+        },
+        "band": {
+          "$ref": "#/$defs/band"
+        },
+        "breakdown": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "component",
+              "count",
+              "cap",
+              "k",
+              "points"
+            ],
+            "properties": {
+              "component": {
+                "type": "string"
+              },
+              "count": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "cap": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "k": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "points": {
+                "type": "number",
+                "minimum": 0
+              }
+            }
+          }
+        },
+        "data_categories": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "category",
+              "status",
+              "item",
+              "evidence_refs"
+            ],
+            "properties": {
+              "category": {
+                "enum": [
+                  "DEVICE",
+                  "IDENTIFIERS",
+                  "BEHAVIOR",
+                  "NETWORK",
+                  "LOCATION",
+                  "ADVERTISING",
+                  "SESSION"
+                ]
+              },
+              "status": {
+                "enum": [
+                  "observado",
+                  "inferido",
+                  "potencial"
+                ]
+              },
+              "item": {
+                "type": "string"
+              },
+              "evidence_refs": {
+                "$ref": "#/$defs/evidence_refs"
+              }
+            }
+          }
+        },
+        "mechanisms": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "summary": {
+          "type": "object"
+        }
+      }
+    },
+    "capture": {
+      "type": "object",
+      "required": [
+        "total_requests",
+        "first_party",
+        "third_party",
+        "blocked",
+        "capture_truncated",
+        "same_org",
+        "blocked_by_client"
+      ],
+      "properties": {
+        "total_requests": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "first_party": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "third_party": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Requests a OTRA organización (request_analysis.party = third_party)"
+        },
+        "blocked": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "capture_truncated": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "same_org": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Requests a otro dominio de la misma organización; no son terceros"
+        },
+        "blocked_by_client": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Requests bloqueadas por una extensión del navegador (solo HAR importado)"
+        }
+      }
+    },
+    "trackers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "entity",
+          "domains",
+          "request_count",
+          "max_score",
+          "max_band",
+          "categories",
+          "requests"
+        ],
+        "properties": {
+          "entity": {
+            "type": "string",
+            "description": "\"no_disponible\" si el dominio no está en el mapa de entidades"
+          },
+          "domains": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "request_count": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "max_score": {
+            "$ref": "#/$defs/score"
+          },
+          "max_band": {
+            "$ref": "#/$defs/band"
+          },
+          "service_type": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Giro conocido de la organización (data/service_types.yaml), o null si no se identifica. Es CONTEXTO (Inferencia)."
+          },
+          "service_label": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Frase que describe el giro del servicio. CONTEXTO, no evidencia del uso concreto."
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "requests": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "request_id",
+                "url",
+                "score",
+                "band",
+                "category",
+                "mechanism",
+                "reasons",
+                "plain"
+              ],
+              "properties": {
+                "request_id": {
+                  "type": "integer"
+                },
+                "url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "score": {
+                  "$ref": "#/$defs/score"
+                },
+                "band": {
+                  "$ref": "#/$defs/band"
+                },
+                "category": {
+                  "type": "string"
+                },
+                "mechanism": {
+                  "type": "string"
+                },
+                "reasons": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "signal",
+                      "weight",
+                      "level",
+                      "evidence_ref"
+                    ],
+                    "properties": {
+                      "signal": {
+                        "type": "string"
+                      },
+                      "weight": {
+                        "type": "integer"
+                      },
+                      "level": {
+                        "$ref": "#/$defs/level"
+                      },
+                      "evidence_ref": {
+                        "type": "integer"
+                      },
+                      "detail": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "plain": {
+                  "$ref": "#/$defs/plain_phrase"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "claim",
+          "level",
+          "evidence_refs",
+          "plain"
+        ],
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "claim": {
+            "type": "string",
+            "minLength": 1
+          },
+          "level": {
+            "$ref": "#/$defs/level"
+          },
+          "evidence_refs": {
+            "$ref": "#/$defs/evidence_refs"
+          },
+          "details": {
+            "type": "object"
+          },
+          "plain": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Frase técnica del hallazgo, redactada según su nivel (F10)."
+          }
+        }
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "fingerprinting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "instrumented",
+        "truncated",
+        "rejected_events",
+        "scripts",
+        "attributes",
+        "exfiltrations"
+      ],
+      "properties": {
+        "instrumented": {
+          "type": "boolean",
+          "description": "false = el scan corrió sin instrumentación; las listas vacías no significan ausencia de fingerprinting"
+        },
+        "truncated": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "rejected_events": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "scripts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "script_url",
+              "entity",
+              "apis",
+              "total_calls",
+              "fingerprinting_inferred",
+              "heuristics"
+            ],
+            "properties": {
+              "script_url": {
+                "type": "string",
+                "description": "\"\" si la llamada no se pudo atribuir a un script"
+              },
+              "entity": {
+                "type": "string"
+              },
+              "service_type": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "service_label": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "apis": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "api",
+                    "count"
+                  ],
+                  "properties": {
+                    "api": {
+                      "type": "string"
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                }
+              },
+              "total_calls": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "fingerprinting_inferred": {
+                "type": "boolean"
+              },
+              "heuristics": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/fp_finding"
+                }
+              }
+            }
+          }
+        },
+        "attributes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "attribute",
+              "status",
+              "value",
+              "scripts",
+              "evidence_refs"
+            ],
+            "properties": {
+              "attribute": {
+                "type": "string"
+              },
+              "status": {
+                "enum": [
+                  "NO_DISPONIBLE",
+                  "DISPONIBLE",
+                  "UTILIZADO",
+                  "OBSERVADO"
+                ]
+              },
+              "value": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "scripts": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "evidence_refs": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "calls",
+                  "requests"
+                ],
+                "properties": {
+                  "calls": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer"
+                    }
+                  },
+                  "requests": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "exfiltrations": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/fp_finding"
+              },
+              {
+                "properties": {
+                  "level": {
+                    "const": "EVIDENCIA"
+                  },
+                  "evidence_refs": {
+                    "properties": {
+                      "calls": {
+                        "minItems": 1
+                      },
+                      "requests": {
+                        "minItems": 1
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    "consent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tcf",
+        "consent_mode",
+        "user_interaction"
+      ],
+      "properties": {
+        "user_interaction": {
+          "type": "boolean"
+        },
+        "conclusions": {
+          "type": "array",
+          "description": "Conclusiones de consentimiento en lenguaje técnico, por plantilla, con su nivel (point 6). Sin juicio legal.",
+          "items": {
+            "type": "object",
+            "required": [
+              "type",
+              "level",
+              "text"
+            ],
+            "properties": {
+              "type": {
+                "type": "string"
+              },
+              "level": {
+                "$ref": "#/$defs/level"
+              },
+              "text": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "tcf": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "required": [
+            "present"
+          ],
+          "properties": {
+            "present": {
+              "type": "boolean"
+            },
+            "cmp_id": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "cmp_name": {
+              "type": "string"
+            },
+            "cmp_version": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "cmp_status": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "display_status": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "gdpr_applies": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "event_status": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "has_tc_string": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "purposes_granted": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "purposes_total": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            }
+          }
+        },
+        "consent_mode": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "required": [
+            "requests",
+            "states",
+            "by_signal",
+            "sources"
+          ],
+          "properties": {
+            "requests": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "states": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "integer"
+              }
+            },
+            "by_signal": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "integer"
+                }
+              }
+            },
+            "sources": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      }
+    },
+    "destinations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "has_proxy_log",
+        "domains",
+        "countries",
+        "location_note",
+        "ip_database",
+        "attribution",
+        "cname_cloaking"
+      ],
+      "properties": {
+        "has_proxy_log": {
+          "type": "boolean"
+        },
+        "location_note": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ip_database": {
+          "type": "string"
+        },
+        "attribution": {
+          "type": "object",
+          "required": [
+            "text",
+            "url"
+          ]
+        },
+        "domains": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "domain",
+              "third_party",
+              "hosts",
+              "requests",
+              "entity",
+              "ips",
+              "ip_status",
+              "ip_reason",
+              "network_organizations",
+              "sources_differ",
+              "blocked",
+              "party"
+            ],
+            "properties": {
+              "domain": {
+                "type": "string"
+              },
+              "third_party": {
+                "type": "boolean"
+              },
+              "hosts": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "requests": {
+                "type": "integer"
+              },
+              "entity": {
+                "type": "string",
+                "minLength": 1
+              },
+              "ips": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "ip",
+                    "kind",
+                    "applies"
+                  ],
+                  "properties": {
+                    "ip": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string"
+                    },
+                    "applies": {
+                      "type": "boolean"
+                    },
+                    "country_code": {
+                      "type": "string"
+                    },
+                    "country": {
+                      "type": "string"
+                    },
+                    "asn": {
+                      "type": "string"
+                    },
+                    "organization": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "ip_status": {
+                "enum": [
+                  "observada",
+                  "no_disponible"
+                ]
+              },
+              "ip_reason": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "blocked": {
+                "type": "boolean"
+              },
+              "network_organizations": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "sources_differ": {
+                "type": "boolean"
+              },
+              "party": {
+                "enum": [
+                  "first_party",
+                  "same_org",
+                  "third_party"
+                ]
+              }
+            },
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "ip_status": {
+                      "const": "no_disponible"
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "ip_reason": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "ips": {
+                      "maxItems": 0
+                    }
+                  }
+                },
+                "else": {
+                  "properties": {
+                    "ips": {
+                      "minItems": 1
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "countries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "country_code",
+              "country",
+              "domains",
+              "third_party_domains",
+              "examples"
+            ],
+            "properties": {
+              "country_code": {
+                "type": "string"
+              },
+              "country": {
+                "type": "string"
+              },
+              "domains": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "third_party_domains": {
+                "type": "integer"
+              },
+              "examples": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "cname_cloaking": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "checked_hosts",
+            "first_party_subdomains",
+            "findings",
+            "note"
+          ],
+          "properties": {
+            "checked_hosts": {
+              "type": "integer"
+            },
+            "first_party_subdomains": {
+              "type": "integer"
+            },
+            "note": {
+              "type": "string"
+            },
+            "findings": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "host",
+                  "cname_chain",
+                  "target_domain",
+                  "organization",
+                  "level",
+                  "claim",
+                  "inference_level",
+                  "inference",
+                  "evidence_refs"
+                ],
+                "properties": {
+                  "level": {
+                    "const": "EVIDENCIA"
+                  },
+                  "inference_level": {
+                    "const": "INFERENCIA"
+                  },
+                  "claim": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "evidence_refs": {
+                    "type": "array",
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "versions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "analyzer",
+        "lists",
+        "ip_database",
+        "cmp_list"
+      ],
+      "properties": {
+        "analyzer": {
+          "type": "string"
+        },
+        "lists": {
+          "type": "string"
+        },
+        "ip_database": {
+          "type": "string"
+        },
+        "cmp_list": {
+          "type": "string"
+        }
+      }
+    },
+    "attributions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source",
+          "license",
+          "text"
+        ],
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "license": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "noncommercial": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "evidence_levels": {
+      "type": "object",
+      "required": [
+        "EVIDENCIA",
+        "INFERENCIA",
+        "POSIBLE",
+        "DESCONOCIDO"
+      ],
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "legal_notice": {
+      "type": "string",
+      "minLength": 1
+    },
+    "masked": {
+      "type": "boolean"
+    },
+    "license_profile": {
+      "enum": [
+        "no_comercial",
+        "comercial"
+      ],
+      "description": "Perfil de licencias de las fuentes con que se hizo el análisis (docs/adr/019)."
+    },
+    "story": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "steps",
+        "none"
+      ],
+      "description": "«Hallazgos por grupo»: los hallazgos en siete pasos fijos, cada uno con frase técnica, conteo, niveles y evidencia (F10).",
+      "properties": {
+        "none": {
+          "type": "string"
+        },
+        "steps": {
+          "type": "array",
+          "minItems": 7,
+          "maxItems": 7,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "number",
+              "title",
+              "technical",
+              "fixed",
+              "observed",
+              "count",
+              "levels",
+              "sentences",
+              "items",
+              "total_items"
+            ],
+            "properties": {
+              "id": {
+                "enum": [
+                  "etiquetado",
+                  "equipo",
+                  "navegacion",
+                  "datos",
+                  "identificador",
+                  "consentimiento",
+                  "no_visible"
+                ]
+              },
+              "number": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 7
+              },
+              "title": {
+                "type": "string"
+              },
+              "technical": {
+                "type": "string"
+              },
+              "icon": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "fixed": {
+                "type": "boolean"
+              },
+              "observed": {
+                "type": "boolean"
+              },
+              "count": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "levels": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "sentences": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "text",
+                    "level"
+                  ],
+                  "properties": {
+                    "text": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "level": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/$defs/level"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  }
+                }
+              },
+              "total_items": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "key",
+                    "type",
+                    "level",
+                    "plain",
+                    "claim",
+                    "evidence_refs"
+                  ],
+                  "properties": {
+                    "key": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "type": {
+                      "type": "string"
+                    },
+                    "level": {
+                      "$ref": "#/$defs/level"
+                    },
+                    "plain": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "claim": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "evidence_refs": {
+                      "$ref": "#/$defs/fp_refs"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "score": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "band": {
+      "enum": [
+        "Bajo",
+        "Posible",
+        "Moderado",
+        "Alto",
+        "Muy alto"
+      ]
+    },
+    "level": {
+      "enum": [
+        "EVIDENCIA",
+        "INFERENCIA",
+        "POSIBLE",
+        "DESCONOCIDO"
+      ]
+    },
+    "evidence_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "integer"
+      }
+    },
+    "fp_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "calls",
+        "requests"
+      ],
+      "anyOf": [
+        {
+          "properties": {
+            "calls": {
+              "minItems": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "requests": {
+              "minItems": 1
+            }
+          }
+        }
+      ],
+      "properties": {
+        "calls": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "description": "ids de llamadas a API (fp_api_calls)"
+        },
+        "requests": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "description": "ids de requests"
+        }
+      }
+    },
+    "fp_finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "script_url",
+        "heuristic",
+        "level",
+        "claim",
+        "evidence_refs"
+      ],
+      "properties": {
+        "script_url": {
+          "type": "string"
+        },
+        "heuristic": {
+          "type": "string"
+        },
+        "level": {
+          "$ref": "#/$defs/level"
+        },
+        "claim": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_refs": {
+          "$ref": "#/$defs/fp_refs"
+        },
+        "details": {
+          "type": "object"
+        }
+      }
+    },
+    "plain_phrase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text",
+        "level"
+      ],
+      "description": "Frase técnica (plantilla determinista de data/explanations.yaml) y su nivel de evidencia.",
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "level": {
+          "$ref": "#/$defs/level"
+        },
+        "generic": {
+          "type": "boolean"
+        },
+        "signal": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

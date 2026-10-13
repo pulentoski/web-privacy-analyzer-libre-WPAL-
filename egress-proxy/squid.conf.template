@@ -1,0 +1,114 @@
+# Egress proxy — capa 2 de la defensa SSRF (docs/SPEC.md §Seguridad).
+# Es la capa que garantiza: las ACL `dst` se evalúan sobre la IP RESUELTA por
+# este proxy, que es la misma que usa para conectar.
+# __UPSTREAM_DNS__ lo sustituye entrypoint.sh a partir de la variable de entorno.
+# Las líneas @FIXTURES_ON@ solo se activan con ALLOW_FIXTURES=1 (stack de tests);
+# las @FIXTURES_OFF@, solo sin él. entrypoint.sh elimina las que no apliquen.
+
+http_port 3128
+visible_hostname egress-proxy
+# Necesario para `squid -k rotate` (rotación del log de scans, ver entrypoint.sh).
+pid_filename /tmp/squid.pid
+shutdown_lifetime 1 seconds
+# El pinger ICMP necesita un socket raw (CAP_NET_RAW), que no se concede.
+pinger_enable off
+
+# --- DNS: resolver upstream real, no el DNS embebido de Docker ---
+# Así los nombres de servicios Docker ni siquiera resuelven desde el proxy.
+dns_nameservers __UPSTREAM_DNS__
+dns_timeout 10 seconds
+connect_timeout 15 seconds
+# Sin archivo hosts: /etc/hosts del contenedor contiene nombres internos.
+@FIXTURES_OFF@ hosts_file none
+# Tests: el archivo solo contiene los nombres del sitio de fixtures (lo genera entrypoint.sh).
+@FIXTURES_ON@ hosts_file /tmp/fixtures-hosts
+
+# --- Atribución de cada conexión a su scan (docs/adr/016) ---
+# El worker se identifica con usuario "scan-<id del scan>". No es control de acceso de
+# personas: sirve para saber qué scan abrió cada conexión, también con scans simultáneos.
+auth_param basic program /usr/local/bin/scan-auth.sh
+auth_param basic children 3 startup=1 idle=1
+auth_param basic realm wpa-scan
+auth_param basic credentialsttl 2 hours
+acl scan_user proxy_auth REQUIRED
+
+# --- ACLs ---
+acl sandbox_clients src 172.30.3.0/24
+
+acl forbidden_dst dst 0.0.0.0/8
+acl forbidden_dst dst 10.0.0.0/8
+acl forbidden_dst dst 100.64.0.0/10
+acl forbidden_dst dst 127.0.0.0/8
+acl forbidden_dst dst 169.254.0.0/16
+acl forbidden_dst dst 172.16.0.0/12
+acl forbidden_dst dst 192.0.0.0/24
+acl forbidden_dst dst 192.168.0.0/16
+acl forbidden_dst dst 198.18.0.0/15
+acl forbidden_dst dst 224.0.0.0/4
+# 240.0.0.0/4 incluye 255.255.255.255 (Squid rechaza declarar ambos).
+acl forbidden_dst dst 240.0.0.0/4
+
+# IPv6: deshabilitado por sysctl en el contenedor; Squid lo detecta al arrancar y
+# no admite ni resuelve destinos IPv6 (ver docs/adr/002).
+# Un host con ":" solo puede ser un literal IPv6 (http://[::1]/).
+acl ipv6_literal dstdom_regex :
+
+# El punto inicial cubre el dominio y sus subdominios.
+acl internal_names dstdomain .localhost .local .internal
+acl internal_names dstdomain db api worker egress-proxy frontend fixtures
+# El sitio de fixtures de los tests: denegado salvo con ALLOW_FIXTURES=1.
+acl internal_names dstdomain .fixtures.test
+@FIXTURES_ON@ acl fixtures_names dstdomain site.fixtures.test tracker-a.fixtures.test cdn-b.fixtures.test metrics.site.fixtures.test
+@FIXTURES_ON@ acl fixtures_dst dst __FIXTURES_IP__/32
+# Nombres de una sola etiqueta: solo existen en redes locales.
+acl single_label dstdom_regex ^[^.:]+\.?$
+
+# Respaldo del ADR 013: servicios propios de Chromium que ninguna página necesita.
+# (accounts.google.com y www.google.com NO están aquí: los usan sitios reales.)
+acl browser_services dstdomain update.googleapis.com clients2.google.com clientservices.googleapis.com
+acl browser_services dstdomain android.clients.google.com mtalk.google.com optimizationguide-pa.googleapis.com
+acl browser_services dstdomain safebrowsing.googleapis.com content-autofill.googleapis.com .gvt1.com
+acl browser_services dstdomain blackhole.invalid
+
+acl allowed_ports port 80 443
+acl CONNECT method CONNECT
+
+# --- Política (el orden importa: primero todas las denegaciones) ---
+http_access deny manager
+http_access deny !sandbox_clients
+http_access deny !scan_user
+http_access deny browser_services
+http_access deny !allowed_ports
+http_access deny ipv6_literal
+# Excepción de tests: nombre exacto Y la IP fija del contenedor de fixtures.
+@FIXTURES_ON@ http_access allow sandbox_clients fixtures_names fixtures_dst
+http_access deny internal_names
+http_access deny single_label
+http_access deny forbidden_dst
+http_access allow sandbox_clients
+http_access deny all
+
+# --- Sin caché ---
+cache deny all
+cache_mem 0 MB
+memory_pools off
+
+# --- No revelar la topología interna a los sitios analizados ---
+forwarded_for delete
+via off
+httpd_suppress_version_string on
+
+# --- Logs a stdout/stderr ---
+logformat egress %tl %>a %Ss/%03>Hs %rm %ru dst=%<a err=%err_code
+access_log stdio:/dev/stdout egress
+# Una línea JSON por transacción, en un volumen que el worker monta de solo lectura.
+# dst_ip es la IP a la que Squid conectó realmente ("-" si la request se denegó).
+# El worker lee este archivo con otro usuario (volumen de solo lectura): Squid crea sus logs
+# con umask 027 por defecto y quedaría ilegible.
+umask 022
+logformat scanlog {"ts":%ts.%03tu,"user":"%un","method":"%rm","host":"%>rd","port":"%>rP","dst_ip":"%<a","status":%>Hs,"result":"%Ss"}
+access_log stdio:/var/log/scanlog/access.jsonl logformat=scanlog rotate=5
+cache_log /dev/stderr
+cache_store_log none
+logfile_rotate 0
+coredump_dir /tmp

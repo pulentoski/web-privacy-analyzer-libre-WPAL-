@@ -1,0 +1,22 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Fixture Interacción</title>
+  <link rel="icon" href="data:,">
+  <style>body { min-height: 3000px; font-family: sans-serif; } #buy { font-size: 24px; padding: 20px 40px; margin: 40px; }</style>
+</head>
+<body>
+  <h1>Fixture Interacción</h1>
+  <!-- v1.4.2: un script de tercero escucha clics, desplazamiento, mouse y teclado, y los envía. -->
+  <button id="buy" type="button">Comprar</button>
+  <input id="note" type="text" autocomplete="off">
+  <canvas id="qr" width="64" height="64"></canvas>
+  <script src="http://tracker-a.fixtures.test/static/interact/interact.js"></script>
+  <script src="/static/interact/qrcode.min.js"></script>
+  <script>
+    // Script inline de la página: lee un atributo del dispositivo (se atribuye al propio sitio).
+    window.__inlineUA = navigator.userAgent.length + screen.width;
+  </script>
+</body>
+</html>

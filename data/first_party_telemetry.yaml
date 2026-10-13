@@ -1,0 +1,38 @@
+# Telemetría propia (v1.3.4, docs/adr/028): envíos de eventos al PROPIO sitio o a otro dominio de
+# la MISMA organización. No son terceros ni cuentan como «requests de rastreo», pero sí son un
+# método de recolección: se informan aparte y tienen su componente en el índice de exposición.
+# Solo se evalúan requests cuya organización es la del sitio (party = first_party | same_org).
+
+# Segmentos de ruta habituales de un endpoint de eventos (comparación exacta con un segmento de la
+# ruta, sin distinguir mayúsculas). No aplica a documentos ni a assets estáticos (script, css, fuente).
+path_segments:
+  - count
+  - metrics
+  - collect
+  - events
+  - event
+  - track
+  - tracks
+  - tracking
+  - beacon
+  - log
+  - logs
+  - ping.gif
+# Una respuesta 204 (sin contenido) a un POST, o a un GET con parámetros, es el patrón de un envío
+# de datos cuyo resultado no le importa a la página.
+status_204: true
+# Analítica propia conocida: el patrón se busca en host + ruta. Si la request es un script se informa
+# como «script de analítica propia»; si no, como endpoint de eventos.
+known:
+  - {pattern: melidata, name: "Melidata (Mercado Libre)"}
+  - {pattern: adn-script, name: "ADN, red publicitaria propia (Mercado Libre)"}
+  - {pattern: adn-frontend-library, name: "ADN, red publicitaria propia (Mercado Libre)"}
+  - {pattern: viewability, name: "Medición de visibilidad de anuncios propia"}
+  - {pattern: mercadoclics, name: "Mercado Clics, publicidad propia (Mercado Libre)"}
+  - {pattern: mmstat.com, name: "mmstat (Alibaba)"}
+  - {pattern: /aplus, name: "aplus (Alibaba)"}
+  - {pattern: aplus., name: "aplus (Alibaba)"}
+# Con al menos estas requests de telemetría propia, un rastreo de terceros bajo no marca la visita
+# como «posiblemente bloqueada» (si el título es normal y no hay firma antibot): queda una nota.
+min_requests_for_note: 3
+max_listed: 15

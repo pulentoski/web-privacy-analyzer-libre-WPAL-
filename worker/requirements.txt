@@ -1,0 +1,10 @@
+# Debe coincidir EXACTAMENTE con el tag de la imagen base del Dockerfile.
+playwright==1.63.0
+asyncpg==0.31.0
+# PSL empaquetada; nunca se descarga en runtime (suffix_list_urls=()).
+tldextract==5.4.0
+# Motor de reglas Adblock (bindings de adblock-rust). Ver docs/adr/004.
+adblock==0.6.0
+PyYAML==6.0.3
+# tests
+pytest==9.1.1

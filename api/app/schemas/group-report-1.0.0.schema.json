@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "group-report-1.0.0",
+  "title": "Reporte de un grupo de Privacy Test",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "generated_at", "group", "scans", "result", "versions", "attributions", "evidence_levels", "legal_notice", "masked", "limitations"],
+  "properties": {
+    "schema_version": {"const": "group-1.0.0"},
+    "generated_at": {"type": "string"},
+    "group": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["group_id", "url", "config", "created_at", "progress"],
+      "properties": {
+        "group_id": {"type": "string"},
+        "url": {"type": "string"},
+        "created_at": {"type": "string"},
+        "config": {
+          "type": "object",
+          "required": ["scenarios", "profiles", "runs"],
+          "properties": {
+            "scenarios": {"type": "array", "items": {"enum": ["sin_interaccion", "aceptar", "rechazar"]}},
+            "profiles": {"type": "array", "items": {"type": "string"}},
+            "runs": {"type": "integer", "minimum": 1, "maximum": 5}
+          }
+        },
+        "progress": {
+          "type": "object",
+          "required": ["done", "total", "failed"],
+          "properties": {"done": {"type": "integer"}, "total": {"type": "integer"}, "failed": {"type": "integer"}}
+        }
+      }
+    },
+    "scans": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["job_id", "scenario", "profile", "run", "status", "exposure_score", "band"],
+        "properties": {
+          "job_id": {"type": "string"},
+          "scenario": {"type": ["string", "null"]},
+          "profile": {"type": ["string", "null"]},
+          "run": {"type": ["integer", "null"]},
+          "status": {"type": "string"},
+          "exposure_score": {"type": ["integer", "string"]},
+          "band": {"type": "string"}
+        }
+      }
+    },
+    "result": {
+      "type": "object",
+      "required": ["cells", "tracker_differences", "consent", "profiles", "persistent_ids", "limitations"],
+      "properties": {
+        "cells": {"type": "array"},
+        "tracker_differences": {"type": "array"},
+        "consent": {"type": ["object", "null"]},
+        "profiles": {"type": ["object", "null"]},
+        "persistent_ids": {
+          "type": "object",
+          "required": ["items", "total"],
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["claim", "level", "evidence", "inference", "inference_level"],
+                "properties": {
+                  "level": {"enum": ["EVIDENCIA", "INFERENCIA", "POSIBLE", "DESCONOCIDO"]},
+                  "inference_level": {"enum": ["EVIDENCIA", "INFERENCIA", "POSIBLE", "DESCONOCIDO"]},
+                  "evidence": {"type": "array", "minItems": 1}
+                }
+              }
+            },
+            "total": {"type": "integer"}
+          }
+        },
+        "limitations": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "versions": {"type": "object", "additionalProperties": {"type": "string"}},
+    "attributions": {"type": "array", "items": {"type": "object", "required": ["source", "license", "text", "url"]}},
+    "evidence_levels": {"type": "object", "additionalProperties": {"type": "string"}},
+    "legal_notice": {"type": "string", "minLength": 1},
+    "masked": {"type": "boolean"},
+    "limitations": {"type": "array", "items": {"type": "string"}}
+  }
+}

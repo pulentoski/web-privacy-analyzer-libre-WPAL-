@@ -1,0 +1,7 @@
+# Modo demo: expone el frontend en la red local (para proyectar o mostrar desde otro equipo).
+# NO usar directamente: ejecutar scripts/demo.sh con DEMO_MODE=1, que valida y avisa.
+# La API y la base de datos siguen sin exponerse; el rate limit de scans sigue activo.
+services:
+  frontend:
+    ports: !override
+      - "${DEMO_BIND:?usar scripts/demo.sh}:${FRONTEND_PORT:-8080}:8080"

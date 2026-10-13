@@ -1,0 +1,4 @@
+playwright==1.63.0
+pytest==9.1.1
+# Extrae el texto de los PDF exportados (F8). BSD-3-Clause.
+pypdf==6.19.0

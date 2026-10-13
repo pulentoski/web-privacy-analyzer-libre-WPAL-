@@ -1,0 +1,20 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Fixture Login</title>
+  <link rel="icon" href="data:,">
+</head>
+<body>
+  <h1>Fixture Login</h1>
+  <!-- v1.4.1: el campo de contraseña se llama "clave" a propósito: solo su type lo delata. -->
+  <form id="login" method="post" action="/login/submit">
+    <input id="user" name="user" type="text" autocomplete="off">
+    <input id="clave" name="clave" type="password" autocomplete="off">
+    <input id="otp" name="otp" type="text" autocomplete="off">
+    <button id="enter" type="submit">Entrar</button>
+  </form>
+  <button id="api" type="button">Enviar por API</button>
+  <script src="/static/login/login.js"></script>
+</body>
+</html>

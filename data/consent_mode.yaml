@@ -1,0 +1,31 @@
+# Dominios registrables de Google donde se buscan los parámetros de Consent Mode (gcs, gcd).
+# Formato y fuentes: docs/adr/015.
+google_domains:
+  - google-analytics.com
+  - analytics.google.com
+  - google.com
+  - google.cl
+  - doubleclick.net
+  - googleadservices.com
+  - googlesyndication.com
+  - googletagmanager.com
+# Solo con ALLOW_FIXTURES=1: el "Google" del sitio de fixtures.
+test_domains:
+  - tracker-a.fixtures.test
+
+# Conclusión de consentimiento en lenguaje técnico (v1.2.1, point 6). Se genera por plantilla, con
+# su nivel, y se muestra en Resumen, Hallazgos y reportes. Sin juicio legal. {cmp} = nombre o número
+# de la plataforma de consentimiento. Orden de preferencia: la primera cuya condición se cumple.
+conclusions:
+  # gcs con ad_storage o analytics_storage = granted antes de interactuar con un banner.
+  consent_mode_granted_without_interaction:
+    level: EVIDENCIA
+    text: "El sitio declaró a Google consentimiento para {ambito} (gcs={raw}) sin que el visitante interactuara con un banner."
+  # gcs enviado pero sin declarar estado (G1--): ninguna señal definida.
+  consent_mode_undefined:
+    level: EVIDENCIA
+    text: "Se enviaron datos a Google sin declarar estado de consentimiento (gcs={raw})."
+  # Plataforma TCF presente pero que no se muestra en esta visita (gdprApplies=false y displayStatus disabled/hidden).
+  tcf_present_not_shown:
+    level: EVIDENCIA
+    text: "El sitio tiene una plataforma de consentimiento TCF ({cmp}), pero no la muestra en esta visita."

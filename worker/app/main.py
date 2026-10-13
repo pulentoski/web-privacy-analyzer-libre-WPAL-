@@ -1,0 +1,238 @@
+import asyncio
+import logging
+import pathlib
+import signal
+
+import asyncpg
+
+from app import jobs
+from app.progress import ScanProgress, publish_loop
+from app.analysis import analysis_loop
+from app import har_capture, interactive
+from app.resources import resources_loop
+from app.browser.capture import run_scan
+from app.render import render_loop
+from app.retention import retention_loop
+from app.browser.profiles import UnknownProfile
+from app.config import settings
+from app.logging_setup import configure_logging
+
+logger = logging.getLogger("worker")
+
+
+async def heartbeat_loop(pool) -> None:
+    heartbeat_file = pathlib.Path(settings.heartbeat_file)
+    while True:
+        try:
+            await jobs.heartbeat(pool, settings.worker_id)
+            heartbeat_file.touch()  # lo lee el healthcheck del contenedor
+        except (asyncpg.PostgresError, OSError) as exc:
+            logger.error("heartbeat_failed", extra={"error_type": type(exc).__name__, "error": str(exc)})
+        await asyncio.sleep(settings.heartbeat_interval_s)
+
+
+async def reaper_loop(pool) -> None:
+    while True:
+        try:
+            await jobs.reap(pool)
+        except (asyncpg.PostgresError, OSError) as exc:
+            logger.error("reaper_failed", extra={"error_type": type(exc).__name__, "error": str(exc)})
+        await asyncio.sleep(settings.reaper_interval_s)
+
+
+async def run_job(pool, job) -> None:
+    job_id = str(job["id"])
+    logger.info("job_started", extra={"job_id": job_id, "attempt": job["attempts"]})
+    result, error, capture = None, None, None
+    # Etapa y contadores reales, publicados mientras el scan corre (F10).
+    source = jobs.job_source(job)
+    state = ScanProgress(settings.interactive_max_s if source == interactive.SOURCE else settings.scan_timeout_s)
+    publisher = asyncio.create_task(publish_loop(pool, job, settings.worker_id, state))
+    try:
+        # run_scan corta la captura a los SCAN_TIMEOUT_S; el margen extra es para volcarla.
+        if source == interactive.SOURCE:
+            # Captura interactiva (v1.4): dura lo que navegue el usuario, dentro de sus propios límites.
+            outcome = await interactive.run(pool, job, settings.worker_id, state)
+            result, error, capture = outcome.result, outcome.error, outcome.capture
+        elif source == har_capture.SOURCE:
+            # Captura importada (HAR): no se navega; las entradas ya depuradas se convierten en captura.
+            result, capture = har_capture.build_capture(
+                await jobs.load_har_import(pool, job["id"]),
+                max_requests=settings.max_requests, max_body_bytes=settings.max_body_capture_bytes,
+            )
+        else:
+            outcome = await asyncio.wait_for(
+                run_scan(job["url"], proxy_user=f"scan-{job['id']}", progress=state, **jobs.job_options(job)),
+                timeout=settings.scan_timeout_s + settings.finalize_grace_s,
+            )
+            result, error, capture = outcome.result, outcome.error, outcome.capture
+    except asyncio.CancelledError:
+        publisher.cancel()
+        if source == interactive.SOURCE:
+            # Una sesión interactiva no se repite sola: lo que navegó el usuario se perdió con el navegador.
+            interrupted = {"error_code": "INTERACTIVE_INTERRUPTED", "message": "El worker se detuvo durante la captura interactiva.", "stage": "interactive"}
+            await asyncio.shield(jobs.finish(pool, job, settings.worker_id, error=interrupted, progress={"stage": "failed"}))
+            raise
+        # Apagado ordenado: devolver el job a la cola en vez de esperar al reaper.
+        await asyncio.shield(jobs.release(pool, job, settings.worker_id))
+        logger.warning("job_released_on_shutdown", extra={"job_id": job_id})
+        raise
+    except har_capture.InvalidImport:
+        error = {"error_code": "HAR_INVALID", "message": "La captura importada no se pudo convertir.", "stage": "har_import"}
+    except UnknownProfile:
+        error = {"error_code": "UNKNOWN_PROFILE", "message": "El perfil pedido no existe.", "stage": "worker"}
+    except asyncio.TimeoutError:
+        error = {"error_code": "SCAN_TIMEOUT", "message": "El scan superó SCAN_TIMEOUT_S.", "stage": "navigation"}
+    except Exception as exc:
+        logger.exception("job_crashed", extra={"job_id": job_id})
+        error = {"error_code": "WORKER_ERROR", "message": type(exc).__name__, "stage": "worker"}
+    finally:
+        publisher.cancel()
+        await asyncio.gather(publisher, return_exceptions=True)
+
+    if capture is not None:
+        state.freeze(len(capture["requests"]))
+    final = {**state.snapshot(), "stage": "analyzing" if capture is not None else "failed"}
+    if result is not None:
+        result["capture"] = jobs.capture_summary(capture)
+    try:
+        saved = await jobs.finish(pool, job, settings.worker_id, result=result, error=error, capture=capture, progress=final)
+    except Exception as exc:
+        # La captura no se pudo guardar: el job no puede quedar "completed" sin sus datos.
+        logger.exception("capture_persist_failed", extra={"job_id": job_id})
+        result = None
+        error = {"error_code": "PERSIST_FAILED", "message": type(exc).__name__, "stage": "worker"}
+        saved = await jobs.finish(pool, job, settings.worker_id, result=None, error=error, capture=None, progress={**final, "stage": "failed"})
+    logger.info(
+        "job_finished",
+        extra={
+            "job_id": job_id,
+            "status": "completed" if error is None else "failed",
+            "error_code": error["error_code"] if error else None,
+            "saved": saved,  # False = el lease venció y el job ya no es de este worker
+            "requests": len(capture["requests"]) if capture else 0,
+            "capture_truncated": capture["truncated"] if capture else None,
+            "end_reason": capture["end_reason"] if capture else None,
+        },
+    )
+
+
+async def claim_loop(pool, stop: asyncio.Event) -> None:
+    running: set[asyncio.Task] = set()
+    stopped = asyncio.create_task(stop.wait())
+    try:
+        while not stop.is_set():
+            if len(running) >= settings.max_concurrent_scans:
+                await asyncio.wait({stopped, *running}, return_when=asyncio.FIRST_COMPLETED)
+                continue
+            try:
+                job = await jobs.claim(pool, settings.worker_id, settings.lease_s)
+            except (asyncpg.PostgresError, OSError) as exc:
+                logger.error("claim_failed", extra={"error_type": type(exc).__name__, "error": str(exc)})
+                job = None
+            if job is None:
+                await asyncio.wait({stopped}, timeout=settings.poll_interval_s)
+                continue
+            task = asyncio.create_task(run_job(pool, job))
+            running.add(task)
+            task.add_done_callback(running.discard)
+    finally:
+        stopped.cancel()
+        for task in list(running):
+            task.cancel()
+        await asyncio.gather(*running, return_exceptions=True)
+
+
+async def interactive_loop(pool, stop: asyncio.Event) -> None:
+    """Capturas interactivas: una a la vez, en su propio turno (no ocupan MAX_CONCURRENT_SCANS)."""
+    stopped = asyncio.create_task(stop.wait())
+    try:
+        while not stop.is_set():
+            try:
+                job = await jobs.claim(pool, settings.worker_id, settings.lease_s, interactive=True)
+            except (asyncpg.PostgresError, OSError) as exc:
+                logger.error("claim_failed", extra={"error_type": type(exc).__name__, "error": str(exc)})
+                job = None
+            if job is None:
+                await asyncio.wait({stopped}, timeout=settings.poll_interval_s)
+                continue
+            await run_job(pool, job)
+    finally:
+        stopped.cancel()
+
+
+async def start_display():
+    """Xvfb: display virtual donde Chromium abre su ventana (docs/adr/008). Sin puertos TCP."""
+    number = settings.display.lstrip(":")
+    for stale in (f"/tmp/.X{number}-lock", f"/tmp/.X11-unix/X{number}"):
+        pathlib.Path(stale).unlink(missing_ok=True)  # restos de un arranque anterior del contenedor
+    process = await asyncio.create_subprocess_exec(
+        "Xvfb", settings.display, "-screen", "0", "1920x1080x24", "-nolisten", "tcp",
+        stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL,
+    )
+    for _ in range(50):
+        if pathlib.Path(f"/tmp/.X11-unix/X{number}").exists():
+            return process
+        if process.returncode is not None:
+            break
+        await asyncio.sleep(0.1)
+    raise RuntimeError(f"Xvfb no arrancó en {settings.display}")
+
+
+async def display_watchdog(process, stop: asyncio.Event) -> None:
+    await process.wait()
+    if not stop.is_set():
+        # Sin display no se puede navegar: mejor reiniciar el contenedor que fallar cada scan.
+        logger.error("display_exited", extra={"returncode": process.returncode})
+        stop.set()
+
+
+async def main() -> None:
+    configure_logging(settings.log_level)
+    display = None if settings.headless else await start_display()
+    pool = await asyncpg.create_pool(
+        host=settings.postgres_host,
+        user=settings.postgres_user,
+        password=settings.postgres_password.get_secret_value(),
+        database=settings.postgres_db,
+        min_size=1,
+        max_size=settings.max_concurrent_scans + 5,
+    )
+    stop = asyncio.Event()
+    loop = asyncio.get_running_loop()
+    for signum in (signal.SIGTERM, signal.SIGINT):
+        loop.add_signal_handler(signum, stop.set)
+
+    logger.info(
+        "worker_started",
+        extra={
+            "worker_id": settings.worker_id,
+            "max_concurrent_scans": settings.max_concurrent_scans,
+            "lease_s": settings.lease_s,
+            "chromium_sandbox": settings.chromium_sandbox,
+            "headless": settings.headless,
+            "license_profile": settings.license_profile,
+            "scan_retention_days": settings.scan_retention_days,
+        },
+    )
+    background = [
+        asyncio.create_task(heartbeat_loop(pool)),
+        asyncio.create_task(reaper_loop(pool)),
+        asyncio.create_task(analysis_loop(pool)),
+        asyncio.create_task(render_loop(pool)),
+        asyncio.create_task(retention_loop(pool)),
+        asyncio.create_task(resources_loop(pool)),
+        asyncio.create_task(interactive_loop(pool, stop)),
+    ]
+    if display is not None:
+        background.append(asyncio.create_task(display_watchdog(display, stop)))
+    try:
+        await claim_loop(pool, stop)
+    finally:
+        for task in background:
+            task.cancel()
+        await asyncio.gather(*background, return_exceptions=True)
+        await pool.close()
+        if display is not None and display.returncode is None:
+            display.terminate()
+        logger.info("worker_stopped", extra={"worker_id": settings.worker_id})

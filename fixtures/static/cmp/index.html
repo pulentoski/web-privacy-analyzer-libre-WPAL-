@@ -1,0 +1,20 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Fixture CMP</title>
+  <link rel="icon" href="data:,">
+  <style>#onetrust-banner-sdk{position:fixed;bottom:0;left:0;right:0;background:#222;color:#fff;padding:16px;font-family:sans-serif}
+  #onetrust-banner-sdk button{margin-left:8px;padding:6px 12px}</style>
+</head>
+<body>
+  <h1>Fixture con banner de consentimiento (TCF)</h1>
+  <!-- Mismo marcado que usa OneTrust, para probar los selectores reales de data/cmp_selectors.yaml. -->
+  <div id="onetrust-banner-sdk" role="dialog" aria-label="Consentimiento">
+    Usamos cookies propias y de terceros.
+    <button id="onetrust-reject-all-handler">Rechazar todo</button>
+    <button id="onetrust-accept-btn-handler">Aceptar todo</button>
+  </div>
+  <script src="/static/cmp/cmp.js"></script>
+</body>
+</html>

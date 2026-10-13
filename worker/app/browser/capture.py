@@ -1,0 +1,208 @@
+"""Ejecuta un scan: navega, captura el tráfico y devuelve resultado + captura.
+
+Fin de captura (SPEC F2): evento load + ventana sin requests nuevas, o
+SCAN_TIMEOUT_S, lo que ocurra primero. Al llegar a MAX_REQUESTS se corta.
+"""
+
+import asyncio
+import logging
+import uuid
+from dataclasses import dataclass
+
+from playwright.async_api import Error as PlaywrightError
+from playwright.async_api import TimeoutError as PlaywrightTimeoutError
+from playwright.async_api import async_playwright
+
+from app.analyzer.consistency import check as check_consistency
+from app.browser import profiles
+from app.browser.consent import SCENARIOS, handle_consent, tcf_info
+from app.browser.fp_monitor import PAGE_FLUSH_MS, FingerprintMonitor
+from app.browser.proxy_log import read_destinations_when_flushed
+from app.browser.launcher import launch_browser, new_context
+from app.browser.network_monitor import PROXY_ERROR_HEADER, NetworkMonitor
+from app.config import settings
+
+logger = logging.getLogger(__name__)
+
+MAX_TITLE_CHARS = 512
+MAX_URL_CHARS = 2048
+POLL_S = 0.1
+
+
+@dataclass
+class ScanOutcome:
+    result: dict | None
+    error: dict | None
+    capture: dict
+
+
+def clean_text(value: object, limit: int) -> str:
+    """Los datos del sitio no son confiables: forzar tipo, quitar control chars y acotar."""
+    if not isinstance(value, str):
+        return ""
+    return "".join(ch for ch in value if ch.isprintable())[:limit]
+
+
+def _error(code: str, message: str) -> dict:
+    return {"error_code": code, "message": message, "stage": "navigation"}
+
+
+async def _wait_for_end(page, monitor: NetworkMonitor, deadline: float, idle_s: float) -> str:
+    loop = asyncio.get_running_loop()
+    load = asyncio.ensure_future(page.wait_for_load_state("load", timeout=0))
+    try:
+        while True:
+            now = loop.time()
+            if monitor.truncated:
+                return "max_requests"
+            if now >= deadline:
+                return "timeout"
+            if load.done():
+                if load.exception() is not None:
+                    return "page_closed"
+                if now - monitor.last_activity >= idle_s:
+                    return "network_idle"
+            await asyncio.sleep(POLL_S)
+    finally:
+        if not load.done():
+            load.cancel()
+        await asyncio.gather(load, return_exceptions=True)
+
+
+async def run_scan(
+    url: str,
+    *,
+    timeout_s: float | None = None,
+    max_requests: int | None = None,
+    max_body_bytes: int | None = None,
+    idle_s: float | None = None,
+    fp_instrumentation: bool | None = None,
+    scenario: str | None = None,
+    profile_name: str | None = None,
+    probe: bool = False,
+    proxy_user: str | None = None,
+    progress=None,
+) -> ScanOutcome:
+    """`scenario` y `profile_name` son los del Privacy Test (F7); `probe` añade el sondeo de atributos."""
+    timeout_s = settings.scan_timeout_s if timeout_s is None else timeout_s
+    loop = asyncio.get_running_loop()
+    # Cada scan tiene su usuario de proxy: así se sabe qué conexiones del log son suyas.
+    proxy_user = proxy_user or f"scan-{uuid.uuid4()}"
+    outcome = await _run_scan(url, timeout_s, max_requests, max_body_bytes, idle_s, fp_instrumentation, scenario, profile_name, probe, proxy_user, loop, progress)
+    # Con el navegador ya cerrado, el proxy terminó de registrar sus conexiones.
+    outcome.capture["proxy_user"] = proxy_user
+    outcome.capture["destinations"] = await read_destinations_when_flushed(proxy_user, bool(outcome.capture["requests"]))
+    return outcome
+
+
+async def _run_scan(url, timeout_s, max_requests, max_body_bytes, idle_s, fp_instrumentation, scenario, profile_name, probe, proxy_user, loop, progress=None) -> ScanOutcome:
+    async with async_playwright() as playwright:
+        browser = await launch_browser(playwright, proxy_user)
+        try:
+            profile = None
+            if profile_name and profile_name != profiles.REAL:
+                profile = profiles.resolve(profiles.load_profile(profile_name), browser.version)
+            context = await new_context(browser, profile)
+            if profile is not None:
+                # Antes que la instrumentación: así esta registra los valores ya emulados.
+                await context.add_init_script(script=profiles.init_script(profile))
+            fingerprint = None
+            if settings.fp_instrumentation if fp_instrumentation is None else fp_instrumentation:
+                fingerprint = FingerprintMonitor(context)
+                await fingerprint.install()  # antes de crear la página
+            page = await context.new_page()
+            if profile is not None:
+                await profiles.apply_to_page(context, page, profile)
+            monitor = NetworkMonitor(
+                context,
+                page,
+                start_url=url,
+                max_requests=settings.max_requests if max_requests is None else max_requests,
+                max_body_bytes=settings.max_body_capture_bytes if max_body_bytes is None else max_body_bytes,
+            )
+            await monitor.start()
+
+            started = loop.time()
+            deadline = started + timeout_s
+            if progress is not None:
+                # Desde aquí corre el tiempo máximo y el contador de requests es el del monitor.
+                progress.navigating(lambda: monitor.count)
+            error, response, end_reason = None, None, "navigation_failed"
+            try:
+                # "commit": el resto de la carga la vigila _wait_for_end, para poder cortar
+                # por timeout o por MAX_REQUESTS sin perder lo ya capturado.
+                response = await page.goto(url, timeout=timeout_s * 1000, wait_until="commit")
+            except PlaywrightTimeoutError:
+                error = _error("NAVIGATION_TIMEOUT", "La navegación superó el tiempo límite.")
+            except PlaywrightError as exc:
+                error = _error("NAVIGATION_FAILED", clean_text(exc.message.splitlines()[0] if exc.message else "", 300))
+
+            if error is None and response is None:
+                error = _error("NAVIGATION_FAILED", "La navegación no produjo respuesta.")
+            if error is None:
+                proxy_error = response.headers.get(PROXY_ERROR_HEADER)
+                if proxy_error:
+                    code = "EGRESS_BLOCKED" if response.status == 403 else "EGRESS_ERROR"
+                    error = _error(code, f"El egress-proxy no entregó el destino ({clean_text(proxy_error, 64)}).")
+            if error is None:
+                if progress is not None:
+                    progress.capturing()
+                end_reason = await _wait_for_end(
+                    page, monitor, deadline, settings.network_idle_s if idle_s is None else idle_s
+                )
+
+            consent, artifacts = None, []
+            if error is None and scenario in SCENARIOS:
+                try:
+                    consent, artifacts = await handle_consent(page, context, scenario, monitor)
+                except Exception:  # el escenario es un añadido: si falla, el scan sigue valiendo
+                    logger.exception("consent_scenario_failed")
+                    consent = {"scenario": scenario, "status": "no_aplicable", "banner_detected": False,
+                               "reason": "El escenario de consentimiento falló por un error interno."}
+                if consent.get("interaction_seq") is not None:
+                    # Tras la decisión se sigue capturando hasta que la red se calme otra vez.
+                    end_reason = await _wait_for_end(
+                        page, monitor, deadline, settings.network_idle_s if idle_s is None else idle_s
+                    )
+
+            # Estado TCF declarado por la página, al final de la visita (tras la decisión, si la hubo).
+            tcf = await tcf_info(page) if error is None else None
+
+            result = None
+            if error is None:
+                try:
+                    title = await asyncio.wait_for(page.title(), 5)
+                except (PlaywrightError, asyncio.TimeoutError):
+                    title = ""
+                result = {
+                    "http_status": response.status,
+                    "title": clean_text(title, MAX_TITLE_CHARS),
+                    "final_url": clean_text(page.url, MAX_URL_CHARS),
+                }
+            if fingerprint is not None and error is None:
+                # Deja salir el último envío periódico de la instrumentación.
+                await asyncio.sleep(PAGE_FLUSH_MS / 1000 + 0.2)
+            capture = await monitor.finalize()
+            capture["fingerprinting"] = fingerprint.result() if fingerprint is not None else None
+            capture["artifacts"] = artifacts
+            if result is not None:
+                result["tcf"] = tcf
+            if result is not None and consent is not None:
+                result["consent"] = consent
+            if result is not None and probe:
+                headers = profiles.observed_headers(capture)
+                js = await profiles.run_probe(browser, profile)
+                result["profile"] = {
+                    "name": profile_name or profiles.REAL,
+                    "label": profile["label"] if profile else "Navegador real del worker",
+                    "declared_coherent": profile["coherent"] if profile else True,
+                    "js": js,
+                    "headers": headers,
+                    # None = no se pudo sondear; no es lo mismo que "sin inconsistencias".
+                    "inconsistencies": check_consistency(js, headers, profiles.consistency_rules()) if js else None,
+                }
+            capture["end_reason"] = end_reason
+            capture["duration_ms"] = round((loop.time() - started) * 1000)
+            return ScanOutcome(result=result, error=error, capture=capture)
+        finally:
+            await browser.close()

@@ -1,0 +1,193 @@
+{
+  "page": "http://site.fixtures.test/",
+  "first_party_host": "site.fixtures.test",
+  "requests": [
+    {"name": "document", "method": "GET", "host": "site.fixtures.test", "path": "/", "resource_type": "document", "third_party": false, "expected_band": "Bajo"},
+    {"name": "css", "method": "GET", "host": "site.fixtures.test", "path": "/static/style.css", "resource_type": "stylesheet", "third_party": false, "expected_band": "Bajo"},
+    {"name": "font", "method": "GET", "host": "cdn-b.fixtures.test", "path": "/font.woff2", "resource_type": "font", "third_party": true, "expected_band": "Bajo", "label": "fuente de CDN third-party sin parámetros"},
+    {"name": "first_party_image", "method": "GET", "host": "site.fixtures.test", "path": "/img/first.png", "resource_type": "image", "third_party": false, "expected_band": "Bajo"},
+    {"name": "third_party_logo", "method": "GET", "host": "cdn-b.fixtures.test", "path": "/logo.png", "resource_type": "image", "third_party": true, "expected_band": "Bajo", "label": "logo de CDN third-party sin parámetros"},
+    {"name": "redirect_start", "method": "GET", "host": "site.fixtures.test", "path": "/redirect/start", "resource_type": "image", "third_party": false, "status": 302, "expected_band": "Bajo"},
+    {"name": "redirect_hop", "method": "GET", "host": "tracker-a.fixtures.test", "path": "/redirect/hop", "resource_type": "image", "third_party": true, "status": 301, "expected_band": "Moderado"},
+    {"name": "redirect_final", "method": "GET", "host": "cdn-b.fixtures.test", "path": "/redirect/final", "resource_type": "image", "third_party": true, "status": 200, "expected_band": "Bajo"},
+    {"name": "iframe", "method": "GET", "host": "tracker-a.fixtures.test", "path": "/frame.html", "resource_type": "document", "third_party": true, "expected_band": "Moderado"},
+    {"name": "iframe_pixel", "method": "GET", "host": "tracker-a.fixtures.test", "path": "/frame-pixel.gif", "resource_type": "image", "third_party": true, "expected_band": "Moderado"},
+    {"name": "app_script", "method": "GET", "host": "site.fixtures.test", "path": "/static/app.js", "resource_type": "script", "third_party": false, "expected_band": "Bajo"},
+    {"name": "tracker_script", "method": "GET", "host": "tracker-a.fixtures.test", "path": "/tracker.js", "resource_type": "script", "third_party": true, "expected_band": "Moderado"},
+    {"name": "pixel", "method": "GET", "host": "tracker-a.fixtures.test", "path": "/pixel.gif", "resource_type": "image", "third_party": true, "query_keys": ["uid", "ts"], "initiator_script": "http://tracker-a.fixtures.test/tracker.js", "expected_band": "Muy alto"},
+    {"name": "beacon", "method": "POST", "host": "tracker-a.fixtures.test", "path": "/beacon", "resource_type": "ping", "third_party": true, "has_body": true, "initiator_script": "http://tracker-a.fixtures.test/tracker.js", "expected_band": "Muy alto"},
+    {"name": "fetch_post", "method": "POST", "host": "tracker-a.fixtures.test", "path": "/collect", "resource_type": "fetch", "third_party": true, "has_body": true, "initiator_script": "http://site.fixtures.test/static/app.js", "expected_band": "Alto", "label": "Base64 de JSON anidado en un POST"},
+    {"name": "xhr", "method": "GET", "host": "site.fixtures.test", "path": "/api/data", "resource_type": "xhr", "third_party": false, "query": [["x", "1"], ["x", "2"], ["empty", ""], ["flag", null]], "expected_band": "Bajo"},
+    {"name": "cdn_css", "method": "GET", "host": "cdn-b.fixtures.test", "path": "/lib.css", "resource_type": "stylesheet", "third_party": true, "expected_band": "Bajo", "label": "CSS de CDN third-party sin parámetros"},
+    {"name": "metrics", "method": "POST", "host": "site.fixtures.test", "path": "/metrics", "resource_type": "fetch", "third_party": false, "has_body": true, "expected_band": "Bajo", "label": "métricas first-party sin identificadores"},
+    {"name": "sync", "method": "GET", "host": "cdn-b.fixtures.test", "path": "/sync.gif", "resource_type": "image", "third_party": true, "query_keys": ["partner", "partner_uid"], "initiator_script": "http://tracker-a.fixtures.test/tracker.js", "expected_band": "Alto", "label": "sincronización de uid hacia cdn-b"},
+    {"name": "url_leak", "method": "GET", "host": "tracker-a.fixtures.test", "path": "/leak.gif", "resource_type": "image", "third_party": true, "query_keys": ["page"], "initiator_script": "http://tracker-a.fixtures.test/tracker.js", "expected_band": "Alto", "label": "fuga de la URL de la página"},
+    {"name": "jwt", "method": "GET", "host": "tracker-a.fixtures.test", "path": "/jwt.gif", "resource_type": "image", "third_party": true, "query_keys": ["token"], "initiator_script": "http://tracker-a.fixtures.test/tracker.js", "expected_band": "Muy alto", "label": "JWT en un parámetro"}
+  ],
+  "redirect_chain": ["http://site.fixtures.test/redirect/start", "http://tracker-a.fixtures.test/redirect/hop", "http://cdn-b.fixtures.test/redirect/final"],
+  "websocket": {"url": "ws://site.fixtures.test/ws", "sent": ["msg-1", "msg-2", "msg-3"], "received": ["echo:msg-1", "echo:msg-2", "echo:msg-3"]},
+  "must_not_be_requested": [{"host": "site.fixtures.test", "path": "/sw.js"}],
+  "cookies": [{"name": "fx_session", "value": "abc123", "domain": "site.fixtures.test"}],
+  "local_storage": {"origin": "http://site.fixtures.test", "key": "fx_local", "value": "local-value-1"},
+  "session_storage": {"origin": "http://site.fixtures.test", "key": "fx_session_key", "value": "session-value-1"},
+  "flood": {"page": "http://site.fixtures.test/flood", "requests": 2000},
+  "analysis": {"uid": "a3f9c2e1b7d44f6a9c0e5d2b8f1a6c3e", "id_sync": {"value": "a3f9c2e1b7d44f6a9c0e5d2b8f1a6c3e", "domains": ["cdn-b.fixtures.test", "tracker-a.fixtures.test"], "requests": [{"host": "tracker-a.fixtures.test", "path": "/pixel.gif"}, {"host": "cdn-b.fixtures.test", "path": "/sync.gif"}]}, "persistent_id": {"cookie": "tr_uid", "recipients": ["cdn-b.fixtures.test", "tracker-a.fixtures.test"]}, "url_leak": {"host": "tracker-a.fixtures.test", "path": "/leak.gif", "parameter": "page"}, "jwt": {"host": "tracker-a.fixtures.test", "path": "/jwt.gif", "parameter": "token", "raw_value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3ItN2YzYTljMjFkNCIsImlhdCI6MTc5MDAwMDAwMCwic2NvcGUiOiJyZWFkIn0.c2lnbmF0dXJhLWRlLXBydWViYS1uby12YWxpZGE", "encoding_chain": ["jwt"], "payload": {"sub": "usr-7f3a9c21d4", "iat": 1790000000, "scope": "read"}}, "base64_json": {"host": "tracker-a.fixtures.test", "path": "/collect", "encoding_chain": ["base64", "json"], "decoded": {"event": "pageview", "user": {"id": "usr-7f3a9c21d4", "plan": "free"}, "ctx": {"screen": "1280x720", "lang": "es"}}}, "low_band_assets": ["third_party_logo", "font", "cdn_css", "metrics"]},
+  "fingerprinting": {
+    "page": "http://site.fixtures.test/fp/article?ref=campaign42",
+    "probe_page": "http://site.fixtures.test/fp/probe",
+    "scripts": {
+      "fp": {
+        "url": "http://tracker-a.fixtures.test/fp.js",
+        "fingerprinting_inferred": true,
+        "heuristics": [
+          "audio_fingerprinting",
+          "canvas_fingerprinting",
+          "property_sweep",
+          "webgl_fingerprinting",
+          "webgl_unmasked_read"
+        ]
+      },
+      "fonts": {
+        "url": "http://site.fixtures.test/static/fp/fonts.js",
+        "fingerprinting_inferred": true,
+        "heuristics": [
+          "font_enumeration"
+        ],
+        "distinct_fonts": 60
+      },
+      "webrtc": {
+        "url": "http://site.fixtures.test/static/fp/webrtc.js",
+        "fingerprinting_inferred": true,
+        "heuristics": [
+          "webrtc_ip_discovery"
+        ]
+      },
+      "benign": {
+        "url": "http://site.fixtures.test/static/fp/benign.js",
+        "fingerprinting_inferred": false,
+        "heuristics": [],
+        "label": "gráfico sin lectura + animación getImageData 1x1 a 60 fps durante 5 s"
+      },
+      "abuse": {
+        "url": "http://site.fixtures.test/static/fp/abuse.js",
+        "fingerprinting_inferred": false,
+        "heuristics": [],
+        "label": "intenta encontrar el binding y falsificar eventos"
+      }
+    },
+    "forged_marker": "evil.example/forged.js",
+    "exfiltration": {
+      "host": "tracker-a.fixtures.test",
+      "path": "/fp-collect.gif",
+      "values": [
+        {
+          "api": "webgl.UNMASKED_RENDERER_WEBGL",
+          "parameter": "r",
+          "form": "valor"
+        },
+        {
+          "api": "canvas.toDataURL",
+          "parameter": "ch",
+          "form": "sha256 del contenido leído"
+        }
+      ]
+    },
+    "attributes": {
+      "webgl_renderer": "OBSERVADO",
+      "canvas": "OBSERVADO",
+      "audio": "UTILIZADO",
+      "fonts": "UTILIZADO",
+      "webrtc": "UTILIZADO",
+      "user_agent": "UTILIZADO",
+      "webgl_vendor": "UTILIZADO",
+      "media_queries": "DISPONIBLE"
+    },
+    "referer": [
+      {
+        "host": "tracker-a.fixtures.test",
+        "path": "/ref-full.gif",
+        "exposure": "full_url",
+        "label": "referrerpolicy=unsafe-url: URL completa"
+      },
+      {
+        "host": "tracker-a.fixtures.test",
+        "path": "/ref-origin.gif",
+        "exposure": "origin_only",
+        "label": "política por defecto: solo el origen"
+      },
+      {
+        "host": "cdn-b.fixtures.test",
+        "path": "/ref-none.gif",
+        "exposure": "absent",
+        "label": "referrerpolicy=no-referrer: sin cabecera"
+      }
+    ],
+    "expected_bands": [
+      {
+        "host": "tracker-a.fixtures.test",
+        "path": "/fp-collect.gif",
+        "expected_band": "Muy alto",
+        "label": "exfiltración de renderer y hash de canvas"
+      },
+      {
+        "host": "tracker-a.fixtures.test",
+        "path": "/fp.js",
+        "expected_band": "Alto",
+        "label": "script con fingerprinting inferido, en lista"
+      },
+      {
+        "host": "tracker-a.fixtures.test",
+        "path": "/fp-beacon",
+        "method": "POST",
+        "expected_band": "Alto",
+        "label": "request iniciada por el script de fingerprinting"
+      },
+      {
+        "host": "tracker-a.fixtures.test",
+        "path": "/ref-full.gif",
+        "expected_band": "Moderado",
+        "label": "Referer con URL completa hacia un tercero en lista"
+      },
+      {
+        "host": "cdn-b.fixtures.test",
+        "path": "/ref-none.gif",
+        "expected_band": "Bajo",
+        "label": "tercero sin Referer ni parámetros"
+      },
+      {
+        "host": "site.fixtures.test",
+        "path": "/static/fp/benign.js",
+        "expected_band": "Bajo",
+        "label": "script benigno"
+      },
+      {
+        "host": "site.fixtures.test",
+        "path": "/static/fp/fonts.js",
+        "expected_band": "Bajo",
+        "label": "script first-party que enumera fuentes: la señal no alcanza para tracker"
+      }
+    ]
+  },
+  "xss": {"page": "http://site.fixtures.test/xss/", "marker": "__XSS", "visible_payloads": ["<img src=x onerror=", "<script>window.__XSS=1</script>", "<svg/onload=window.__XSS=1>", "javascript:window.__XSS=1"], "where": ["título", "URLs", "nombres y valores de parámetros", "cookies", "valores decodificados", "nombre de script", "texto de hallazgos"]},
+  "privacy_test": {"cmp": {"page": "http://site.fixtures.test/cmp/", "unknown_page": "http://site.fixtures.test/cmp/unknown", "cmp": "onetrust", "host": "tracker-a.fixtures.test", "pre_consent": "/cmp/pre.gif", "accept_only": "/cmp/accept-only.gif", "ignores_reject": "/cmp/ignores-reject.gif", "never": "/cmp/clicked-unknown.gif", "expected": {"sin_interaccion": {"status": "sin_interaccion", "paths": ["/cmp/pre.gif"]}, "aceptar": {"status": "aceptado", "verified": true, "paths": ["/cmp/pre.gif", "/cmp/accept-only.gif", "/cmp/ignores-reject.gif"]}, "rechazar": {"status": "rechazado", "verified": true, "paths": ["/cmp/pre.gif", "/cmp/ignores-reject.gif"]}}}, "cookieless": {"page": "http://site.fixtures.test/cookieless/", "host": "tracker-a.fixtures.test", "path": "/cl.gif", "parameter": "fpid", "format": "<hash de UA+pantalla+zona>-<hash de la IP>", "device_part_changes_with_profile": true, "ip_part_changes_with_profile": false}, "profiles": {"coherent": ["windows-chrome-es-cl", "macos-chrome-es-cl", "android-chrome-es-cl"], "incoherent": "incoherente-demo", "incoherent_expected_rules": ["os_mismatch", "timezone_vs_locale"]}},
+  "f8": {"page": "http://site.fixtures.test/f8/", "tcf": {"cmp_id": 28, "cmp_name": "OneTrust LLC", "cmp_version": 7, "cases": [{"query": "?gdpr=0", "gdpr_applies": false, "display_status": "hidden", "has_tc_string": true}, {"query": "?gdpr=1", "gdpr_applies": true, "display_status": "visible", "has_tc_string": false}]}, "consent_mode": {"host": "tracker-a.fixtures.test", "cases": [{"gcs": "G111", "ad_storage": "granted", "analytics_storage": "granted", "granted_without_interaction": ["ad_storage", "analytics_storage"]}, {"gcs": "G100", "ad_storage": "denied", "analytics_storage": "denied", "granted_without_interaction": []}, {"gcs": "G110", "ad_storage": "granted", "analytics_storage": "denied", "granted_without_interaction": ["ad_storage"]}, {"gcs": "G101", "ad_storage": "denied", "analytics_storage": "granted", "granted_without_interaction": ["analytics_storage"]}]}, "cname_cloaking": {"host": "metrics.site.fixtures.test", "target": "tracker-a.fixtures.test", "organization": "Tracker A (fixture)"}, "destination_ip": "172.30.4.10"},
+  "account_ids": {
+    "page": "http://site.fixtures.test/accounts/",
+    "expected": [
+      {"rule": "ga_measurement_id", "value": "G-FIXTURE1234"},
+      {"rule": "gtm_container_id", "value": "GTM-FIXT123"},
+      {"rule": "gtm_container_version", "value": "45je4a10v9"},
+      {"rule": "google_ads_id", "value": "AW-987654321"},
+      {"rule": "google_ads_id", "value": "987654321"},
+      {"rule": "google_ads_label", "value": "AbC-D_efG1234567890"},
+      {"rule": "meta_pixel_id", "value": "123456789012345"},
+      {"rule": "pinterest_tag_id", "value": "2612345678901"},
+      {"rule": "snapchat_pixel_id", "value": "0f8fad5b-d9cb-469f-a165-70867728950e"},
+      {"rule": "tiktok_pixel_id", "value": "C4ABCDEFGHIJ12345678"},
+      {"rule": "linkedin_partner_id", "value": "1234567"}
+    ],
+    "visitor_cookie": "_vid",
+    "site_cookie": "_sc_site",
+    "sync_domains": ["cdn-b.fixtures.test", "tracker-a.fixtures.test"]
+  }
+}

@@ -1,0 +1,37 @@
+# Categoría de un parámetro según su NOMBRE. Ampliable.
+# Un nombre no prueba qué contiene el valor: esto solo produce INFERENCIA.
+#
+# El nombre se normaliza (minúsculas) y se divide en tokens por separadores y
+# camelCase. Orden de evaluación: `exact` de todas las categorías (nombre completo
+# y sus dos últimos tokens unidos, p. ej. user.id -> userid) y luego `tokens`.
+# Las categorías se evalúan en el orden en que aparecen aquí.
+identity:
+  exact: [uid, uuid, guid, userid, user_id, cid, clientid, client_id, did, deviceid, device_id,
+          vid, visitorid, visitor_id, _ga, _gid, _fbp, fbp, muid, anonymousid, anonymous_id,
+          distinct_id, distinctid, puid, euid, tuid, idfa, gaid, aaid, email, em, hashed_email,
+          external_id, externalid, customerid, customer_id, memberid, member_id, partner_uid, sub,
+          trackingid, tracking_id]
+  tokens: [uid, uuid, guid, userid, visitor, visitorid, clientid, deviceid, fingerprint, email]
+session:
+  exact: [sid, sessionid, session_id, session, sess, phpsessid, jsessionid, token, csrf,
+          csrftoken, xsrf, auth, jwt, access_token, id_token, refresh_token]
+  tokens: [session, sessionid, sid, token, csrf, xsrf, auth, jwt]
+advertising:
+  exact: [gclid, gclsrc, dclid, fbclid, msclkid, ttclid, twclid, li_fat_id, gbraid, wbraid, yclid,
+          utm_source, utm_medium, utm_campaign, utm_term, utm_content, utm_id, adid, ad_id,
+          campaign, campaignid, campaign_id, creative, creativeid, placement, placementid, bid, auction]
+  tokens: [utm, gclid, fbclid, campaign, adid, creative, placement, adgroup]
+location:
+  exact: [lat, lon, lng, latitude, longitude, geo, city, country, region, zip, zipcode, postal]
+  tokens: [geo, latitude, longitude, country, city]
+navigation:
+  exact: [url, page, ref, referrer, referer, dl, dr, dp, dt, location, href, path, title, u, r,
+          origin, host, hostname, pageurl, page_url, document_location]
+  tokens: [url, referrer, referer, page, href, path]
+time:
+  exact: [ts, t, time, timestamp, date, _, z, cb, rnd, random, cachebuster, tz, timezone]
+  tokens: [time, timestamp, ts]
+device:
+  exact: [ua, useragent, user_agent, sr, sd, vp, screen, res, resolution, lang, language, ul,
+          platform, os, browser, dpr, viewport, w, h, cpu, mem]
+  tokens: [screen, resolution, viewport, device, browser, platform, lang, language]

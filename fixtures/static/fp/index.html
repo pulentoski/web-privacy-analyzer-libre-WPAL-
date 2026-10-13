@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Fixture FP</title>
+  <link rel="icon" href="data:,">
+</head>
+<body>
+  <h1>Fixture de fingerprinting</h1>
+  <canvas id="chart" width="300" height="150"></canvas>
+
+  <!-- Referer: URL completa (política explícita), solo origen (por defecto) y ausente. -->
+  <img src="http://tracker-a.fixtures.test/ref-full.gif" referrerpolicy="unsafe-url" alt="">
+  <img src="http://tracker-a.fixtures.test/ref-origin.gif" alt="">
+  <img src="http://cdn-b.fixtures.test/ref-none.gif" referrerpolicy="no-referrer" alt="">
+
+  <script src="/static/fp/abuse.js"></script>
+  <script src="/static/fp/benign.js"></script>
+  <script src="/static/fp/fonts.js"></script>
+  <script src="/static/fp/webrtc.js"></script>
+  <script src="http://tracker-a.fixtures.test/fp.js"></script>
+</body>
+</html>

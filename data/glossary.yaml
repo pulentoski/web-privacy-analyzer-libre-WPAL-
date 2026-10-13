@@ -1,0 +1,141 @@
+# Glosario y paneles «¿Qué es esto?» (F10, docs/adr/021).
+# Cada término: equivalente breve (`plain`) y definición técnica de una o dos líneas.
+# La interfaz lo muestra como tooltip sobre el término y como página de glosario.
+# Reglas: registro técnico, trato de usted, sin analogías. No se promete anonimato.
+version: 2
+
+terms:
+  - id: request
+    term: "Request"
+    plain: "petición HTTP"
+    definition: "Petición que el navegador envía a un servidor para obtener o entregar un recurso: el documento, una imagen, un script o un evento."
+  - id: tercero
+    term: "Tercero"
+    plain: "third-party"
+    definition: "Dominio que pertenece a una organización distinta del sitio visitado (third-party). Ser tercero no implica rastrear."
+  - id: tracker
+    term: "Tracker"
+    plain: "rastreador"
+    definition: "En este análisis, una request cuyo puntaje de señales de seguimiento alcanza la banda Moderado o superior. Es una estimación a partir de señales observables, no un veredicto."
+  - id: pixel
+    term: "Pixel"
+    plain: "píxel de seguimiento"
+    definition: "Imagen de tamaño mínimo que se solicita a un servidor con parámetros en la URL. El contenido de la imagen es irrelevante: la request registra la carga de la página."
+  - id: beacon
+    term: "Beacon"
+    plain: "envío en segundo plano"
+    definition: "Envío de datos realizado con navigator.sendBeacon o con el atributo ping, diseñado para completarse aunque la página se cierre."
+  - id: cookie
+    term: "Cookie"
+    plain: "par nombre-valor almacenado en el navegador"
+    definition: "Dato que un servidor establece mediante la cabecera Set-Cookie (o un script mediante document.cookie) y que el navegador devuelve en las requests siguientes al mismo dominio."
+  - id: cookie_persistente
+    term: "Cookie persistente"
+    plain: "cookie con fecha de expiración"
+    definition: "Cookie con atributo Expires o Max-Age: se conserva tras cerrar el navegador, en ocasiones durante meses o años. Una cookie de sesión, en cambio, se elimina al cerrarlo."
+  - id: sincronizacion
+    term: "Sincronización de identificadores"
+    plain: "cookie syncing"
+    definition: "El mismo valor con formato de identificador aparece en requests a dominios de organizaciones distintas (ID sync o cookie syncing), habitualmente mediante una redirección. Permite a ambas partes correlacionar sus registros del mismo navegador."
+  - id: referer
+    term: "Referer"
+    plain: "cabecera de página de origen"
+    definition: "Cabecera HTTP que indica desde qué página se originó la request. Según la Referrer-Policy, contiene la URL completa o solo el origen."
+  - id: user_agent
+    term: "User-Agent"
+    plain: "identificación del navegador"
+    definition: "Cabecera HTTP y propiedad de navigator con que el navegador declara su nombre, versión y sistema operativo. Se envía en todas las requests."
+  - id: base64
+    term: "Base64"
+    plain: "codificación binario-texto"
+    definition: "Codificación que representa datos binarios o texto con 64 caracteres ASCII. No es cifrado: es reversible sin clave."
+  - id: url_codificada
+    term: "URL codificada"
+    plain: "percent-encoding"
+    definition: "Percent-encoding: los caracteres reservados de un valor se sustituyen por %XX para incluirlos en una URL. No es cifrado."
+  - id: canvas
+    term: "Canvas"
+    plain: "API de dibujo 2D"
+    definition: "API del navegador para dibujar. El mismo dibujo produce diferencias mínimas según la GPU, los controladores y las fuentes; leer el resultado (toDataURL, getImageData) proporciona un valor característico del dispositivo."
+  - id: webgl
+    term: "WebGL"
+    plain: "API de gráficos acelerados"
+    definition: "API de gráficos acelerados por GPU. Permite leer el fabricante y el modelo de la GPU (parámetros UNMASKED_VENDOR_WEBGL y UNMASKED_RENDERER_WEBGL)."
+  - id: fingerprinting
+    term: "Fingerprinting"
+    plain: "huella del dispositivo"
+    definition: "Combinación de atributos del navegador y del dispositivo (pantalla, fuentes, GPU, audio) para reconocerlo sin almacenar nada en él. En este análisis es siempre una Inferencia: se observa la lectura, no el propósito."
+  - id: exfiltracion
+    term: "Exfiltración"
+    plain: "transmisión de un atributo leído"
+    definition: "Un valor leído por un script mediante una API instrumentada (o su hash sha256, sha1 o md5) aparece en una request saliente. Es Evidencia: se observaron la lectura y el envío."
+  - id: evidencia
+    term: "Evidencia"
+    plain: "hecho observado"
+    definition: "Nivel de un hallazgo observado directamente en el tráfico o en una llamada registrada. No es una interpretación."
+  - id: inferencia
+    term: "Inferencia"
+    plain: "conclusión a partir de un patrón"
+    definition: "Nivel de un hallazgo que se deduce de un patrón (un nombre, una lista, una secuencia de llamadas). No se observó directamente y admite otra explicación."
+  - id: posible
+    term: "Posible"
+    plain: "indicio débil"
+    definition: "Nivel de un hallazgo basado únicamente en el formato de un dato. Es compatible con lo observado, pero existen otras explicaciones plausibles."
+  - id: desconocido
+    term: "Desconocido"
+    plain: "contenido no interpretable"
+    definition: "Nivel de un hallazgo en el que se observó un contenido que no se pudo decodificar. No se afirma qué es."
+  - id: cmp_tcf
+    term: "CMP / TCF"
+    plain: "gestión del consentimiento"
+    definition: "CMP (Consent Management Platform) es el sistema que presenta el aviso de consentimiento y almacena la elección. TCF (Transparency & Consent Framework, de IAB Europe) es el estándar con que la CMP comunica esa elección a los demás participantes."
+  - id: consent_mode
+    term: "Consent Mode"
+    plain: "señal de consentimiento de Google"
+    definition: "Mecanismo de Google por el que las requests a sus servicios incluyen el estado del consentimiento (parámetros gcs y gcd): si el almacenamiento de publicidad (ad_storage) y de medición (analytics_storage) está concedido o denegado."
+
+# Paneles «¿Qué es esto?» de cada pestaña del scan: qué muestra la vista (`definition`) y
+# cómo se obtiene (`method`).
+  - id: rastreo_servidor
+    term: "Rastreo del lado del servidor"
+    plain: "server-side tracking, Conversions API"
+    definition: "El sitio envía los eventos del visitante a un servidor propio o alquilado, y ese servidor los reenvía a la plataforma publicitaria (por ejemplo, la Conversions API de Meta). Desde el navegador solo se observa el primer envío, a menudo a un host de nube genérico; el reenvío ocurre entre servidores y no es observable. Por eso se informa como Inferencia."
+  - id: registro_interaccion
+    term: "Registro de interacción"
+    plain: "clics, desplazamiento, mouse y teclado"
+    definition: "Un script puede escuchar los eventos de interacción (clic, movimiento del mouse, desplazamiento, teclado) y enviarlos. Que escucha es un hecho observado; para qué lo hace no se observa. La grabación de sesión reúne esos eventos para reproducir la visita."
+  - id: dmp
+    term: "DMP"
+    plain: "plataforma de datos de audiencia"
+    definition: "Servicio que reúne identificadores y atributos de navegación de muchos sitios para formar segmentos de audiencia que luego se usan en publicidad."
+  - id: broker_datos
+    term: "Broker de datos"
+    plain: "intermediario de datos personales"
+    definition: "Empresa que compra, combina y vende datos de personas y hogares, y que ofrece enlazar identificadores de distintos orígenes."
+
+panels:
+  summary:
+    title: "¿Qué es esto?"
+    definition: "Vista general de la visita: número de requests, organizaciones de terceros contactadas e índice de exposición de 0 a 99."
+    method: "El índice se calcula con señales observables ponderadas (data/scoring.yaml). Es una estimación para comparar visitas, no una calificación oficial."
+    terms: [request, tercero, tracker, evidencia, inferencia]
+  story:
+    title: "¿Qué es esto?"
+    definition: "Hallazgos de la visita clasificados en ocho grupos técnicos. Cada grupo indica qué se observó, con su nivel de evidencia; debajo figuran el detalle y las requests que lo respaldan."
+    method: "Cada frase se genera con una plantilla determinista a partir de los datos del hallazgo. Un hallazgo de nivel Inferencia se redacta como compatible o posible, nunca como hecho."
+    terms: [cookie_persistente, fingerprinting, exfiltracion, sincronizacion, cmp_tcf, consent_mode]
+  trackers:
+    title: "¿Qué es esto?"
+    definition: "Requests con señales de seguimiento (banda Moderado o superior), agrupadas por la organización propietaria del dominio."
+    method: "La atribución de dominio a organización procede de un mapa público; un dominio sin propietario conocido se muestra por separado."
+    terms: [tracker, tercero, pixel, beacon, cookie, sincronizacion]
+  fingerprinting:
+    title: "¿Qué es esto?"
+    definition: "Scripts de la página que leyeron atributos del dispositivo (GPU, pantalla, fuentes, audio) mediante APIs del navegador."
+    method: "Las llamadas se registran con instrumentación de las APIs. La lectura es Evidencia; que su propósito sea reconocer el dispositivo (fingerprinting) es siempre una Inferencia."
+    terms: [fingerprinting, canvas, webgl, user_agent, exfiltracion]
+  traffic:
+    title: "¿Qué es esto?"
+    definition: "Todas las requests realizadas por la página durante la visita, una por fila, con su destino, su mecanismo y su puntaje de seguimiento."
+    method: "Se capturan durante la visita automatizada del navegador. Son la evidencia primaria de las demás vistas."
+    terms: [request, referer, base64, url_codificada, pixel, beacon]

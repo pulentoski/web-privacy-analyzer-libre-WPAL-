@@ -1,0 +1,25 @@
+# Perfil de emulación (F7). Solo motores Chromium: {major} se sustituye por la versión real del
+# navegador del worker, para que User-Agent y Client Hints sean coherentes con el motor.
+# La IP NO forma parte de un perfil: no cambia.
+name: android-chrome-es-cl
+label: "Android · Chrome · es-CL"
+coherent: true
+user_agent: "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{major}.0.0.0 Mobile Safari/537.36"
+platform: "Linux armv81"
+ua_platform: "Android"
+ua_platform_version: "14.0.0"
+architecture: ""
+bitness: ""
+model: "Pixel 8"
+mobile: true
+locale: "es-CL"
+timezone: "America/Santiago"
+viewport: [412, 915]
+screen: [412, 915]
+device_scale_factor: 2.625
+has_touch: true
+max_touch_points: 5
+hardware_concurrency: 8
+device_memory: 8
+webgl_vendor: "Qualcomm"
+webgl_renderer: "Adreno (TM) 740"

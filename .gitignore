@@ -1,0 +1,32 @@
+.env
+.env.*
+!.env.example
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+node_modules/
+frontend/dist/
+*.log
+.DS_Store
+.idea/
+.vscode/
+# Certificado y clave del modo demo (scripts/demo-cert.sh). Nunca se versionan.
+.demo-certs/
+*.key
+*.pem
+
+# Respaldos de la base (scripts/backup.sh). Contienen datos capturados.
+backups/
+
+# Datos de terceros: NO se versionan por sus licencias; los descarga scripts/fetch-data.sh
+# (ver NOTICE y data/*/LICENSES.md). Se conservan los LICENSES.md y la config propia (*.yaml).
+/data/lists/easylist.txt
+/data/lists/easyprivacy.txt
+/data/lists/entity_map.json
+/data/lists/MANIFEST.json
+/data/lists/companiesdb/
+/data/ipdb/*.mmdb
+/data/ipdb/MANIFEST.json
+/data/iab/cmp-list.json
+/data/iab/MANIFEST.json

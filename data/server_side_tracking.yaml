@@ -1,0 +1,20 @@
+# Rastreo del lado del servidor (v1.4.2): eventos que el sitio envía a un servidor propio o
+# alquilado, que luego los reenvía a la plataforma publicitaria (p. ej. Conversions API de Meta).
+#
+# Desde el navegador solo se ve el envío a un host de nube genérico, sin dueño identificable. Si
+# ese host recibe el identificador de navegador de Meta (_fbp / _fbc) o el payload típico de un
+# evento de Meta, se rotula como «posible servidor de Conversions API». Es INFERENCIA: el reenvío
+# a Meta ocurre entre servidores y no es observable.
+version: 1
+
+# Sufijos de host de nube genéricos (cualquiera puede publicar ahí).
+cloud_suffixes: [on.aws, amazonaws.com, cloudfunctions.net, run.app, appspot.com, azurewebsites.net, azure-api.net,
+                 workers.dev, pages.dev, vercel.app, netlify.app, herokuapp.com, onrender.com, fly.dev, web.app]
+
+meta:
+  label: "posible servidor de Conversions API de Meta (rastreo del lado del servidor)"
+  # Basta uno de estos nombres (parámetro, clave de JSON o cookie).
+  identifiers: [_fbp, fbp, _fbc, fbc]
+  # O al menos `min_payload` de estas claves del payload de un evento de Meta.
+  payload: [event_name, event_id, website_context, event_source_url, user_data, custom_data, action_source, event_time]
+  min_payload: 2

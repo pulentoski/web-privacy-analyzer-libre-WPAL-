@@ -1,0 +1,142 @@
+# Nivel de identificabilidad de cada atributo que muestra "Mi exposición".
+#
+# ESTIMACIÓN CUALITATIVA. No son bits de entropía ni una medición sobre una población:
+# el proyecto no tiene una población de referencia y no inventa cifras. Cada nivel resume
+# cuánto suele variar el valor entre equipos y cuán estable es en el tiempo, según la
+# literatura pública sobre fingerprinting (EFF Panopticlick / Cover Your Tracks, AmIUnique).
+# La justificación de cada atributo se muestra en su tooltip.
+#
+# Claves de `attributes`: ids de frontend/src/exposure/catalog.js (un test exige que estén todos).
+# Claves de `headers`: cabeceras que devuelve GET /api/exposure/server.
+version: 1
+note: "Estimación cualitativa, no una medición: el nivel indica cuánto suele variar el valor entre equipos. No equivale a bits de entropía."
+levels:
+  alto:
+    label: Alto
+    description: "El valor varía mucho entre equipos y es estable: por sí solo distingue a pocos equipos entre muchos."
+  medio:
+    label: Medio
+    description: "El valor es compartido por muchos equipos, pero acota el conjunto y suma al combinarse con otros."
+  bajo:
+    label: Bajo
+    description: "Pocos valores posibles o casi iguales en todos los equipos: aporta poco por sí solo."
+connection:
+  ip:
+    level: alto
+    rationale: "Una IP pública identifica una conexión (hogar, empresa o red móvil) y suele mantenerse por días o semanas."
+headers:
+  user-agent:
+    level: medio
+    rationale: "Navegador, versión mayor y sistema operativo. Los navegadores actuales reducen el detalle, por lo que muchos equipos comparten el mismo valor."
+  accept-language:
+    level: medio
+    rationale: "La lista ordenada de idiomas y sus pesos acota región y configuración; las combinaciones poco comunes distinguen bastante."
+  accept-encoding:
+    level: bajo
+    rationale: "Depende de la versión del navegador, no del equipo."
+  sec-ch-ua:
+    level: bajo
+    rationale: "Solo marca y versión mayor: lo comparten todos los equipos con ese navegador."
+  sec-ch-ua-mobile:
+    level: bajo
+    rationale: "Un valor binario (móvil o no)."
+  sec-ch-ua-platform:
+    level: bajo
+    rationale: "Solo el nombre del sistema operativo."
+  dnt:
+    level: bajo
+    rationale: "Un valor binario; la mayoría de los navegadores no la envía, de modo que enviarla distingue levemente."
+  sec-gpc:
+    level: bajo
+    rationale: "Un valor binario; enviarla distingue levemente porque pocos navegadores la activan."
+  sec-fetch-site:
+    level: bajo
+    rationale: "Describe la request, no el equipo."
+  sec-fetch-mode:
+    level: bajo
+    rationale: "Describe la request, no el equipo."
+  sec-fetch-dest:
+    level: bajo
+    rationale: "Describe la request, no el equipo."
+  sec-fetch-user:
+    level: bajo
+    rationale: "Describe la request, no el equipo."
+attributes:
+  user_agent:
+    level: medio
+    rationale: "Navegador, versión mayor y sistema operativo. Con la reducción del User-Agent, muchos equipos comparten el mismo valor."
+  ua_client_hints:
+    level: alto
+    rationale: "Los valores detallados incluyen versión completa del navegador y del sistema, arquitectura y, en móviles, el modelo del equipo."
+  platform:
+    level: bajo
+    rationale: "Pocos valores posibles (sistema y arquitectura) y redundante con el User-Agent."
+  languages:
+    level: medio
+    rationale: "La lista ordenada de idiomas acota región y configuración; las combinaciones poco comunes distinguen bastante."
+  timezone:
+    level: medio
+    rationale: "Acota la región geográfica. La comparten todos los equipos de una misma zona."
+  cookies_enabled:
+    level: bajo
+    rationale: "Un valor binario, activado en casi todos los navegadores."
+  storage:
+    level: bajo
+    rationale: "Los mecanismos de almacenamiento existen en casi todos los navegadores; solo distingue configuraciones restringidas."
+  plugins:
+    level: bajo
+    rationale: "Los navegadores actuales entregan una lista fija de visores de PDF; solo varía en navegadores antiguos."
+  do_not_track:
+    level: bajo
+    rationale: "Pocos valores posibles; al estar activado en una minoría de navegadores, distingue levemente."
+  global_privacy_control:
+    level: bajo
+    rationale: "Un valor binario; al estar activado en una minoría de navegadores, distingue levemente."
+  crypto_subtle:
+    level: bajo
+    rationale: "Depende del contexto de la página (https o no), no del equipo."
+  screen:
+    level: medio
+    rationale: "Las resoluciones comunes se repiten mucho; el área útil (sin barras del sistema) y los monitores poco comunes distinguen más."
+  viewport:
+    level: medio
+    rationale: "Depende del tamaño de la ventana, que varía bastante, pero cambia al redimensionar: es poco estable y no entra en la huella combinada."
+  device_pixel_ratio:
+    level: medio
+    rationale: "Pocos valores habituales, pero el nivel de zoom y el escalado del sistema lo modifican y lo vuelven más específico."
+  color_depth:
+    level: bajo
+    rationale: "Casi todos los equipos informan 24 o 30 bits."
+  touch:
+    level: bajo
+    rationale: "Separa equipos táctiles del resto; pocos valores posibles."
+  color_scheme:
+    level: bajo
+    rationale: "Un valor binario (claro u oscuro)."
+  reduced_motion:
+    level: bajo
+    rationale: "Un valor binario; activado en una minoría de equipos, distingue levemente."
+  hardware_concurrency:
+    level: medio
+    rationale: "Un número entre pocos valores habituales (4, 8, 12, 16); acota la gama del equipo."
+  device_memory:
+    level: medio
+    rationale: "El navegador lo entrega redondeado en pasos (hasta 8 GB); acota la gama del equipo."
+  webgl:
+    level: alto
+    rationale: "El renderer indica fabricante y modelo de la GPU y, a menudo, la versión del controlador."
+  webgpu:
+    level: alto
+    rationale: "Entrega fabricante y arquitectura de la GPU por una vía distinta de WebGL."
+  canvas:
+    level: alto
+    rationale: "El resultado del mismo dibujo depende de GPU, controlador, sistema operativo y fuentes; varía mucho entre equipos y es estable."
+  audio:
+    level: alto
+    rationale: "El procesamiento de audio depende del hardware y de la implementación del navegador; el resultado es estable para un mismo equipo."
+  fonts:
+    level: alto
+    rationale: "El conjunto de fuentes instaladas refleja sistema operativo, idioma y programas instalados; las combinaciones son muy variadas."
+  permissions:
+    level: bajo
+    rationale: "La mayoría de los equipos mantiene los estados por defecto; solo distingue si se concedieron o denegaron permisos."
