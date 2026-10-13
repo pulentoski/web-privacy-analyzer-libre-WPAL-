@@ -3,9 +3,12 @@
 import os
 import pathlib
 
+import pytest
+
 from app import resources
 
 
+@pytest.mark.needs_stack  # lee los límites de cgroup que pone docker-compose; requiere el contenedor desplegado.
 def test_worker_reads_its_own_cgroup_counters():
     sample = resources.read_sample()
     assert set(sample) == set(resources.SAMPLE_KEYS)
@@ -16,6 +19,7 @@ def test_worker_reads_its_own_cgroup_counters():
     assert resources.clean_sample(sample) == sample
 
 
+@pytest.mark.needs_stack  # verifica el endurecimiento del contenedor desplegado (cgroup RO, sin docker.sock).
 def test_cgroup_is_read_only_and_there_is_no_docker_socket():
     assert not os.access("/sys/fs/cgroup/memory.max", os.W_OK)
     for path in ("/var/run/docker.sock", "/run/docker.sock"):

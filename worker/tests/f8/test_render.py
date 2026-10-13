@@ -1,5 +1,7 @@
 """Render de reportes a PDF sin red (F8, criterio 6)."""
 
+import pytest
+
 from app.render import html_to_pdf
 from tests.helpers import fixtures_call, run_async
 
@@ -16,6 +18,7 @@ HOSTILE = """<!doctype html><html><head>
 </body></html>"""
 
 
+@pytest.mark.needs_stack  # renderiza con Chromium real (Playwright); requiere el stack.
 def test_self_contained_report_renders_with_zero_network_requests():
     pdf, info = run_async(html_to_pdf(CLEAN))
     assert pdf[:5] == b"%PDF-" and info["bytes"] == len(pdf) > 1000

@@ -29,6 +29,7 @@ def opened(monkeypatch):
     return paths
 
 
+@pytest.mark.needs_stack  # usa las listas reales de ./data (no versionadas); se omite en CI.
 def test_commercial_profile_never_opens_excluded_sources(opened):
     lists = FilterLists(settings.data_dir, allow_fixtures=True, license_profile="comercial")
     config = load_config(settings.data_dir, allow_fixtures=True, license_profile="comercial")
@@ -43,6 +44,7 @@ def test_commercial_profile_never_opens_excluded_sources(opened):
     assert any(path.endswith("companiesdb/entity_map.json") for path in opened)
 
 
+@pytest.mark.needs_stack  # usa las listas reales de ./data (no versionadas); se omite en CI.
 def test_default_profile_keeps_the_previous_sources(opened):
     lists = FilterLists(settings.data_dir, allow_fixtures=True)
     config = load_config(settings.data_dir, allow_fixtures=True)
@@ -52,6 +54,7 @@ def test_default_profile_keeps_the_previous_sources(opened):
     assert not any("companiesdb" in path for path in opened)
 
 
+@pytest.mark.needs_stack  # usa las listas reales de ./data (no versionadas); se omite en CI.
 def test_profiles_give_different_list_versions_and_known_entities():
     default = FilterLists(settings.data_dir, allow_fixtures=True)
     commercial = FilterLists(settings.data_dir, allow_fixtures=True, license_profile="comercial")

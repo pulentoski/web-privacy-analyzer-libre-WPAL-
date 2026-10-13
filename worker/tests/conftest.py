@@ -4,6 +4,7 @@ Requieren el stack de test: ALLOW_FIXTURES=1 en .env y
 `docker compose --profile test up -d --build` (ver README).
 """
 
+import os
 import urllib.error
 
 import pytest
@@ -116,3 +117,38 @@ def fp_analysis(fp_scan, manifest, analyzer_resources):
         outcome.capture, start_url=manifest["fingerprinting"]["page"], page_url=outcome.result["final_url"]
     )
     return analyze(prepared, lists, config)
+
+
+# --- Selección de la suite unitaria para CI (WPA_UNIT_ONLY=1) ---
+#
+# El CI (.github/workflows/tests.yml) ejecuta solo las pruebas que NO necesitan el stack de test
+# (Chromium, el proxy y el sitio de fixtures) ni los datos de terceros de ./data (listas de filtros,
+# mapa de entidades, lista de CMP de IAB), que no se versionan. Con WPA_UNIT_ONLY=1 se deseleccionan:
+#   - las que usan alguna fixture que exige ese stack o esos datos (lista de abajo), y
+#   - las marcadas @pytest.mark.needs_stack (integración sin fixture propia, p. ej. las de listas).
+# Sin la variable (uso normal dentro del stack) NO cambia nada: se ejecutan todas, como siempre.
+_STACK_FIXTURES = frozenset({
+    "fixtures_site", "manifest", "page_scan", "outcome", "capture", "received",
+    "flood_scan", "flood_analysis", "analyzer_resources", "analysis",
+    "fp_scan", "fp_capture", "fp_analysis", "login_capture",
+    "canary", "playwright_instance", "browser", "direct_browser", "page", "direct_page",
+})
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "needs_stack: requiere el stack de test o los datos de ./data; se omite en CI (WPA_UNIT_ONLY=1).",
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    if os.environ.get("WPA_UNIT_ONLY") != "1":
+        return
+    kept, deselected = [], []
+    for item in items:
+        needs = _STACK_FIXTURES.intersection(item.fixturenames) or item.get_closest_marker("needs_stack")
+        (deselected if needs else kept).append(item)
+    if deselected:
+        config.hook.pytest_deselected(items=deselected)
+        items[:] = kept

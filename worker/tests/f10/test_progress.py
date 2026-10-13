@@ -5,6 +5,7 @@ import json
 import uuid
 
 import asyncpg
+import pytest
 
 from app import jobs, progress
 from app.browser.capture import run_scan
@@ -61,6 +62,7 @@ def test_run_scan_reports_opening_then_capturing_with_live_request_count(manifes
     assert state.capture_started_at is not None
 
 
+@pytest.mark.needs_stack  # usa la cola real en Postgres (asyncpg); requiere la base del stack.
 def test_progress_is_published_while_the_job_runs_and_kept_when_it_finishes():
     """Cola real: claim → publicación periódica → finish. Lo que queda en jobs.progress es lo medido."""
 

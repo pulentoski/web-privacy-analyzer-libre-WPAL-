@@ -1,0 +1,93 @@
+# Pruebas unitarias de api, worker y frontend que NO necesitan red externa, el stack en marcha ni los
+# datos de terceros de ./data (listas, base de IP, lista de CMP). No se ejecutan e2e ni scans reales.
+# La selección de la suite unitaria la hacen los conftest con WPA_UNIT_ONLY=1 (ver api/tests/conftest.py
+# y worker/tests/conftest.py): deseleccionan lo marcado @pytest.mark.needs_stack. Los secretos de aquí
+# son de usar y tirar, solo para que arranquen los servicios de prueba.
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npm test
+        working-directory: frontend
+
+  api:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: wpa
+          POSTGRES_PASSWORD: ci-postgres-secret
+          POSTGRES_DB: wpa
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U wpa -d wpa"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      WPA_UNIT_ONLY: "1"
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: wpa
+      POSTGRES_PASSWORD: ci-postgres-secret
+      POSTGRES_DB: wpa
+      PROXY_SCAN_SECRET: ci-proxy-secret
+      # Resuelve los hosts *.fixtures.test sin DNS (docs/adr/003): las pruebas no salen a la red.
+      ALLOW_FIXTURES: "1"
+      # Valores de preflight (SSRF): las pruebas comprueban que estas direcciones quedan bloqueadas.
+      LAN_GATEWAY: 192.168.1.1
+      HOST_LAN_IP: 192.168.1.50
+      INTERNAL_GATEWAY: 172.30.0.1
+      # La config propia (YAML y perfiles) vive en ./data; la base de IP y las listas NO están (se omiten).
+      DATA_DIR: ${{ github.workspace }}/data
+      PROFILES_DIR: ${{ github.workspace }}/data/profiles
+      IPDB_DIR: ${{ github.workspace }}/data/ipdb
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: api/requirements.txt
+      - run: pip install -r requirements.txt
+        working-directory: api
+      - run: alembic upgrade head
+        working-directory: api
+      - run: pytest -q
+        working-directory: api
+
+  worker:
+    runs-on: ubuntu-latest
+    env:
+      WPA_UNIT_ONLY: "1"
+      # El worker lee estos al importar la config; las pruebas unitarias no abren conexiones.
+      POSTGRES_USER: wpa
+      POSTGRES_PASSWORD: ci-postgres-secret
+      POSTGRES_DB: wpa
+      PROXY_SCAN_SECRET: ci-proxy-secret
+      DATA_DIR: ${{ github.workspace }}/data
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: worker/requirements.txt
+      - run: pip install -r requirements.txt
+        working-directory: worker
+      - run: pytest -q
+        working-directory: worker

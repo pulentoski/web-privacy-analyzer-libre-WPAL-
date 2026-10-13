@@ -10,7 +10,11 @@ con qué métodos y hacia quién la envían.
 </p>
 
 <p align="center">
-  <em>Versión 1.4.3 · beta · herramienta de investigación · se ejecuta solo en <code>127.0.0.1</code></em>
+  <em>Versión 1.4.4 · beta · herramienta de investigación · se ejecuta solo en <code>127.0.0.1</code></em>
+</p>
+
+<p align="center">
+  <a href="https://github.com/pulentoski/web-privacy-analyzer-libre-WPAL-/actions/workflows/tests.yml"><img src="https://github.com/pulentoski/web-privacy-analyzer-libre-WPAL-/actions/workflows/tests.yml/badge.svg" alt="Estado de las pruebas"></a>
 </p>
 
 ---
@@ -40,7 +44,7 @@ data, Spanish UI. Start it with `./scripts/start.sh` and open <http://127.0.0.1:
 [11. Comparación con otras herramientas](#11-comparación-con-otras-herramientas) ·
 [12. Requisitos e instalación](#12-requisitos-descarga-instalación-y-uso) ·
 [13. Seguridad y uso responsable](#13-seguridad-y-uso-responsable) ·
-[14. Licencia y créditos](#14-licencia-y-créditos)
+[14. Licencia y créditos](#14-licencia-y-créditos) · [15. Desarrollo](#15-desarrollo)
 
 ---
 
@@ -264,9 +268,9 @@ Cada herramienta resuelve un problema distinto; esta no las reemplaza.
 |---|---|---|
 | **Wireshark** | Captura de paquetes a nivel de red. | Ve metadatos de red pero no el contenido de HTTPS sin claves, ni clasifica rastreadores. Aquí se captura a nivel de aplicación (antes de TLS) y se explica quién recibe qué. |
 | **Burp Suite** | Proxy de interceptación para *pentesting* web (MITM de HTTPS, manual). | Orientado a seguridad ofensiva y manual. Aquí el foco es la **privacidad**: clasificación automática, scoring explicable y niveles de evidencia. |
-| **DevTools (navegador)** | Inspección de red por página en tu propio navegador. | Sin clasificación, scoring, mapa de entidades ni correlaciones; es manual. Aquí todo eso es automático y además se puede **importar el HAR** de DevTools. |
+| **DevTools (navegador)** | Inspección de red por página en su propio navegador. | Sin clasificación, scoring, mapa de entidades ni correlaciones; es manual. Aquí todo eso es automático y además se puede **importar el HAR** de DevTools. |
 | **Blacklight (The Markup)** | Escáner online de rastreadores conocidos. | Hospedado y acotado a sus comprobaciones. Aquí es autohospedado y offline, con más detalle, captura interactiva, HAR y evidencia por request. |
-| **Cover Your Tracks (EFF)** | Mide la *identificabilidad* de **tu** navegador frente a una población (bits de entropía). | Aquí «Mi exposición» describe los atributos de forma **cualitativa** (sin afirmar bits ni unicidad) y el foco está en el **análisis del sitio**, no solo del navegador. |
+| **Cover Your Tracks (EFF)** | Mide la *identificabilidad* de **su** navegador frente a una población (bits de entropía). | Aquí «Mi exposición» describe los atributos de forma **cualitativa** (sin afirmar bits ni unicidad) y el foco está en el **análisis del sitio**, no solo del navegador. |
 
 ## 12. Requisitos, descarga, instalación y uso
 
@@ -274,43 +278,30 @@ Cada herramienta resuelve un problema distinto; esta no las reemplaza.
 unos **6 GB de disco** y **6 GB de RAM** libres. Conexión a internet (para descargar los datos de
 terceros y para visitar los sitios).
 
-**Descarga:**
-
-```sh
-git clone https://github.com/pulentoski/web-privacy-analyzer-libre-WPAL-.git
-cd web-privacy-analyzer
-# o descargue el .zip de la página de releases y descomprímalo
-```
-
 **Instalación:**
 
 ```sh
-cp .env.example .env
-```
-
-Complete en `.env`:
-
-| Variable | Valor |
-|---|---|
-| `POSTGRES_PASSWORD` | `openssl rand -hex 24` |
-| `PROXY_SCAN_SECRET` | `openssl rand -hex 24` |
-| `EXPOSURE_PRESENTER_TOKEN` | `openssl rand -hex 16` (o vacío para desactivar la purga remota) |
-| `UPSTREAM_DNS` | Resolver real del equipo (`resolvectl status`), nunca `127.0.0.53` |
-| `LAN_GATEWAY`, `HOST_LAN_IP` | Los detecta `scripts/start.sh` (déjelos en `CAMBIAR`) |
-
-**Ejecución:**
-
-```sh
+git clone https://github.com/pulentoski/web-privacy-analyzer-libre-WPAL-.git
+cd web-privacy-analyzer-libre-WPAL-
 ./scripts/start.sh
 ```
 
-`start.sh` detecta la red, **descarga los datos de terceros si faltan**
-(`scripts/fetch-data.sh`: listas, base de IP y lista de CMP), levanta el stack con
-`docker compose up -d --build` y espera a que todo esté `healthy`. Al terminar:
+Abra <http://127.0.0.1:8080>. Eso es todo.
+
+La primera vez, `start.sh` genera `.env` a partir de `.env.example`: crea `POSTGRES_PASSWORD`,
+`PROXY_SCAN_SECRET` y `EXPOSURE_PRESENTER_TOKEN` con `openssl` y detecta el resolver DNS real del
+equipo (`UPSTREAM_DNS`) y la red (`LAN_GATEWAY`, `HOST_LAN_IP`). Si no logra detectar `UPSTREAM_DNS`,
+lo avisa y queda en `CAMBIAR` para que lo complete a mano (`resolvectl status`, nunca `127.0.0.53`).
+Después **descarga los datos de terceros si faltan** (`scripts/fetch-data.sh`: listas, base de IP y
+lista de CMP), levanta el stack con `docker compose up -d --build` y espera a que todo esté `healthy`.
 
 - Interfaz: <http://127.0.0.1:8080>  ·  API: <http://127.0.0.1:8000/health>  ·  OpenAPI: `/docs`
 - `curl -s http://127.0.0.1:8000/health` → `{"status":"ok","database":true,"worker":true}`
 - Ambas escuchan **solo en loopback**.
+- ¿Prefiere revisar la configuración antes de arrancar? Copie `.env.example` a `.env` a mano y edítelo;
+  si `.env` ya existe, `start.sh` lo respeta. El resto de variables están documentadas en `.env.example`.
+
+> También puede descargar el `.zip` desde la página de *Releases* y descomprimirlo en vez de clonar.
 
 **Uso:** abra <http://127.0.0.1:8080>, vaya a «Analizar un sitio», escriba una URL y lea el resultado
 de arriba hacia abajo (§9).
@@ -342,12 +333,12 @@ Más en [docs/OPERACION.md](docs/OPERACION.md).
 
 ## 13. Seguridad y uso responsable
 
-- **No la expongas a internet.** Escucha solo en `127.0.0.1` y **no tiene autenticación**. El único
+- **No la exponga a internet.** Escucha solo en `127.0.0.1` y **no tiene autenticación**. El único
   modo pensado para la LAN es la demo de «Mi exposición» (`scripts/demo.sh`, `DEMO_MODE=1`).
-- **No uses cuentas reales en la captura interactiva:** las cookies de una sesión iniciada quedan
+- **No use cuentas reales en la captura interactiva:** las cookies de una sesión iniciada quedan
   guardadas en la captura (las contraseñas se enmascaran, las cookies no).
-- Analiza **sitios propios** o con permiso; una visita no es una evaluación del sitio.
-- Secretos solo en `.env` (en `.gitignore`). Revisa los reportes antes de compartirlos.
+- Analice **sitios propios** o con permiso; una visita no es una evaluación del sitio.
+- Secretos solo en `.env` (en `.gitignore`). Revise los reportes antes de compartirlos.
 - Verificación: `scripts/hardening-check.sh` (endurecimiento) y `scripts/security-scan.sh`
   (pip-audit, npm audit, Trivy, gitleaks). Modelo de amenazas en
   [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md). Para reportar una vulnerabilidad: [SECURITY.md](SECURITY.md).
@@ -366,3 +357,16 @@ Más en [docs/OPERACION.md](docs/OPERACION.md).
 Más documentación: [docs/SPEC.md](docs/SPEC.md) (especificación) ·
 [docs/adr/](docs/adr/) (decisiones de diseño) · [docs/OPERACION.md](docs/OPERACION.md) ·
 [docs/GUIA-DEMOSTRACION.md](docs/GUIA-DEMOSTRACION.md) · [docs/PUBLICAR.md](docs/PUBLICAR.md).
+
+## 15. Desarrollo
+
+Este proyecto se construyó con **asistencia de IA** (Claude Code), bajo revisión y decisiones de la
+persona autora. El archivo [`CLAUDE.md`](CLAUDE.md) de la raíz son las **reglas para el agente**: qué
+leer antes de tocar nada ([docs/SPEC.md](docs/SPEC.md)), los principios irrenunciables (ningún
+hallazgo sin nivel y evidencia; nunca inventar datos; el worker solo sale por el proxy; secretos solo
+en `.env`) y que las decisiones de diseño no triviales se registran en [docs/adr/](docs/adr/).
+
+Todo cambio se **valida con pruebas** antes de darse por terminado: las unitarias de api, worker y
+frontend corren en cada `push` y `pull_request` ([![Estado de las pruebas](https://github.com/pulentoski/web-privacy-analyzer-libre-WPAL-/actions/workflows/tests.yml/badge.svg)](https://github.com/pulentoski/web-privacy-analyzer-libre-WPAL-/actions/workflows/tests.yml)),
+y la suite completa —incluidas SSRF y e2e— se ejecuta en local con `./scripts/test.sh`, que necesita
+el stack de test con fixtures.

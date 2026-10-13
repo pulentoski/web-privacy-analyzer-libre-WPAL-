@@ -1,3 +1,4 @@
+import os
 import uuid
 
 import pytest
@@ -8,6 +9,27 @@ from app.db import SessionLocal
 from app.main import app
 from app.models import Job, ScanRedirect
 from tests.factories import _request
+
+
+# El CI (.github/workflows/tests.yml) ejecuta las pruebas de la api con WPA_UNIT_ONLY=1, que
+# deselecciona las marcadas @pytest.mark.needs_stack: las que necesitan la base de IP (DB-IP, que no
+# se versiona) o el stack en marcha (worker/frontend) para resources, rankings o la captura interactiva.
+# Sin la variable (uso normal dentro del stack) NO cambia nada: se ejecutan todas, como siempre.
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "needs_stack: requiere la base de IP o el stack en marcha; se omite en CI (WPA_UNIT_ONLY=1).",
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    if os.environ.get("WPA_UNIT_ONLY") != "1":
+        return
+    deselected = [item for item in items if item.get_closest_marker("needs_stack")]
+    if deselected:
+        config.hook.pytest_deselected(items=deselected)
+        kept = [item for item in items if not item.get_closest_marker("needs_stack")]
+        items[:] = kept
 
 
 @pytest.fixture(autouse=True)

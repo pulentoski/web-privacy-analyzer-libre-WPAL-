@@ -38,6 +38,7 @@ def sample(ts, usage, memory, limit=1000, inactive=0):
 # --- indicador de recursos ---
 
 
+@pytest.mark.needs_stack  # lee los contadores de cgroup de los servicios en marcha; se omite en CI.
 def test_resources_reports_every_service_from_its_own_cgroup(client):
     client.get("/api/resources")
     time.sleep(1.2)  # la respuesta se reutiliza 1 s; la segunda muestra permite calcular la CPU
@@ -98,6 +99,7 @@ def test_cgroup_parsing_and_untrusted_samples():
         assert resources.clean_sample(hostile) is None
 
 
+@pytest.mark.needs_stack  # lee el estado de los servicios en marcha; se omite en CI.
 def test_resources_survives_an_unreachable_frontend(client, monkeypatch):
     def unreachable(url):
         raise OSError("sin ruta")
@@ -132,6 +134,7 @@ def test_interactive_is_disabled_in_demo_mode(client, monkeypatch):
             pass
 
 
+@pytest.mark.needs_stack  # necesita el worker en marcha para la sesión interactiva; se omite en CI.
 def test_interactive_session_end_to_end(client):
     """Sesión real contra el worker: una a la vez, relé con token y origen, detener, analizar y reporte marcado."""
     created = client.post("/api/interactive", json={"url": FIXTURE})

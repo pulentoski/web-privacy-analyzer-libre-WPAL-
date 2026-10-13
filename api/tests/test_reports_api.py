@@ -291,6 +291,7 @@ def test_header_is_neutral_without_brand_and_branded_with_it(client, secret_scan
 # --- Destinos: IP, ASN y país, o "no_disponible" con motivo (criterio 4) ---
 
 
+@pytest.mark.needs_stack  # necesita la base de IP (DB-IP, no versionada); se omite en CI.
 def test_every_domain_has_ip_intel_or_a_reason(client, secret_scan, analyzed_scan):  # noqa: F811
     body = client.get(f"/api/scans/{secret_scan}/destinations").json()
     assert body["has_proxy_log"] is True and body["attribution"]["text"] == "IP Geolocation by DB-IP"

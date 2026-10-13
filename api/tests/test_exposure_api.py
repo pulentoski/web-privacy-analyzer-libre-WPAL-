@@ -136,6 +136,7 @@ def test_ip_classification():
         assert classify(ipaddress.ip_address(value)) == expected, value
 
 
+@pytest.mark.needs_stack  # necesita la base de IP (DB-IP, no versionada); se omite en CI.
 def test_offline_lookup_of_public_ips():
     intel = exposure.intel()
     google = intel.lookup("8.8.8.8")
@@ -159,6 +160,7 @@ def test_missing_database_is_no_disponible_not_invented(tmp_path):
     assert (result["country"], result["country_code"], result["asn"], result["organization"]) == ("no_disponible",) * 4
 
 
+@pytest.mark.needs_stack  # necesita la base de IP (DB-IP, no versionada); se omite en CI.
 def test_ip_lookup_endpoint(client):
     body = client.post("/api/exposure/ip-lookup", json={"ip": "1.1.1.1"}).json()
     assert body["stored"] is False and body["ip_intel"]["asn"] == "AS13335"

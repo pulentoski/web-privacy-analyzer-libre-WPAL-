@@ -244,6 +244,7 @@ def test_interaction_section_of_the_report_escapes_and_states_what_is_not_kept()
 # --- 12. bloque de estado del indicador ---
 
 
+@pytest.mark.needs_stack  # lee el estado de los servicios en marcha (worker/frontend); se omite en CI.
 def test_resources_reports_stack_and_worker_status(client):
     resources._cache["body"] = None
     body = client.get("/api/resources").json()

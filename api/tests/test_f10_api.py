@@ -592,6 +592,7 @@ def test_delete_everything_requires_typing_the_confirmation(client):
     assert client.get("/api/history").json()["scans"] >= 1  # nada se borró
 
 
+@pytest.mark.needs_stack  # necesita scans reales producidos por el worker; se omite en CI.
 def test_delete_everything_removes_all_scans_groups_and_reports(client):
     """Se ejecuta el borrado completo de verdad, dentro de una transacción que se revierte al final:
     así se comprueba contra la base real sin perder los datos del equipo."""

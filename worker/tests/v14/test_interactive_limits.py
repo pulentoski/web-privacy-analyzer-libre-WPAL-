@@ -12,6 +12,9 @@ from app import interactive
 from app.config import settings
 from tests.helpers import SITE, run_async
 
+# Todo el archivo abre sesiones interactivas reales (Chromium + base de datos): se omite en CI.
+pytestmark = pytest.mark.needs_stack
+
 
 def _alive(needle: str) -> int:
     count = 0

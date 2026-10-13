@@ -116,6 +116,7 @@ def test_unknown_user_reads_nothing():
     assert read_destinations(f"scan-{uuid.uuid4()}") == []
 
 
+@pytest.mark.needs_stack  # comprueba el montaje de solo lectura del stack desplegado.
 def test_worker_mounts_the_log_read_only():
     directory = pathlib.Path(settings.scanlog_dir)
     assert any(directory.glob("access.jsonl*"))
