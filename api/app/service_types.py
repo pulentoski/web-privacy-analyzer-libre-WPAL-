@@ -48,6 +48,8 @@ class ServiceTypes:
         return next((info for known, info in self._by_domain.items() if value.endswith("." + known)), None)
 
     def _url_match(self, urls) -> dict | None:
+        hits: dict[str, tuple[int, dict]] = {}
+        total = 0
         for url in urls or []:
             if not isinstance(url, str):
                 continue
@@ -55,8 +57,13 @@ class ServiceTypes:
             target = url.split("://", 1)[-1].split("?", 1)[0].lower()
             for pattern, info in self._by_url:
                 if pattern in target:
-                    return info
-        return None
+                    hits[info["type"]] = (hits.get(info["type"], (0, info))[0] + 1, info)
+                    break
+            total += 1
+        # v1.4.5: un grupo de URLs de varios productos (p. ej. todo Google) solo toma el giro de un
+        # patrón si la mayoría de sus URLs lo cumple; con una sola URL basta que coincida.
+        count, info = max(hits.values(), key=lambda item: item[0], default=(0, None))
+        return info if count * 2 > total else None
 
     def of(self, *, entity: str | None = None, domain: str | None = None, urls=None) -> dict | None:
         by_url = self._url_match(urls)

@@ -386,6 +386,15 @@ def executive_summary(report: dict) -> dict:
         )
     else:
         found.append("No se observaron requests con señales suficientes de seguimiento en esta visita.")
+    services = third_party_services(report)
+    if services and services["items"]:
+        kinds = list(dict.fromkeys(str(item["service_label"]).split(" (")[0] for item in services["items"] if item.get("service_label")))
+        found.append(
+            f"Servicios de terceros sin señales de rastreo: {plural(services.get('requests', 0), 'request se dirigió', 'requests se dirigieron')} a "
+            f"{plural(services.get('organizations', 0), 'organización', 'organizaciones')} que prestan servicios a la página"
+            + (f" ({', '.join(kinds[:6])}{' y otros' if len(kinds) > 6 else ''})" if kinds else "")
+            + ". No muestran señales de rastreo, pero reciben la dirección IP y el navegador de cada visitante."
+        )
     # Otro dominio del mismo dueño (CDN propio, dominios del grupo): se informa aparte, no es tercero.
     same_org_domains = [domain for domain in destinations.get("domains") or [] if domain.get("party") == "same_org"]
     if capture.get("same_org"):
@@ -572,6 +581,46 @@ def _telemetry_section(report: dict) -> str:
     return out
 
 
+def third_party_services(report: dict) -> dict | None:
+    """Servicios de terceros sin señales de rastreo (v1.4.5), o None si el análisis es anterior (no se inventa «0»)."""
+    services = ((report.get("site") or {}).get("summary") or {}).get("third_party_services")
+    return services if isinstance(services, dict) and isinstance(services.get("items"), list) else None
+
+
+def _third_party_services_section(report: dict) -> str:
+    """Terceros contactados SIN señales de rastreo: organización, giro y requests. Se muestra siempre que se midió."""
+    services = third_party_services(report)
+    if services is None:
+        return ""
+    out = "<h3>Servicios de terceros sin señales de rastreo</h3>"
+    out += (f'<p class="small">{level(services.get("level"))} Requests a otras organizaciones que no alcanzaron la banda de '
+            "rastreador: mapas, fuentes, librerías, antibot, clima, redes sociales y similares. Que no muestren señales de rastreo no "
+            "significa que no reciban datos: cada una recibe al menos la dirección IP y el navegador del visitante. El tipo de servicio "
+            f'es contexto ({e(str(services.get("service_level") or "INFERENCIA").capitalize())}), no evidencia del uso concreto.</p>')
+    if not services["items"]:
+        return out + "<p>En esta visita no hubo requests a terceros sin señales de rastreo.</p>"
+    out += table(["Organización", "Tipo de servicio (contexto)", "Dominios", "Requests", "Referencias de evidencia"], [
+        [(e(item.get("organization")) if item.get("organization") not in (None, UNKNOWN) else "no disponible")
+         + (" <em>(también en rastreadores)</em>" if item.get("in_trackers") else ""),
+         e(item.get("service_label") or "tipo no identificado"),
+         "<br>".join(f'<span class="mono">{e(host)}</span>' for host in item.get("hosts") or item.get("domains") or []),
+         e(item.get("requests")), refs(item.get("evidence_refs") or [])]
+        for item in services["items"]
+    ])
+    if services.get("truncated"):
+        out += '<p class="small">La lista se truncó por volumen.</p>'
+    return out
+
+
+def _error_frames_note(report: dict) -> str:
+    """Un iframe que no cargó muestra la página de error de Chromium: su código no es del sitio y no se cuenta (v1.4.5)."""
+    frames = ((report.get("site") or {}).get("summary") or {}).get("error_frames") or {}
+    if not frames.get("observed"):
+        return ""
+    return ('<p class="small">Un recuadro (iframe) de la página no cargó. Lo que ejecutó en su lugar la página de error del '
+            "navegador no pertenece al sitio y no se cuenta.</p>")
+
+
 def _same_org_section(report: dict) -> str:
     """Recursos de la MISMA organización del sitio (point 1 y 2): informativo, no son terceros."""
     summary = (report.get("site") or {}).get("summary") or {}
@@ -692,6 +741,7 @@ def render_scan_report(report: dict, sha256: str, brand: Brand | None = None) ->
          refs([request.get("request_id") for request in group.get("requests") or []])]
         for group in report.get("trackers") or []
     ])
+    body += _third_party_services_section(report)
     body += _same_org_section(report)
     body += _telemetry_section(report)
 
@@ -733,6 +783,7 @@ def render_scan_report(report: dict, sha256: str, brand: Brand | None = None) ->
     ])
 
     body += "<h3>Fingerprinting</h3>"
+    body += _error_frames_note(report)
     if not fingerprinting.get("instrumented"):
         if (report.get("scan") or {}).get("source") == "har_import":
             body += "<p>Captura importada (HAR): un HAR solo registra tráfico de red, sin instrumentación de fingerprinting.</p>"

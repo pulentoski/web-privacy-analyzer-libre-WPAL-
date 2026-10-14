@@ -10,7 +10,7 @@ con qué métodos y hacia quién la envían.
 </p>
 
 <p align="center">
-  <em>Versión 1.4.4 · beta · herramienta de investigación · se ejecuta solo en <code>127.0.0.1</code></em>
+  <em>Versión 1.4.5 · beta · herramienta de investigación · se ejecuta solo en <code>127.0.0.1</code></em>
 </p>
 
 <p align="center">
@@ -183,7 +183,8 @@ Para cada comunicación y para el sitio en conjunto:
 - **Correlaciones (con evidencia):** sincronización de identificadores entre organizaciones, ID
   persistente (cookie/storage reenviado), fuga de URL/Referer a un tercero, exfiltración de un
   atributo leído que reaparece en una request, y envío de la interacción del usuario.
-- **Contexto:** tipo de servicio de cada organización (analítica, publicidad, antifraude, CDN…),
+- **Contexto:** tipo de servicio de cada organización o host (analítica, publicidad, antifraude, CDN,
+  mapas, fuentes, clima…), **varias cuentas de analítica** del mismo proveedor en un sitio,
   **telemetría propia** (al propio sitio, no es tercero), **consentimiento** (TCF y Google Consent
   Mode, sin juicio legal), **bloqueo antibot** (captcha/desafíos) e **ID de cuenta del sitio** (GA,
   GTM, Meta…: identifican al sitio ante su proveedor, no al visitante).
@@ -230,6 +231,28 @@ exfiltraciones y fugas de URL.
 
 **Rastreadores** — requests con señales de seguimiento, agrupadas por organización.
 ![Rastreadores](docs/images/rastreadores.png)
+
+**Servicios de terceros sin señales de rastreo** (v1.4.5) — en Rastreadores, en el Resumen y en los
+reportes: las otras organizaciones que la página contacta para funcionar, con su **tipo de servicio**
+(mapas, fuentes tipográficas, CDN de librerías, antibot, clima, widgets para compartir en redes, video…)
+y sus requests. Se muestra **siempre**, también cuando no hay rastreadores: un sitio sin rastreadores no
+es un sitio sin terceros.
+
+| Organización | Tipo de servicio | Dominios | Requests |
+|---|---|---|---|
+| OpenStreetMap Foundation | mapas | `a.tile.openstreetmap.org`, `b.tile…` | 12 |
+| Google | antifraude publicitario/antibot | `www.google.com`, `www.gstatic.com` | 10 |
+| Cloudflare | CDN de librerías | `cdnjs.cloudflare.com` | 9 |
+| OpenWeather | clima | `api.openweathermap.org` | 2 |
+| Organización no disponible | tipo no identificado | `apis.ejemplo.cl` | 39 |
+
+- La request observada es **Evidencia**; el tipo de servicio es **contexto** (Inferencia): describe a qué
+  se dedica normalmente ese servicio, no qué hizo en esa visita.
+- No mostrar señales de rastreo **no** significa no recibir datos: cada servicio recibe, como mínimo, la
+  dirección IP y el navegador del visitante.
+- La organización sale del mapa de entidades y de un catálogo propio (`data/organizations.yaml`). Si el
+  dato corresponde a una **persona natural** (quien registró el dominio), se muestra «no disponible»:
+  nunca se muestran nombres de personas.
 
 **Fingerprinting** — «Atributos de su navegador que leyó este sitio» (atributo · leído por ·
 enviado a) y los scripts que llaman a APIs del dispositivo.
@@ -298,6 +321,8 @@ lista de CMP), levanta el stack con `docker compose up -d --build` y espera a qu
 - Interfaz: <http://127.0.0.1:8080>  ·  API: <http://127.0.0.1:8000/health>  ·  OpenAPI: `/docs`
 - `curl -s http://127.0.0.1:8000/health` → `{"status":"ok","database":true,"worker":true}`
 - Ambas escuchan **solo en loopback**.
+- El navegador que visita los sitios se presenta en **español de Chile** (`es-CL`, zona
+  `America/Santiago`); se cambia con `WORKER_LOCALE` y `WORKER_TIMEZONE` en `.env`.
 - ¿Prefiere revisar la configuración antes de arrancar? Copie `.env.example` a `.env` a mano y edítelo;
   si `.env` ya existe, `start.sh` lo respeta. El resto de variables están documentadas en `.env.example`.
 

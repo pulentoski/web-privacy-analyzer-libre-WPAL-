@@ -62,3 +62,10 @@ correlation:
   # normal de envíos de esa organización durante la sesión (descarta balizas periódicas).
   min_ratio: 2.0
   max_timeline: 200
+  # v1.4.5: qué es un ENVÍO. Cuentan POST/PUT/PATCH, beacon, ping, pixeles (imagen con parámetros) y
+  # GET con parámetros. NO cuentan las descargas de recursos estáticos ni lo que sirve un dominio de
+  # distribución de contenido: bajar un decodificador .wasm tras un clic no es enviar la interacción.
+  static_extensions: [js, mjs, cjs, wasm, css, map, woff, woff2, ttf, otf, eot]
+  static_types: [script, stylesheet, font, media]
+  # Giros de service_types.yaml cuyos dominios solo distribuyen archivos.
+  delivery_service_types: [cdn, library_cdn, fonts]

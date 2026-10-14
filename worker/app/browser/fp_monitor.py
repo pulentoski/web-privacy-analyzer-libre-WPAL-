@@ -58,6 +58,7 @@ MAX_URL_CHARS = 2048
 MAX_VALUE_CHARS = 256
 RATE_BURST = 40
 RATE_PER_SECOND = 10.0
+ERROR_FRAME_PREFIX = "chrome-error://"
 HEX = frozenset("0123456789abcdef")
 
 
@@ -154,6 +155,8 @@ class FingerprintMonitor:
         self._messages = 0
         self._rejected = 0
         self._truncated = False
+        # Lotes que llegaron desde la página de error de Chromium (un iframe que no cargó): no son del sitio.
+        self._error_frame_messages = 0
         self._tokens = float(RATE_BURST)
         self._last = time.monotonic()
 
@@ -214,6 +217,10 @@ class FingerprintMonitor:
             frame_url = (source["frame"].url or "")[:MAX_URL_CHARS]
         except Exception:
             frame_url = ""
+        if frame_url.startswith(ERROR_FRAME_PREFIX):
+            # v1.4.5: código del propio navegador; no se guarda nada, solo consta que un recuadro no cargó.
+            self._error_frame_messages += 1
+            return
         self._truncated = self._truncated or event["truncated"]
         if event["available"] is not None:
             self._available.update(event["available"])
@@ -243,4 +250,5 @@ class FingerprintMonitor:
             "truncated": self._truncated,
             "messages": self._messages,
             "rejected": self._rejected,
+            "error_frame_messages": self._error_frame_messages,
         }

@@ -198,6 +198,7 @@ def _fingerprinting_summary(fingerprinting: dict | None) -> dict | None:
         "truncated": fingerprinting["truncated"],
         "messages": fingerprinting["messages"],
         "rejected": fingerprinting["rejected"],
+        "error_frame_messages": fingerprinting.get("error_frame_messages", 0),
     }
 
 

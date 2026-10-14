@@ -27,7 +27,7 @@ from app import jobs
 from app.browser.capture import MAX_TITLE_CHARS, MAX_URL_CHARS, ScanOutcome, _error, clean_text
 from app.browser.consent import tcf_info
 from app.browser.fp_monitor import PAGE_FLUSH_MS, FingerprintMonitor
-from app.browser.launcher import context_kwargs, launch_kwargs
+from app.browser.launcher import base_session_setup, context_kwargs, launch_kwargs
 from app.browser.network_monitor import PROXY_ERROR_HEADER, NetworkMonitor
 from app.browser.proxy_log import read_destinations_when_flushed
 from app.browser.redact import MAX_NAME_CHARS, redact_body
@@ -257,6 +257,7 @@ class InteractiveSession:
             max_body_bytes=settings.max_body_capture_bytes,
         )
         # Credenciales enmascaradas antes de guardar (v1.4.1): solo queda el nombre del campo y su largo.
+        self.monitor.session_setup = base_session_setup()
         self.monitor.body_filter = lambda body, content_type: redact_body(body, content_type, self.password_fields)
         await self._attach(page)
         # Pestañas nuevas (enlaces con target, Ctrl+T): mismo contexto, misma captura.

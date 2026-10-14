@@ -3,7 +3,7 @@
 Todo el tráfico del navegador sale por el egress-proxy (SPEC §Seguridad, capa 2).
 """
 
-from app.config import settings
+from app.config import accept_language, language_list, settings
 
 # Host reservado (RFC 6761) que nunca resuelve. Los servicios propios de Chromium (cuentas,
 # GCM, actualizador de componentes) se apuntan aquí y este host se excluye del proxy: la
@@ -81,7 +81,33 @@ def context_kwargs(profile: dict | None = None) -> dict:
         # Sin emulación de viewport: pantalla y ventana son las reales del display virtual,
         # coherentes entre sí (screen 1920x1080, ventana 1440x900).
         "no_viewport": True,
+        # Perfil base en el idioma y la zona horaria configurados (WORKER_LOCALE, WORKER_TIMEZONE; por defecto
+        # es-CL y America/Santiago): navigator.language(s), Intl y Accept-Language dicen lo mismo, que es lo
+        # que compara el detector de inconsistencias (app/analyzer/consistency.py).
+        "locale": settings.worker_locale,
+        "timezone_id": settings.worker_timezone,
+        # Accept-Language de los subrecursos; el de las navegaciones lo fija base_session_setup(). Hacen falta
+        # los dos para que TODAS las requests digan lo mismo (comprobado con el sitio de fixtures).
+        "extra_http_headers": {"Accept-Language": accept_language(settings.worker_locale)},
     }
+
+
+def base_session_setup() -> list[tuple[str, dict]]:
+    """Órdenes CDP que completan el perfil base en cada página y en cada iframe de otro proceso.
+
+    Con `locale`, Playwright anuncia un solo idioma («es-CL»). Un Chrome real en español de Chile anuncia
+    también el genérico: navigator.languages = [es-CL, es] y Accept-Language «es-CL,es;q=0.9». Esta orden lo
+    fija para JavaScript y para las navegaciones (documentos); los subrecursos toman la cabecera de
+    context_kwargs(). userAgent vacío = no se toca el User-Agent ni los Client Hints.
+    """
+    return [("Emulation.setUserAgentOverride", {"userAgent": "", "acceptLanguage": ",".join(language_list(settings.worker_locale))})]
+
+
+async def apply_base_profile(context, page) -> None:
+    """Aplica base_session_setup() a una página que no pasa por NetworkMonitor (el sondeo de atributos)."""
+    session = await context.new_cdp_session(page)
+    for method, params in base_session_setup():
+        await session.send(method, params)
 
 
 async def launch_browser(playwright, proxy_user: str | None = None):

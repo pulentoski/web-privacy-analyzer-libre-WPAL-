@@ -8,6 +8,9 @@
 #   label:    frase corta que describe el giro (trato técnico, sin juicio).
 #   entities: nombres de organización tal como los devuelve el mapa de entidades (coincidencia exacta).
 #   domains:  dominios registrables o de script (coincidencia por dominio registrable o sufijo).
+#   urls:     patrones «host/ruta» (sin esquema ni query): un producto o un host concreto dentro de una
+#             organización. Ganan sobre entities y domains (p. ej. «maps.gstatic.com/» es mapas aunque
+#             gstatic.com sea una CDN).
 version: 1
 
 types:
@@ -23,6 +26,8 @@ types:
               awsc.alibaba.com, acs.m.alibaba.com, aeis.alibaba.com, fp.alibaba.com,
               threatmetrix.com, online-metrix.net, iovation.com, iesnare.com, perimeterx.net,
               px-cloud.net, datadome.co, arkoselabs.com, funcaptcha.com, cloudflare.com, hcaptcha.net]
+    # v1.4.5: reCAPTCHA se sirve desde google.com y gstatic.com.
+    urls: [google.com/recaptcha/, gstatic.com/recaptcha/, recaptcha.net/recaptcha/, challenges.cloudflare.com/]
   advertising:
     label: "publicidad (venta y entrega de anuncios, segmentación)"
     entities: [Google Ads, Criteo, The Trade Desk, Taboola, Outbrain, PubMatic, Rubicon Project,
@@ -69,11 +74,69 @@ types:
     entities: [Facebook, Meta, Twitter, X Corp., LinkedIn, Pinterest, TikTok, Snap, Instagram]
     domains: [facebook.com, facebook.net, fbcdn.net, twitter.com, x.com, twimg.com, linkedin.com,
               licdn.com, instagram.com, tiktok.com, pinterest.com, snapchat.com]
+  # --- v1.4.5: servicios de terceros de uso corriente (docs/adr/032) ---
+  share_widget:
+    label: "widget para compartir en redes sociales"
+    entities: [ShareThis, AddToAny]
+    domains: [weshareapp.io, e-mailit.com, addthis.com, addthisedge.com, sharethis.com, addtoany.com]
+  maps:
+    label: "mapas (mapas interactivos, teselas y geocodificación)"
+    entities: [OpenStreetMap Foundation, Mapbox]
+    domains: [openstreetmap.org, mapbox.com, arcgis.com, arcgisonline.com, virtualearth.net, here.com, hereapi.com,
+              maptiler.com, cartocdn.com, stadiamaps.com, thunderforest.com]
+    urls: [maps.googleapis.com/, maps.gstatic.com/, maps.google.com/, google.com/maps, tile.googleapis.com/,
+           places.googleapis.com/, routes.googleapis.com/, mapsresources-pa.googleapis.com/, khms0.googleapis.com/,
+           khms1.googleapis.com/, mt0.googleapis.com/, mt1.googleapis.com/, streetviewpixels-pa.googleapis.com/,
+           geolocation.googleapis.com/]
+  fonts:
+    label: "fuentes tipográficas (sirve los tipos de letra de la página)"
+    entities: [Fonticons]
+    domains: [typekit.net, typekit.com, fontawesome.com, fonts.net, typography.com, fonts.bunny.net, fontshare.com]
+    urls: [fonts.googleapis.com/, fonts.gstatic.com/]
+  library_cdn:
+    label: "CDN de librerías (sirve librerías públicas de JavaScript y CSS)"
+    entities: [Prospect One, unpkg, CDNJS, StackPath, OpenJS Foundation, Google Hosted Libraries, jsDelivr, cdnjs]
+    domains: [jsdelivr.net, unpkg.com, bootstrapcdn.com, jquery.com, cdnjs.com, esm.sh, skypack.dev, polyfill.io]
+    urls: [ajax.googleapis.com/, cdnjs.cloudflare.com/, ajax.aspnetcdn.com/, code.jquery.com/, gstatic.com/draco/,
+           gstatic.com/charts/]
+  weather:
+    label: "clima (datos y widgets meteorológicos)"
+    entities: [OpenWeather]
+    domains: [openweathermap.org, windy.com, meteoblue.com, weatherapi.com, accuweather.com, weatherwidget.io,
+              tutiempo.net, weather.com, wunderground.com, meteored.cl, meteored.com, tiempo.com]
+  video:
+    label: "video incrustado (reproductor y archivos de video)"
+    entities: [Vimeo]
+    domains: [youtube.com, youtube-nocookie.com, ytimg.com, googlevideo.com, vimeo.com, vimeocdn.com, dailymotion.com,
+              jwplayer.com, jwpcdn.com, jwplatform.com]
+    urls: [youtube.googleapis.com/, youtubei.googleapis.com/]
+  translation:
+    label: "traducción automática de la página"
+    entities: []
+    domains: [translate.goog]
+    urls: [translate.googleapis.com/, translate-pa.googleapis.com/, translate.google.com/]
+  cloud_storage:
+    label: "almacenamiento de archivos en la nube (el contenido es de quien lo subió)"
+    entities: []
+    domains: []
+    urls: [storage.googleapis.com/, firebasestorage.googleapis.com/, commondatastorage.googleapis.com/]
+  app_backend:
+    label: "backend de aplicaciones (Firebase: base de datos, autenticación y configuración)"
+    entities: []
+    domains: [firebaseio.com, firebaseapp.com]
+    urls: [firestore.googleapis.com/, firebaseinstallations.googleapis.com/, firebaseremoteconfig.googleapis.com/,
+           identitytoolkit.googleapis.com/, securetoken.googleapis.com/, firebase.googleapis.com/,
+           fcmregistrations.googleapis.com/, fcm.googleapis.com/, firebaselogging-pa.googleapis.com/]
+  google_api:
+    label: "API de Google (servicio no determinado)"
+    entities: []
+    domains: []
+    urls: [www.googleapis.com/, content.googleapis.com/, apis.google.com/, clients6.google.com/]
   cdn:
     label: "red de distribución de contenido (CDN: sirve imágenes, scripts y archivos estáticos)"
-    entities: [Cloudflare, Akamai, Fastly, Amazon CloudFront, Google Hosted Libraries, jsDelivr, cdnjs]
-    domains: [cloudfront.net, akamaihd.net, akamaized.net, fastly.net, jsdelivr.net, cdnjs.cloudflare.com,
-              gstatic.com, bootstrapcdn.com, cloudflare.net, cloudflareinsights.com]
+    entities: [Cloudflare, Akamai, Fastly, Amazon CloudFront]
+    domains: [cloudfront.net, akamaihd.net, akamaized.net, fastly.net, gstatic.com, cloudflare.net,
+              cloudflareinsights.com]
   consent_platform:
     label: "plataforma de consentimiento (muestra y gestiona el banner de cookies)"
     entities: [OneTrust, Cookiebot, Quantcast, Didomi, Usercentrics, Sourcepoint, TrustArc, Osano]

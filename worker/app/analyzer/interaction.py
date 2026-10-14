@@ -12,7 +12,9 @@ from collections import Counter, defaultdict
 from urllib.parse import urlsplit
 
 EVENT_PREFIX = "events."
-SEND_TYPES = frozenset({"xhr", "fetch", "ping", "beacon", "eventsource"})
+# Mecanismos que existen para enviar (no para descargar): cuentan siempre.
+BEACON_TYPES = frozenset({"ping", "beacon"})
+BODY_METHODS = frozenset({"POST", "PUT", "PATCH"})
 MAX_INTERACTIONS = 3000
 KINDS = ("click", "scroll", "key")
 _LEAF = re.compile(r"[.\[\]]+")
@@ -97,6 +99,10 @@ class InteractionSignals:
         self.min_interactions = int(correlation.get("min_interactions") or 2)
         self.min_ratio = float(correlation.get("min_ratio") or 2)
         self.max_timeline = int(correlation.get("max_timeline") or 200)
+        # v1.4.5: una descarga de recurso estático no es un envío de datos (data/interaction_signals.yaml).
+        self._static_extensions = tuple("." + str(ext).lower().lstrip(".") for ext in correlation.get("static_extensions") or [])
+        self._static_types = frozenset(str(kind) for kind in correlation.get("static_types") or [])
+        self.delivery_services = frozenset(str(kind) for kind in correlation.get("delivery_service_types") or [])
 
     # --- 1. escucha (lo registra la instrumentación) ---
 
@@ -153,16 +159,29 @@ class InteractionSignals:
                 events.append((ts, item["kind"]))
         return sorted(events)
 
-    @staticmethod
-    def _is_send(request: dict) -> bool:
+    def is_send(self, request: dict, service_type: str | None = None) -> bool:
+        """¿La request ENVÍA datos (v1.4.5)? POST, beacon, ping, pixel o GET con parámetros.
+
+        No cuentan las descargas de recursos estáticos (.js, .mjs, .wasm, .css, fuentes; imágenes sin
+        parámetros) ni lo servido por un dominio de distribución de contenido (`service_type`).
+        """
         if request.get("is_navigation"):
             return False
         kind = request.get("resource_type")
-        if (request.get("method") or "GET").upper() == "POST" or kind in SEND_TYPES:
+        if (request.get("method") or "GET").upper() in BODY_METHODS or kind in BEACON_TYPES:
             return True
-        return kind == "image" and bool(request.get("query_params"))
+        if service_type in self.delivery_services:
+            return False
+        try:
+            path = urlsplit(request.get("url") or "").path.lower()
+        except ValueError:
+            path = ""
+        if kind in self._static_types or path.endswith(self._static_extensions):
+            return False
+        # Lo que queda (xhr, fetch, imagen…) envía datos solo si los lleva en la dirección: un pixel es eso.
+        return bool(request.get("query_params"))
 
-    def correlate(self, interactions, requests: list, party_by_id: dict, organization_of) -> dict:
+    def correlate(self, interactions, requests: list, party_by_id: dict, organization_of, service_type_of=None) -> dict:
         events = self.clean_interactions(interactions)
         if events is None:
             return {"available": False}
@@ -171,7 +190,8 @@ class InteractionSignals:
                              and party_by_id.get(request["request_id"]) == "first_party")
         sends = sorted(
             ((ts, request["request_id"], organization_of(request), request.get("registrable_domain") or "", party_by_id.get(request["request_id"]))
-             for ts, request in stamped if party_by_id.get(request["request_id"]) != "first_party" and self._is_send(request)),
+             for ts, request in stamped if party_by_id.get(request["request_id"]) != "first_party"
+             and self.is_send(request, service_type_of(request) if service_type_of else None)),
             key=lambda item: item[0],
         )
         totals = Counter(send[2] for send in sends)

@@ -1,4 +1,5 @@
 import os
+import re
 import socket
 from dataclasses import dataclass, field
 
@@ -48,6 +49,33 @@ def _license_profile(value: str) -> str:
     return profile
 
 
+def _locale(value: str) -> str:
+    """Locale BCP 47 del perfil base (p. ej. es-CL). Se valida aquí: llega tal cual a Chromium y a una cabecera."""
+    locale = value.strip() or "es-CL"
+    if not re.fullmatch(r"[a-z]{2,3}(-[A-Z][a-z]{3})?(-([A-Z]{2}|\d{3}))?", locale):
+        raise ValueError(f"WORKER_LOCALE no es un locale válido (ejemplo: es-CL): {value!r}")
+    return locale
+
+
+def _timezone(value: str) -> str:
+    """Zona horaria IANA del perfil base (p. ej. America/Santiago)."""
+    zone = value.strip() or "America/Santiago"
+    if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_+\-]*(/[A-Za-z0-9_+\-]+){0,2}", zone):
+        raise ValueError(f"WORKER_TIMEZONE no es una zona horaria IANA válida (ejemplo: America/Santiago): {value!r}")
+    return zone
+
+
+def language_list(locale: str) -> list[str]:
+    """Idiomas preferidos de un Chrome configurado en ese idioma: el regional y el genérico («es-CL», «es»)."""
+    language = locale.split("-")[0]
+    return [locale] if language == locale else [locale, language]
+
+
+def accept_language(locale: str) -> str:
+    """Cabecera Accept-Language que envía ese Chrome: «es-CL,es;q=0.9»."""
+    return ",".join(name if index == 0 else f"{name};q={1 - index / 10:.1f}" for index, name in enumerate(language_list(locale)))
+
+
 def _bool(value: str) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
@@ -82,6 +110,10 @@ class Settings:
     # HEADLESS=true vuelve al modo headless, que se anuncia como "HeadlessChrome".
     headless: bool = field(default_factory=lambda: _bool(os.environ.get("HEADLESS", "false")))
     display: str = field(default_factory=lambda: os.environ.get("DISPLAY", ":99"))
+    # Perfil base (v1.4.5): idioma y zona horaria del navegador del worker, coherentes entre sí. Sin esto
+    # Chromium se presenta en inglés y en UTC, y los sitios responden distinto (p. ej. reCAPTCHA con hl=en).
+    worker_locale: str = field(default_factory=lambda: _locale(os.environ.get("WORKER_LOCALE", "")))
+    worker_timezone: str = field(default_factory=lambda: _timezone(os.environ.get("WORKER_TIMEZONE", "")))
     # Instrumentación de APIs de fingerprinting (F4). Ver docs/adr/007.
     fp_instrumentation: bool = field(default_factory=lambda: _bool(os.environ.get("FP_INSTRUMENTATION", "true")))
     log_level: str = field(default_factory=lambda: os.environ.get("LOG_LEVEL", "INFO"))

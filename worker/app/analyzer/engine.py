@@ -36,6 +36,10 @@ MAX_EXCLUDED_EXAMPLES = 5
 STATIC_TYPES = frozenset({"stylesheet", "font", "image", "script", "media"})
 # Fuentes que se describen pero no participan en el cruce de valores entre requests.
 VALUE_SOURCES_EXCLUDED = frozenset({"cookie", "set_cookie", "referer"})
+# Página de error de Chromium cuando un documento (típicamente un iframe) no carga (v1.4.5): lo que
+# corre ahí es código del navegador, no del sitio.
+ERROR_FRAME_PREFIX = "chrome-error://"
+MAX_THIRD_PARTY_SERVICES = 80
 DATA_CATEGORIES = ("DEVICE", "IDENTIFIERS", "BEHAVIOR", "NETWORK", "LOCATION", "ADVERTISING", "SESSION")
 
 
@@ -153,6 +157,11 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
     weights = config.scoring["signals"]
     requests = capture["requests"]
     by_id = {request["request_id"]: request for request in requests}
+    # Frames de error del navegador (v1.4.5): sus llamadas y scripts se descartan; solo se cuenta que no cargó.
+    error_frames = _error_frames(capture, requests)
+    if error_frames["ignored_calls"]:
+        capture = {**capture, "fingerprinting": {**capture["fingerprinting"], "calls": [
+            call for call in capture["fingerprinting"]["calls"] if not _in_error_frame(call)]}}
     page_url = capture.get("page_url") or capture.get("start_url")
     source_host = _host(page_url)
     partial = False
@@ -628,7 +637,14 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
         entity = lists.entity(request.get("registrable_domain"))
         return (request.get("registrable_domain") or request.get("host") or UNKNOWN_ENTITY) if entity == UNKNOWN_ENTITY else entity
 
-    interaction = config.interaction.correlate(capture.get("interactions"), requests, party_by_id, organization_of)
+    def service_of(request: dict) -> dict | None:
+        """Giro del servicio al que va ESTA request: su URL concreta, luego la organización y el dominio."""
+        domain = request.get("registrable_domain")
+        return config.service_types.of(entity=lists.entity(domain), domain=domain, host=request.get("host"), urls=[request.get("url")])
+
+    interaction = config.interaction.correlate(
+        capture.get("interactions"), requests, party_by_id, organization_of,
+        lambda request: (service_of(request) or {}).get("type"))
     for item in interaction.get("organizations") or []:
         if not item["flagged"]:
             continue
@@ -642,6 +658,32 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
             {"domain": (item["domains"] or [None])[0], "organization": item["organization"], "interactions": item["interactions"],
              "requests": item["requests"], "expected": item["expected"], "kinds": item["kinds"], "party": item["party"]},
         )
+
+    # Varias cuentas de analítica (v1.4.5): los IDs observados son EVIDENCIA; que sean cuentas distintas se
+    # deduce de su forma documentada.
+    analytics_accounts = config.account_ids.accounts(account_ids)
+    for item in analytics_accounts:
+        count = len(item["accounts"])
+        if count >= 2:
+            finding(
+                "analytics_accounts",
+                "EVIDENCIA",
+                f"Los datos de la visita se enviaron a {count} cuentas de {item['vendor']}: en las requests se observaron {count} IDs de "
+                f"cuenta distintos ({', '.join(item['accounts'][:12])}).",
+                item["evidence_refs"],
+                {"vendor": item["vendor"], "accounts": item["accounts"][:30], "count": count},
+            )
+        if item["discontinued"]:
+            finding(
+                "discontinued_tag",
+                "EVIDENCIA",
+                f"Etiqueta de un servicio descontinuado: se {'observó el ID' if len(item['discontinued']) == 1 else 'observaron los IDs'} "
+                f"{', '.join(item['discontinued'][:12])} de {item['discontinued_label'] or item['vendor']}. Nota informativa: el servicio "
+                "ya no procesa datos, pero la etiqueta sigue cargándose.",
+                item["discontinued_refs"],
+                {"vendor": item["vendor"], "service": item["discontinued_label"] or item["vendor"], "accounts": item["discontinued"][:30],
+                 "count": len(item["discontinued"]), "informative": True},
+            )
 
     # --- 4b. consentimiento declarado por la página y por las requests (F8) ---
     consent_summary = _consent_findings(capture, requests, value_params, by_id, config, finding)
@@ -694,6 +736,34 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
             service = {"type": "server_side_meta", "label": config.server_side.meta_label}
         entry["service_type"] = service["type"] if service else None
         entry["service_label"] = service["label"] if service else None
+    # Servicios de terceros SIN señales de rastreo (v1.4.5): requests a otra organización por debajo de la banda
+    # de rastreador, por organización y giro. Se informa siempre: que no haya rastreadores no es «sin terceros».
+    services: dict[tuple[str, str], dict] = {}
+    tracker_domains_unknown = set((entities.get(UNKNOWN_ENTITY) or {}).get("domains") or ())
+    for item in analyzed:
+        if item["party"] != "third_party" or item["band"] in tracker_bands:
+            continue
+        request = by_id[item["request_id"]]
+        domain = item["registrable_domain"] or request.get("host") or ""
+        service = service_of(request)
+        known = item["entity"] != UNKNOWN_ENTITY
+        key = (item["entity"] if known else f"dominio:{domain}", service["type"] if service else "")
+        entry = services.setdefault(key, {
+            "organization": item["entity"], "service_type": service["type"] if service else None,
+            "service_label": service["label"] if service else None, "domains": set(), "hosts": set(), "requests": 0,
+            "evidence_refs": []})
+        entry["domains"].add(domain)
+        entry["hosts"].add(request.get("host") or domain)
+        entry["requests"] += 1
+        if len(entry["evidence_refs"]) < 5:
+            entry["evidence_refs"].append(item["request_id"])
+    third_party_services = sorted(
+        ({**entry, "domains": sorted(d for d in entry["domains"] if d)[:10], "hosts": sorted(h for h in entry["hosts"] if h)[:10],
+          # La misma organización también figura en Rastreadores por otras requests. Sin dueño conocido solo
+          # se afirma del mismo dominio: dos dominios «no disponibles» no son la misma organización.
+          "in_trackers": (entry["organization"] in entities) if entry["organization"] != UNKNOWN_ENTITY
+          else bool(entry["domains"] & tracker_domains_unknown)} for entry in services.values()),
+        key=lambda entry: (-entry["requests"], entry["organization"], entry["service_label"] or ""))
     mechanisms = Counter(item["mechanism"] for item in analyzed)
     mechanisms.update({"websocket": len(capture.get("websockets") or []), "cookie": len(capture.get("cookies") or []),
                        "storage": len(capture.get("storage") or [])})
@@ -788,6 +858,19 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
                 },
                 # IDs de cuenta del sitio: excluidos de persistencia y de sincronización (v1.2).
                 "account_ids": account_ids,
+                # v1.4.5: cuentas de medición por proveedor; servicios de terceros sin señales de rastreo
+                # (nivel: la request es EVIDENCIA, el giro es contexto/INFERENCIA) y frames que no cargaron.
+                "analytics_accounts": [{key: item[key] for key in ("vendor", "accounts", "discontinued", "discontinued_label")}
+                                       for item in analytics_accounts],
+                "third_party_services": {
+                    "level": "EVIDENCIA", "service_level": "INFERENCIA",
+                    "organizations": len({entry["organization"] if entry["organization"] != UNKNOWN_ENTITY else entry["domains"][0]
+                                          for entry in third_party_services if entry["domains"]}),
+                    "requests": sum(entry["requests"] for entry in third_party_services),
+                    "items": third_party_services[:MAX_THIRD_PARTY_SERVICES],
+                    "truncated": len(third_party_services) > MAX_THIRD_PARTY_SERVICES,
+                },
+                "error_frames": error_frames,
                 # Con qué perfil de licencias se cargaron las fuentes de este análisis (docs/adr/019).
                 "license_profile": getattr(lists, "license_profile", "no_comercial"),
                 "fingerprinting_scripts": sorted(fp_scripts),
@@ -806,6 +889,28 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
             },
         },
         "duration_ms": round((time.monotonic() - started) * 1000),
+    }
+
+
+def _in_error_frame(item: dict) -> bool:
+    return any(str(item.get(key) or "").startswith(ERROR_FRAME_PREFIX) for key in ("frame_url", "script_url", "initiator_script"))
+
+
+def _error_frames(capture: dict, requests: list) -> dict:
+    """Recuadros que no cargaron (v1.4.5). Chromium muestra en su lugar chrome-error://chromewebdata/, cuyo
+    código es del navegador: sus llamadas a APIs se descartan y sus requests no se atribuyen al sitio."""
+    fingerprinting = capture.get("fingerprinting") or {}
+    calls = [call for call in (fingerprinting.get("calls") or []) if _in_error_frame(call)]
+    attributed = [request["request_id"] for request in requests if _in_error_frame(request)]
+    # Capturas nuevas: el monitor ya descartó esos lotes y solo dejó la cuenta.
+    dropped = fingerprinting.get("error_frame_messages")
+    dropped = dropped if isinstance(dropped, int) and not isinstance(dropped, bool) and dropped > 0 else 0
+    return {
+        "observed": bool(calls or attributed or dropped),
+        "ignored_messages": dropped,
+        "ignored_calls": len(calls),
+        "ignored_scripts": len({call.get("script_url") or call.get("frame_url") for call in calls}),
+        "requests": len(attributed),
     }
 
 

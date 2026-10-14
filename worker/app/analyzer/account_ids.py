@@ -27,6 +27,11 @@ class _Rule:
         self.params = frozenset(str(name).lower() for name in raw.get("params") or [])
         self.pattern = re.compile(raw["pattern"]) if raw.get("pattern") else None
         self.path_pattern = re.compile(raw["path_pattern"]) if raw.get("path_pattern") else None
+        # v1.4.5: la regla identifica una CUENTA de medición (varias = datos a varias cuentas) y, si el
+        # valor tiene esta forma, es la etiqueta de un servicio descontinuado.
+        self.account = bool(raw.get("account"))
+        self.discontinued = re.compile(raw["discontinued_pattern"]) if raw.get("discontinued_pattern") else None
+        self.discontinued_label = str(raw.get("discontinued_label") or "")
         if not (self.hosts or self.host_pattern):
             raise ValueError(f"account_ids.yaml: la regla {self.id!r} no declara hosts")
         if not ((self.params and self.pattern) or self.path_pattern):
@@ -112,3 +117,24 @@ class AccountIds:
         items = [{**item, "domains": sorted(item["domains"])} for item in found.values()]
         items.sort(key=lambda item: (item["vendor"], item["label"], item["value"]))
         return items, values
+
+    def accounts(self, items: list[dict]) -> list[dict]:
+        """Cuentas de medición por proveedor (v1.4.5): [{vendor, accounts, discontinued, discontinued_label, evidence_refs}].
+
+        Solo reglas marcadas `account: true`. `discontinued` = IDs con la forma de un servicio descontinuado.
+        """
+        rules = {rule.id: rule for rule in self._rules}
+        vendors: dict[str, dict] = {}
+        for item in items:
+            rule = rules.get(item["rule"])
+            if rule is None or not rule.account:
+                continue
+            entry = vendors.setdefault(item["vendor"], {"vendor": item["vendor"], "accounts": [], "discontinued": [],
+                                                        "discontinued_label": "", "evidence_refs": [], "discontinued_refs": []})
+            entry["accounts"].append(item["value"])
+            entry["evidence_refs"] += item["evidence_refs"]
+            if rule.discontinued and rule.discontinued.match(item["value"]):
+                entry["discontinued"].append(item["value"])
+                entry["discontinued_label"] = rule.discontinued_label
+                entry["discontinued_refs"] += item["evidence_refs"]
+        return sorted(vendors.values(), key=lambda entry: entry["vendor"])

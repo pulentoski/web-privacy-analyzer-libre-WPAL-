@@ -34,7 +34,11 @@ def session_analysis(analyzer_resources):
             interactions.append({"ts": time.time(), "kind": "scroll"})
             await page.mouse.wheel(0, 600)
             await asyncio.sleep(2.6)
+            # El clic en el campo también es interacción: dispara su envío y un desplazamiento (foco). Sin registrarlo,
+            # esos envíos caían justo antes de la marca de la tecla y contaban como «ritmo normal» (carrera, v1.4.5).
+            interactions.append({"ts": time.time(), "kind": "click"})
             await page.click("#note")
+            await asyncio.sleep(0.3)
             interactions.append({"ts": time.time(), "kind": "key"})
             await page.keyboard.type("hola", delay=20)
             await asyncio.sleep(2.6)
@@ -78,11 +82,11 @@ def test_interaction_data_in_payloads_is_found_by_parameter_name(session_analysi
 def test_sends_after_each_interaction_are_evidence_and_what_was_typed_is_not_kept(session_analysis):
     outcome, analysis = session_analysis
     sent = [f for f in analysis["findings"] if f["type"] == "interaction_sent"]
-    assert len(sent) == 1 and sent[0]["level"] == "EVIDENCIA", analysis["site"]["summary"]["interaction"]["organizations"]
+    assert len(sent) == 1 and sent[0]["level"] == "EVIDENCIA", str(analysis["site"]["summary"]["interaction"]["organizations"])
     details = sent[0]["details"]
-    assert details["domain"] == "tracker-a.fixtures.test" and details["interactions"] == 5 and details["requests"] >= 5 and details["kinds"].keys() == {"click", "scroll", "key"}
+    assert details["domain"] == "tracker-a.fixtures.test" and details["interactions"] == 6 and details["requests"] >= 6 and details["kinds"].keys() == {"click", "scroll", "key"}
     interaction = analysis["site"]["summary"]["interaction"]
-    assert interaction["interactions"] == {"click": 3, "scroll": 1, "key": 1} and len(interaction["timeline"]) == 5
+    assert interaction["interactions"] == {"click": 4, "scroll": 1, "key": 1} and len(interaction["timeline"]) == 6
     assert all(entry["sends"] and not entry["navigation"] for entry in interaction["timeline"])
     # «hola» se tecleó en un campo: ni la captura de interacción ni el análisis lo contienen.
     assert "hola" not in str(interaction) and "hola" not in str(outcome.result["interactive"]["interactions"])

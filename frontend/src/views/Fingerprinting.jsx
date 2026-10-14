@@ -115,6 +115,9 @@ export default function Fingerprinting({ jobId, query }) {
         subtitle={<>Scripts que llaman a APIs que distinguen un dispositivo (<Term id="canvas">canvas</Term>, <Term id="webgl">WebGL</Term>, audio, pantalla).</>}
         info={<><strong>Fingerprinting</strong>: se registra qué scripts llaman a APIs como canvas, WebGL, audio o pantalla. Que un script siga un patrón «compatible con fingerprinting» es una inferencia; lo observado es la llamada y, si aparece, el valor leído dentro de una request.</>}>
         {data.truncated && <p className="text-sm" data-testid="fp-truncated"><strong>El registro de este scan quedó truncado por volumen.</strong></p>}
+        {data.error_frames && data.error_frames.observed && (
+          <p className="text-sm muted" data-testid="fp-error-frame">Un recuadro (iframe) de la página no cargó. Lo que ejecutó en su lugar la página de error del navegador no pertenece al sitio y no se cuenta.</p>
+        )}
         <BrowserAttributes jobId={jobId} rows={data.browser_attributes || []} />
       </Panel>
 

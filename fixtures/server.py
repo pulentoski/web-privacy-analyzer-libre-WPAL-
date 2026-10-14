@@ -260,6 +260,9 @@ def build_app() -> web.Application:
             web.get("/p", binary(GIF_1X1, "image/gif")),
             web.get("/api/v2/pixel", binary(GIF_1X1, "image/gif")),
             web.get("/li/collect", binary(GIF_1X1, "image/gif")),
+            # v1.4.5: servicios de terceros sin señales de rastreo, varias cuentas de analítica, recuadro que no carga
+            web.get("/v145/", static("v145/index.html", "text/html")),
+            web.get("/static/v145/v145.js", static("v145/v145.js", "application/javascript")),
             # fixture XSS (F5)
             web.get("/xss/", static("xss/index.html", "text/html")),
             web.get("/static/xss/payloads.js", static("xss/payloads.js", "application/javascript")),

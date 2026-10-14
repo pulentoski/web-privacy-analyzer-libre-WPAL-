@@ -27,8 +27,20 @@ def get_json(page, path):
     return response.json()
 
 
+# Texto visible de la interfaz SIN lo capturado del sitio (`.captured`): un título como «Tu experiencia de
+# compra» es del sitio analizado, no de la interfaz. Se ocultan esos nodos un instante y se restauran.
+UI_TEXT_JS = """() => {
+  const nodes = [...document.querySelectorAll('.captured')];
+  const previous = nodes.map((node) => node.style.display);
+  nodes.forEach((node) => { node.style.display = 'none'; });
+  const text = document.body.innerText;
+  nodes.forEach((node, index) => { node.style.display = previous[index]; });
+  return text;
+}"""
+
+
 def assert_wording(session, where):
-    text = session.page.locator("body").inner_text()
+    text = session.page.evaluate(UI_TEXT_JS)
     for pattern, what in ((FORBIDDEN_WORDS, "promete anonimato"), (INFORMAL, "tutea"), (BANNED, "usa la palabra vetada")):
         found = pattern.findall(text)
         assert found == [], f"{where}: la interfaz {what}: {found}"

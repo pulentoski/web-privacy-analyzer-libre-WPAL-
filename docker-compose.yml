@@ -134,6 +134,9 @@ services:
       EGRESS_PROXY_URL: http://egress-proxy:3128
       CHROMIUM_SANDBOX: ${CHROMIUM_SANDBOX:-true}
       FP_INSTRUMENTATION: ${FP_INSTRUMENTATION:-true}
+      # Perfil base del navegador (v1.4.5): idioma y zona horaria.
+      WORKER_LOCALE: ${WORKER_LOCALE:-es-CL}
+      WORKER_TIMEZONE: ${WORKER_TIMEZONE:-America/Santiago}
       HEADLESS: ${HEADLESS:-false}
       PROXY_SCAN_SECRET: ${PROXY_SCAN_SECRET:?definir en .env}
       MAX_CONCURRENT_SCANS: ${MAX_CONCURRENT_SCANS:-2}

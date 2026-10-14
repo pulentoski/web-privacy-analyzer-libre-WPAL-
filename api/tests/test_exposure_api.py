@@ -343,8 +343,10 @@ def test_fixture_and_test_scans_are_recognised(url, excluded):
     assert exposure.is_test_scan(url) is excluded
 
 
-def test_scan_usage_excludes_fixture_and_test_scans(client):
+def test_scan_usage_excludes_fixture_and_test_scans(client, monkeypatch):
     """Tres scans con una exfiltración cada uno: solo el del sitio real aparece en el cruce."""
+    # Sin tope: los scans reales de la instalación pueden ocupar los 10 primeros puestos.
+    monkeypatch.setattr(exposure, "TOP_USAGE", 10_000)
     tag = uuid.uuid4().hex[:10]
     jobs = {
         "real": (uuid.uuid4(), f"https://www.sitio-real-{tag}.cl/"),

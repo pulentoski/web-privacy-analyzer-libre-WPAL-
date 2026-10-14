@@ -13,6 +13,7 @@ from app.db import SessionLocal
 from app.masking import mask_report
 from app.models import Job
 from app.report_html import render_scan_report
+from app.routes import panel as panel_routes
 from app.routes import interactive, resources
 from app.routes.analysis import interactive_section, report_validator
 
@@ -271,7 +272,10 @@ def test_timeline_from_the_visited_site_is_revalidated_and_masked():
 # --- v1.4.1 ---
 
 
-def test_panel_ranking_excludes_interactive_captures_and_lists_them_apart(client):
+def test_panel_ranking_excludes_interactive_captures_and_lists_them_apart(client, monkeypatch):
+    # Sin tope: las organizaciones de los scans reales de la instalación pueden ocupar los 10 primeros puestos.
+    monkeypatch.setattr(panel_routes, "TOP_ORGANIZATIONS", 10_000)
+    monkeypatch.setattr(panel_routes, "TOP_SITES", 10_000)
     ids = {"scan": uuid.uuid4(), "interactive": uuid.uuid4()}
 
     async def insert():

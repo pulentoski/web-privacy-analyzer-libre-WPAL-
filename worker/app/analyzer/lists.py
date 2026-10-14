@@ -8,13 +8,76 @@ import hashlib
 import json
 import logging
 import pathlib
+import re
+import unicodedata
 
 import adblock
+import yaml
 
 logger = logging.getLogger(__name__)
 
 MAX_RULE_CHARS = 300
 UNKNOWN_ENTITY = "no_disponible"
+_NAME_TOKEN = re.compile(r"^[^\W\d_]+(?:['’\-][^\W\d_]+)*\.?$")
+
+
+def _fold(text: str) -> str:
+    """Minúsculas y sin acentos, para comparar nombres."""
+    return "".join(c for c in unicodedata.normalize("NFKD", text.lower()) if not unicodedata.combining(c))
+
+
+class OrganizationCatalog:
+    """Catálogo propio (data/organizations.yaml, v1.4.5): organización por sufijo de host, dominios de dueño
+    desconocido y la regla que impide mostrar como organización el nombre de una persona natural."""
+
+    def __init__(self, raw: dict | None = None) -> None:
+        raw = raw or {}
+        self._suffixes: list[tuple[str, str | None]] = []
+        for name, suffixes in (raw.get("organizations") or {}).items():
+            self._suffixes += [(str(suffix).lower(), str(name)[:200]) for suffix in suffixes or [] if suffix]
+        self._suffixes += [(str(suffix).lower(), None) for suffix in raw.get("unknown") or [] if suffix]
+        # El sufijo más largo gana (un host concreto sobre su dominio).
+        self._suffixes.sort(key=lambda item: -len(item[0]))
+        persons = raw.get("persons") or {}
+        self._enabled = bool(persons)
+        self._not_persons = frozenset(_fold(str(name)) for name in persons.get("not_persons") or [])
+        self._legal = frozenset(_fold(str(word)) for word in persons.get("legal_forms") or [])
+        self._words = frozenset(_fold(str(word)) for word in persons.get("org_words") or [])
+        self._given = frozenset(_fold(str(word)) for word in persons.get("given_names") or [])
+
+    def lookup(self, host: str | None) -> tuple[bool, str | None]:
+        """(está en el catálogo, organización o None si se declaró desconocida)."""
+        host = (host or "").lower()
+        for suffix, name in self._suffixes:
+            if host == suffix or host.endswith("." + suffix):
+                return True, name
+        return False, None
+
+    def is_person(self, name: str, domains=(), legal_name: str | None = None) -> bool:
+        """¿El nombre de esta entidad parece el de una persona natural? Ver el orden en organizations.yaml."""
+        if not self._enabled or not isinstance(name, str) or _fold(name) in self._not_persons:
+            return False
+        tokens = name.split()
+        if not 2 <= len(tokens) <= 4 or not all(_NAME_TOKEN.match(token) for token in tokens):
+            return False
+        words = [_fold(token).strip(".") for token in tokens]
+        legal_words = [_fold(token).strip(".,") for token in (legal_name or name).split()]
+        if any(word in self._legal for word in legal_words):
+            return False
+        if any(word in self._words for word in words + legal_words):
+            return False
+        if any(word in self._given for word in words):
+            return True
+        if len(domains) >= 3:
+            return False
+        labels = [re.sub(r"[^a-z0-9]", "", str(domain).lower().split(".")[0]) for domain in domains]
+        compact = "".join(re.sub(r"[^a-z0-9]", "", word) for word in words)
+        for label in labels:
+            if not label:
+                continue
+            if label in compact or compact in label or any(len(word) >= 4 and word in label for word in words):
+                return False
+        return True
 
 # resource_type de Playwright -> tipo de request de la sintaxis Adblock.
 _REQUEST_TYPES = {
@@ -49,6 +112,8 @@ class FilterLists:
         self._engines: list[tuple[str, adblock.Engine]] = []
         self.sources: list[dict] = []
         self._entities: dict[str, str] = {}
+        # Nombre legal de cada entidad (el mapa de DDG lo trae aparte del nombre para mostrar).
+        self._legal_names: dict[str, str] = {}
         digest = hashlib.sha256()
 
         manifest_path = lists_dir / "MANIFEST.json"
@@ -82,6 +147,20 @@ class FilterLists:
             digest.update(hashlib.sha256(path.read_bytes()).hexdigest().encode())
             self.sources.append({"id": "test-fixtures", "version": None, "retrieved_at": None, "sha256": None,
                                  "license": "proyecto", "noncommercial": False})
+        # Catálogo propio (v1.4.5): organizaciones por sufijo de host y nombres de persona que no se muestran.
+        catalog_path = pathlib.Path(data_dir) / "organizations.yaml"
+        try:
+            catalog_bytes = catalog_path.read_bytes()
+            self.catalog = OrganizationCatalog(yaml.safe_load(catalog_bytes.decode("utf-8")) or {})
+            digest.update(hashlib.sha256(catalog_bytes).hexdigest().encode())
+        except (OSError, ValueError, yaml.YAMLError) as exc:
+            logger.warning("organization_catalog_unavailable", extra={"error_type": type(exc).__name__})
+            self.catalog = OrganizationCatalog()
+        by_name: dict[str, list[str]] = {}
+        for domain, name in self._entities.items():
+            by_name.setdefault(name, []).append(domain)
+        self.persons = frozenset(name for name, domains in by_name.items()
+                                 if self.catalog.is_person(name, domains, self._legal_names.get(name)))
         digest.update(license_profile.encode() if license_profile != "no_comercial" else b"")
         self.version = digest.hexdigest()[:16]
 
@@ -96,6 +175,7 @@ class FilterLists:
             if not isinstance(entry, dict):
                 continue
             display = entry.get("displayName") or name
+            self._legal_names.setdefault(str(display)[:200], str(name))
             for domain in entry.get("properties") or []:
                 if isinstance(domain, str):
                     self._entities.setdefault(domain.lower(), str(display)[:200])
@@ -121,10 +201,15 @@ class FilterLists:
                 self._entities.setdefault(domain.lower(), name[:200])
 
     def entity(self, registrable_domain: str | None) -> str:
-        """Organización dueña del dominio, o "no_disponible" (nunca se inventa)."""
+        """Organización dueña del dominio, o "no_disponible" (nunca se inventa ni se nombra a una persona)."""
         if not registrable_domain:
             return UNKNOWN_ENTITY
-        return self._entities.get(registrable_domain.lower(), UNKNOWN_ENTITY)
+        domain = registrable_domain.lower()
+        known, name = self.catalog.lookup(domain)
+        if known:
+            return name or UNKNOWN_ENTITY
+        name = self._entities.get(domain, UNKNOWN_ENTITY)
+        return UNKNOWN_ENTITY if name in self.persons else name
 
     def match(self, request: dict, source_host: str | None) -> list[dict]:
         """Listas cuya política bloquearía esta request: [{list, rule}]."""

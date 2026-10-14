@@ -7,6 +7,7 @@ import { BandBadge, BlockingBanner, Captured, Empty, ErrorNotice, EvidenceLegend
 import { api } from "../lib/api.js";
 import { categoryLabel, COMPONENT_LABELS, entityLabel, formatDate, STATUS_LABELS, truncate } from "../lib/format.js";
 import { useApi } from "../lib/useApi.js";
+import { ThirdPartyServices } from "./Trackers.jsx";
 
 const DATA_ORDER = ["IDENTIFIERS", "BEHAVIOR", "DEVICE", "NETWORK", "LOCATION", "ADVERTISING", "SESSION"];
 const DATA_LABELS = {
@@ -198,6 +199,7 @@ export default function Dashboard({ jobId }) {
             hint="Requests que el navegador del usuario canceló (net::ERR_BLOCKED_BY_CLIENT); se cuentan aparte" />
         )}
       </div>
+      <ThirdPartyServices services={site.summary.third_party_services} compact />
       {sameOrg.length > 0 && (
         <Panel title="Recursos de la misma organización (no son terceros)" testId="same-org">
           <p className="text-sm muted">Dominios de otra dirección pero del mismo dueño que el sitio, según el mapa de entidades. No cuentan como terceros ni entran en el índice de exposición.</p>

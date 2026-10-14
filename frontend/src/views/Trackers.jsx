@@ -39,6 +39,51 @@ export function FirstPartyTelemetry({ telemetry }) {
   );
 }
 
+/**
+ * Servicios de terceros sin señales de rastreo (v1.4.5): organización, tipo de servicio y requests.
+ * Se muestra siempre que el análisis lo midió, también (y sobre todo) cuando no hay rastreadores.
+ * Organización, dominios y tipo vienen del análisis: se pintan como texto.
+ */
+export function ThirdPartyServices({ jobId, services, compact = false }) {
+  if (!services || !Array.isArray(services.items)) return null;  // análisis anterior a v1.4.5: no se inventa «0»
+  const items = compact ? services.items.slice(0, 8) : services.items;
+  return (
+    <Panel title="Servicios de terceros sin señales de rastreo" tone="neutral" testId="third-party-services"
+      subtitle="Otras organizaciones que la página contacta para funcionar: mapas, fuentes, librerías, antibot, clima, redes sociales."
+      info={<><strong>Servicios de terceros sin señales de rastreo</strong>: requests a otra organización que no alcanzaron la banda de rastreador. No mostrar señales no significa que no reciban datos: cada servicio recibe al menos la dirección IP y el navegador del visitante. El tipo de servicio es contexto, no evidencia del uso concreto.</>}>
+      <p className="text-sm mb-2" data-testid="third-party-services-counts">
+        <EvidenceBadge level={services.level || "EVIDENCIA"} /> {services.requests} {services.requests === 1 ? "request" : "requests"} a {services.organizations}{" "}
+        {services.organizations === 1 ? "organización" : "organizaciones"} sin señales de rastreo.
+      </p>
+      {services.items.length === 0 ? <Empty>En esta visita no hubo requests a terceros sin señales de rastreo.</Empty> : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead><tr className="text-left border-b border-slate-400"><th className="py-1 pr-3">Organización</th><th className="py-1 pr-3">Tipo de servicio</th><th className="py-1 pr-3">Dominios</th><th className="py-1 pr-3">Requests</th>{jobId && !compact ? <th className="py-1">Evidencia</th> : null}</tr></thead>
+            <tbody>
+              {items.map((item, index) => (
+                <tr key={index} className="border-b border-slate-200 align-top" data-testid="third-party-service" data-service={item.service_type || "desconocido"}>
+                  <td className="py-1 pr-3" data-testid="third-party-service-org">
+                    {entityLabel(item.organization)}
+                    {item.in_trackers ? <span className="muted text-xs"> (también en rastreadores)</span> : null}
+                  </td>
+                  <td className="py-1 pr-3"><ServiceTag label={item.service_label} /></td>
+                  <td className="py-1 pr-3"><Captured value={(item.hosts && item.hosts.length ? item.hosts : item.domains || []).join(", ")} limit={80} /></td>
+                  <td className="py-1 pr-3">{item.requests}</td>
+                  {jobId && !compact ? (
+                    <td className="py-1">{(item.evidence_refs || []).map((ref) => <span key={ref}><Link to={["scan", jobId, "request", ref]} testId="third-party-service-ref">#{ref}</Link>{" "}</span>)}</td>
+                  ) : null}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {compact && services.items.length > items.length ? <p className="muted text-sm mt-1">Se muestran {items.length} de {services.items.length}; la lista completa está en Rastreadores.</p> : null}
+      {services.truncated ? <p className="muted text-sm mt-1">La lista se truncó por volumen.</p> : null}
+    </Panel>
+  );
+}
+
 export default function Trackers({ jobId }) {
   const { data, error, loading } = useApi(() => api.report(jobId), `report-${jobId}`);
   if (loading) return <Loading what="los trackers" />;
@@ -49,7 +94,7 @@ export default function Trackers({ jobId }) {
     <WhatIsThis panel="trackers" />
     <Panel title="Rastreadores: requests con señales de seguimiento, por organización" subtitle="Requests en banda Moderado o superior." testId="trackers"
       info={<><strong>Rastreadores</strong>: la organización viene de un mapa de dominios; cuando no se conoce, cada dominio se muestra por separado.</>}>
-      {groups.length === 0 ? <Empty>Ninguna request alcanzó la banda Moderado en este scan.</Empty> : (
+      {groups.length === 0 ? <Empty>Ninguna request alcanzó la banda Moderado en este scan.{data.site.summary.third_party_services ? " Los terceros contactados sin señales de rastreo figuran más abajo." : ""}</Empty> : (
         <div className="space-y-2">
           {groups.map((group, index) => (
             <details key={index} className="panel p-2" data-testid="tracker-group">
@@ -81,6 +126,7 @@ export default function Trackers({ jobId }) {
         </div>
       )}
     </Panel>
+    <ThirdPartyServices jobId={jobId} services={data.site.summary.third_party_services} />
     <FirstPartyTelemetry telemetry={data.site.summary.first_party_telemetry} />
     <AccountIds jobId={jobId} items={(data.site.summary && data.site.summary.account_ids) || []} />
     </div>

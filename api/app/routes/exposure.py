@@ -36,6 +36,8 @@ HEADERS = (
     "user-agent", "accept-language", "accept-encoding", "sec-ch-ua", "sec-ch-ua-mobile", "sec-ch-ua-platform",
     "dnt", "sec-gpc", "sec-fetch-site", "sec-fetch-mode", "sec-fetch-dest", "sec-fetch-user",
 )
+# Organizaciones por atributo en el cruce con los scans guardados.
+TOP_USAGE = 10
 MAX_HEADER_CHARS = 1024
 
 IP_LABELS = {
@@ -263,7 +265,7 @@ async def scan_usage(job_id: uuid.UUID | None = None, session: AsyncSession = De
             {**item, "scans": len(item["scans"]), "last_scan_at": item["last_scan_at"].isoformat() if item["last_scan_at"] else None}
             for item in bucket.values()
         ]
-        return sorted(items, key=lambda item: (-item["scans"], item["label"]))[:10]
+        return sorted(items, key=lambda item: (-item["scans"], item["label"]))[:TOP_USAGE]
 
     return {
         "job_id": str(job_id) if job_id else None,

@@ -241,6 +241,16 @@ class Explanations:
             name = company(entities.get(domain), details.get("organization") or domain)
             variables.update({"empresa": name, "n": details.get("requests"), "k": details.get("interactions")})
             companies = [name] if name else []
+        elif kind in ("analytics_accounts", "discontinued_tag"):
+            # v1.4.5: el proveedor lo declara la regla de data/account_ids.yaml; los IDs son valores capturados.
+            vendor = str(details.get("vendor") or UNKNOWN)
+            raw = details.get("accounts") if isinstance(details.get("accounts"), list) else []
+            accounts = [str(value)[:64] for value in raw[:8] if isinstance(value, str)]
+            count = details.get("count")
+            variables.update({"empresa": vendor, "servicio": str(details.get("service") or vendor),
+                              "n": count if isinstance(count, int) and not isinstance(count, bool) else len(raw),
+                              "cuentas": ", ".join(accounts) or UNKNOWN})
+            companies = [vendor]
         elif kind == "server_side_meta":
             variables["empresa"] = details.get("host") or name
             companies = [variables["empresa"]]

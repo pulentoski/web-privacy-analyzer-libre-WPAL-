@@ -15,6 +15,8 @@
 #   params         nombres de parámetro (último segmento, en minúsculas)
 #   pattern        forma que debe tener el valor completo
 #   path_pattern   opcional: el ID viaja en la ruta; se toma el grupo "value"
+#   account        opcional (v1.4.5): true si cada valor es una cuenta de medición del proveedor
+#   discontinued_pattern / discontinued_label   opcional: forma de los IDs de un servicio descontinuado
 version: 1
 
 # Solo con ALLOW_FIXTURES=1: hosts del sitio de fixtures que hacen de cualquier proveedor
@@ -29,6 +31,11 @@ rules:
     host_pattern: '(^|\.)google\.[a-z]{2,3}(\.[a-z]{2})?$'
     params: [tid, id]
     pattern: '^(G-[A-Z0-9]{4,20}|UA-\d{3,12}-\d{1,4})$'
+    # v1.4.5: cada ID es una cuenta de medición; 2 o más = los datos de la visita van a varias cuentas.
+    account: true
+    # Universal Analytics (IDs UA-) dejó de procesar datos en 2023-2024.
+    discontinued_pattern: '^UA-'
+    discontinued_label: Universal Analytics
 
   - id: gtm_container_id
     vendor: Google Tag Manager
@@ -70,6 +77,7 @@ rules:
     path_prefix: /tr
     params: [id]
     pattern: '^\d{10,20}$'
+    account: true
 
   - id: pinterest_tag_id
     vendor: Pinterest
@@ -77,6 +85,7 @@ rules:
     hosts: [ct.pinterest.com]
     params: [tid]
     pattern: '^\d{10,16}$'
+    account: true
 
   - id: snapchat_pixel_id
     vendor: Snapchat
@@ -84,6 +93,7 @@ rules:
     hosts: [tr.snapchat.com, sc-static.net]
     params: [pid, pixel_id]
     pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    account: true
 
   - id: tiktok_pixel_id
     vendor: TikTok
@@ -91,6 +101,7 @@ rules:
     hosts: [analytics.tiktok.com, analytics-sg.tiktok.com, business-api.tiktok.com]
     params: [sdkid, pixel_code, code]
     pattern: '^[A-Z0-9]{16,24}$'
+    account: true
 
   - id: linkedin_partner_id
     vendor: LinkedIn
@@ -98,3 +109,4 @@ rules:
     hosts: [px.ads.linkedin.com, px4.ads.linkedin.com, dc.ads.linkedin.com, snap.licdn.com]
     params: [pid]
     pattern: '^\d{4,10}$'
+    account: true

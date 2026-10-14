@@ -297,6 +297,12 @@ findings:
     step: interaccion
     INFERENCIA: "Grabación de sesión (inferencia): se contactó a {empresa}, servicio que registra clics, movimiento del mouse y desplazamiento; la sesión podría estar siendo grabada."
 
+  # --- v1.4.5 (docs/adr/032): solo en la lista técnica ---
+  analytics_accounts:
+    EVIDENCIA: "Varias cuentas de analítica: los datos de la visita se enviaron a {n|cuenta|cuentas} de {empresa} ({cuentas})."
+  discontinued_tag:
+    EVIDENCIA: "Etiqueta de un servicio descontinuado: el sitio aún carga {n|etiqueta|etiquetas} de {servicio} ({cuentas}). Nota informativa: ese servicio ya no procesa datos."
+
 consent_states:
   granted: "concedido"
   denied: "denegado"

@@ -189,5 +189,12 @@
     "visitor_cookie": "_vid",
     "site_cookie": "_sc_site",
     "sync_domains": ["cdn-b.fixtures.test", "tracker-a.fixtures.test"]
+  },
+  "v145": {
+    "page": "http://site.fixtures.test/v145/",
+    "third_party_service_host": "cdn-b.fixtures.test",
+    "third_party_service_requests": 3,
+    "analytics_accounts": {"vendor": "Google Analytics", "accounts": ["G-FIXTAAA111", "G-FIXTBBB222", "UA-1234567-1"], "discontinued": ["UA-1234567-1"]},
+    "error_frame": "https://cdn-b.fixtures.test/v145/no-existe"
   }
 }

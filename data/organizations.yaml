@@ -1,0 +1,110 @@
+# Catálogo propio de organizaciones (v1.4.5, docs/adr/032).
+#
+# Complementa el mapa de entidades (DuckDuckGo Tracker Radar o AdGuard companiesdb), que busca por
+# dominio registrable y por eso no ve los hosts que cuelgan de un sufijo público (p. ej.
+# maps.googleapis.com: «googleapis.com» está en la Public Suffix List). También evita mostrar como
+# «organización» el nombre de una persona natural que registró un dominio.
+#
+# El tipo de servicio de cada host (mapas, fuentes, CDN de librerías…) vive en service_types.yaml.
+version: 1
+
+# Organización → sufijos de host. Un host es de la organización si es igual al sufijo o termina en
+# «.<sufijo>». Gana sobre el mapa de entidades. El nombre debe ser el mismo que usa el mapa
+# («Google», no «Google LLC»), para que sus dominios se agrupen juntos.
+organizations:
+  Google: [googleapis.com]
+
+# Dominios cuya organización NO se conoce con certeza: se muestra «no disponible» aunque el mapa de
+# entidades traiga un nombre (p. ej. el de la persona que registró el dominio).
+unknown: [weshareapp.io, e-mailit.com]
+
+# Personas naturales (v1.4.5): el mapa de entidades trae a veces, como dueño de un dominio, el nombre
+# de la persona que lo registró. Nunca se muestra: la organización queda «no disponible».
+#
+# Un nombre del mapa con 2 a 4 palabras solo de letras se evalúa en este orden:
+#   1. lleva una forma jurídica (legal_forms: Inc, GmbH, Ltda…)            → organización;
+#   2. lleva un término de organización (org_words: Media, Bank…)          → organización;
+#   3. alguna palabra es un nombre de pila conocido (given_names)          → persona;
+#   4. se parece a uno de sus dominios, o la entidad tiene 3 o más dominios → organización;
+#   5. en otro caso                                                         → persona.
+# El paso 5 prefiere perder el nombre de una empresa pequeña antes que mostrar el de una persona.
+persons:
+  # Entidades que el criterio anterior confundiría con una persona y son organizaciones.
+  not_persons: [Taylor and Francis, Prospect One, Yandex Metrica, Lucky Orange, Rubicon Project, Index Exchange, The Trade Desk,
+                Trade Desk, Hotjar, Automattic, New Relic, Sovrn Holdings, Oath, Verizon Media, Conde Nast]
+  legal_forms: [
+    inc, incorporated, llc, llp, lp, ltd, ltda, limited, corp, corporation, co, company, companies, gmbh, mbh, ag, kg,
+    ug, ohg, sa, sas, sarl, sl, slu, srl, spa, bv, nv, ab, as, asa, aps, oy, oyj, plc, pty, pte, pvt, kk, sro, doo, ooo,
+    zao, oao, pao, kft, zrt, eirl, eireli, cia, sdn, bhd, berhad, lda, se, ev, eg, sp, zoo, jsc, cjsc, tov, ood, eood,
+    sia, uab, nuf, hf, ehf, sca, scs, sc, cv, tbk, pt, sae, fzc, fze, fzco, lllp, pllc, pc,
+  ]
+  org_words: [
+    county, clerk, authority, office, kitchen, pizza, creations, management, sales, planning, forum, dept,
+    republica, control, verlag, stadt, landeshauptstadt, kooperation, zweckverband, desarrollos, autosport,
+    retailers, apparel, computer, computers, business, rentals, makers, websites, wealth, editions, kommunikation,
+    aktiengesellschaft, restaurant, restaurants, vicepresidencia, presidencia, parliament, parliamentary,
+    group, grupo, groupe, gruppe, holding, holdings, media, medios, digital, network, networks, net, online, web,
+    internet, interactive, software, soft, systems, system, sistemas, solutions, soluciones, services, service,
+    servicios, technologies, technology, tech, tecnologia, tecnologias, labs, lab, laboratories, studio, studios,
+    agency, agencia, consulting, consultores, partners, associates, asociados, ventures, capital, enterprises,
+    enterprise, industries, industrias, international, internacional, global, worldwide, world, university,
+    universidad, universidade, universita, universitat, universite, escuela, institute, instituto,
+    institut, academy, academia, foundation, fundacion, fundacao, stiftung, association, asociacion, society,
+    sociedad, societe, sociedade, union, federation, federacion, council, consejo, ministry, ministerio, government,
+    gobierno, municipalidad, department, departamento, bank, banco, banque, bancorp, sparkasse,
+    insurance, seguros, financial, finance, bancaria, credit, fund, publishing, publications, publishers,
+    editorial, news, noticias, magazine, newspaper, newspapers, daily, journal, radio, tv,
+    television, broadcasting, communications, comunicaciones, telecom, telecommunications, mobile, wireless, cloud,
+    data, analytics, ads, advertising, marketing, commerce, ecommerce, shop, store, stores, markets, trading,
+    retail, sports, games, gaming, entertainment, music, video, pictures, films, travel, tours, airlines, airways,
+    hotels, resorts, foods, food, motors, automotive, energy, electric, electronics, pharma, pharmaceuticals,
+    health, healthcare, medical, hospital, clinic, club, team, project, projects, operations, design, designs,
+    creative, productions, development, developers, research, security, hosting, domains, apps, app, cdn, api, hardware, tools, works, direct, center, centre, centro, company's, brands, products, supply, logistics, express, properties, realty, estate, 
+    museum, library, organization, organisation, organizacion, committee, community, alliance, cooperative,
+    cooperativa, collective, exchange, hub, zone, io,
+  ]
+  given_names: [
+    aaron, abdul, abel, abraham, adam, adrian, adriana, ahmad, ahmed, alan, albert, alberto, alejandra, alejandro,
+    aleksandr, aleksei, aleksey, alex, alexander, alexandr, alexandra, alexandre, alexei, alexey, alexis, alfonso,
+    alfred, alfredo, ali, alice, alicia, alina, allan, allen, alvaro, amanda, amir, amit, amy, ana, anastasia, anders,
+    andre, andrea, andreas, andrei, andres, andrew, andrey, andrzej, andy, angel, angela, angelo, anil, anita, ankit,
+    ann, anna, anne, anthony, anton, antonio, arjun, armand, armando, arnaud, arthur, artur, arturo, ashish, ashley,
+    barbara, bart, ben, benjamin, bernard, bernardo, bill, bob, bogdan, boris, brad, bradley, brandon, brenda, brett,
+    brian, bruce, bruno, bryan, camila, camilo, carl, carla, carlo, carlos, carmen, carol, carolina, caroline,
+    catherine, cedric, cesar, chad, charles, charlie, chen, chris, christian, christina, christine, christoph,
+    christophe, christopher, claire, clara, claudia, claudio, colin, craig, cristian, cristina, daniel, daniela,
+    daniele, danny, dario, darren, dave, david, davide, dean, deborah, deepak, denis, dennis, derek, diana, diego,
+    dieter, dimitri, dmitri, dmitriy, dmitry, dominic, dominik, don, donald, donna, douglas, dylan, eduardo, edward,
+    edwin, elena, elias, elisa, elisana, elizabeth, emil, emilio, emily, emma, emmanuel, enrique, eric, erik,
+    ernesto, esteban, ethan, eugene, eva, evan, evgeny, fabian, fabio, fabrice, federico, felipe, felix, fernando,
+    filip, florian, forbes, francesco, francis, francisco, franco, francois, frank, franz, fred, frederic,
+    frederick, gabriel, gabriela, gareth, gary, gavin, gennady, geoffrey, george, georgios, gerald, gerard,
+    gerardo, giorgio, giovanni, giuseppe, glenn, gonzalo, gordon, graham, grant, greg, gregory, guillaume,
+    guillermo, gustavo, guy, hans, harold, harry, hassan, hector, heinz, helen, helmut, henri, henrik, henry, herbert,
+    hernan, hiroshi, hugo, hussein, ian, ibrahim, igor, ilya, ignacio, isaac, isabel, ivan, jack, jacob, jacques,
+    jaime, jake, jakub, james, jamie, jan, jane, janet, jared, jason, javier, jay, jean, jeff, jeffrey, jennifer,
+    jens, jeremy, jerome, jerry, jesse, jessica, jesus, jim, jimmy, joachim, joan, joao, joaquin, joe, joel, johan,
+    johann, johannes, john, jon, jonas, jonathan, jordan, jordi, jorge, jose, josef, joseph, josh, joshua, juan,
+    julia, julian, julie, julien, julio, jun, jurgen, justin, karen, karl, karol, katarzyna, kate, katherine, keith,
+    kelly, ken, kenneth, kenji, kevin, kim, kirill, klaus, konstantin, krzysztof, kumar, kyle, lars, laura, laurent,
+    lawrence, lee, leo, leon, leonardo, leonid, li, liam, linda, lisa, logan, lorenzo, louis, luca, lucas, lucia,
+    luciano, luis, luiz, lukas, luke, magesh, magnus, mahmoud, manuel, marc, marcel, marcelo, marcin, marco, marcos,
+    marcus, margaret, maria, marianne, marie, mario, marion, mark, marko, markus, martin, martina, marta, mary,
+    massimo, mateusz, mathias, mathieu, matt, matteo, matthew, matthias, mattias, maurice, mauricio, mauro, max,
+    maxim, maxime, mehdi, mehmet, melissa, michael, michal, michel, michele, michelle, miguel, mihai, mikael, mike,
+    mikhail, milan, mohamed, mohammad, mohammed, monica, muhammad, mumit, mustafa, nancy, natalia, nathan, neil,
+    nelson, nestor, nicholas, nick, nico, nicola, nicolas, nicole, niels, nigel, nikita, nikitas, nikolai, nikolay,
+    nikos, nils, noah, norbert, norman, oleg, oleksandr, oliver, olivier, omar, oscar, osvaldo, pablo, paolo, pascal,
+    patricia, patrick, patrik, paul, paula, paulo, pavel, pedro, peter, petr, phil, philip, philipp, philippe,
+    phillip, pierre, piotr, pradeep, rafael, rahul, rainer, raj, rajesh, ralf, ralph, ramon, randy, raphael, raul,
+    ravi, ray, raymond, rebecca, ricardo, richard, rick, riste, rob, robert, roberto, robin, rodolfo, rodrigo, roger,
+    rohit, roland, roman, ron, ronald, rosa, ross, roy, ruben, rudolf, russell, ryan, salvador, sam, samuel, sandeep,
+    sandra, sanjay, santiago, sara, sarah, scott, sean, sebastian, sebastien, serge, sergei, sergey, sergio, serhiy,
+    seth, shane, sharon, shashank, shawn, simon, simone, sofia, stanislav, stefan, stefano, stephan, stephane,
+    stephanie, stephen, steve, steven, stuart, sunil, susan, sven, sylvain, tadeusz, takashi, tatiana, ted, terry,
+    theo, thiago, thierry, thomas, thorsten, tiago, tim, timothy, tobias, todd, tom, tomas, tomasz, tommy, tony,
+    travis, trevor, troy, tyler, ulrich, uwe, valentin, valentina, valeria, valery, vanessa, vasily, veronica,
+    vicente, victor, victoria, vijay, viktor, vincent, vincenzo, vitaly, vivek, vlad, vladimir, vladislav, volker,
+    walter, wang, wayne, wei, werner, wesley, william, wojciech, wolfgang, xavier, yann, yuri, yury, yves, zachary,
+    zhang, zoltan,
+  ]

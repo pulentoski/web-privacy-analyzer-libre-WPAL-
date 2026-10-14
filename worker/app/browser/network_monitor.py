@@ -215,6 +215,8 @@ class NetworkMonitor:
         self._websockets: list[dict] = []
         self._cdp: dict[tuple[str, str], deque] = defaultdict(deque)
         self._cdp_count = 0
+        # [(método CDP, parámetros)] que se envían a cada sesión (página u OOPIF) al adjuntarla.
+        self.session_setup: list[tuple[str, dict]] = []
         self._cdp_frames: set = set()
         self._tasks: set[asyncio.Task] = set()
         self._sw_blocked: list[str] = []
@@ -261,6 +263,9 @@ class NetworkMonitor:
             # llega como initiator "parser" y no se puede atribuir a su script.
             await session.send("Runtime.enable")
             await session.send("Runtime.setAsyncCallStackDepth", {"maxDepth": ASYNC_STACK_DEPTH})
+            # Ajustes del perfil del navegador que van por sesión CDP (v1.4.5: idiomas del perfil base).
+            for method, params in self.session_setup:
+                await session.send(method, params)
         except PlaywrightError:
             # Un frame del mismo proceso que su padre no tiene sesión propia: ya lo cubre la del padre.
             self._cdp_frames.discard(target)

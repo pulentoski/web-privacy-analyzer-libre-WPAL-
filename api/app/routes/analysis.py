@@ -242,7 +242,7 @@ async def _fingerprinting(session: AsyncSession, job) -> dict:
                 "WITH calls AS (SELECT job_id, api, count, CASE WHEN script_url <> '' THEN script_url "
                 " WHEN frame_url <> '' THEN '(inline o eval en ' || split_part(split_part(frame_url, '?', 1), '#', 1) || ')' "
                 # Las escuchas de eventos (events.*, v1.4.2) no son lecturas de atributos: van en «Registro de interacción».
-                " ELSE '' END AS script_url FROM fp_api_calls WHERE job_id = :job_id AND api NOT LIKE 'events.%') "
+                " ELSE '' END AS script_url FROM fp_api_calls WHERE job_id = :job_id AND api NOT LIKE 'events.%' AND frame_url NOT LIKE 'chrome-error://%' AND script_url NOT LIKE 'chrome-error://%') "
                 "SELECT c.script_url, c.api, sum(c.count) AS count, "
                 "(SELECT a.entity FROM scan_requests r JOIN request_analysis a ON a.request_id = r.id "
                 " WHERE r.job_id = c.job_id AND r.url = c.script_url LIMIT 1) AS entity, "
@@ -330,7 +330,8 @@ async def get_fingerprinting(job_id: uuid.UUID, session: AsyncSession = Depends(
         await session.execute(
             text(
                 "SELECT id AS call_id, api, script_url, frame_url, count, details FROM fp_api_calls "
-                "WHERE job_id = :job_id ORDER BY id LIMIT 2000"
+                "WHERE job_id = :job_id AND frame_url NOT LIKE 'chrome-error://%' AND script_url NOT LIKE 'chrome-error://%' "
+                "ORDER BY id LIMIT 2000"
             ),
             {"job_id": job_id},
         )
@@ -342,6 +343,8 @@ async def get_fingerprinting(job_id: uuid.UUID, session: AsyncSession = Depends(
         # Tabla «Atributos de su navegador que leyó este sitio» (v1.2): atributo · leído por · enviado a.
         "browser_attributes": await scan_table(session, job_id, await _inline_owners(session, job_id)),
         "calls": [dict(row) for row in calls],
+        # v1.4.5: recuadros que no cargaron (página de error de Chromium); sus llamadas no se cuentan.
+        "error_frames": ((await _site_analysis(session, job_id) or {}).get("summary") or {}).get("error_frames"),
     }
 
 
@@ -456,7 +459,7 @@ async def _inline_owners(session: AsyncSession, job_id: uuid.UUID) -> dict[str, 
     frames = (
         await session.execute(
             text("SELECT DISTINCT split_part(split_part(frame_url, '?', 1), '#', 1) AS frame FROM fp_api_calls "
-                 "WHERE job_id = :job_id AND script_url = '' AND frame_url <> '' LIMIT 500"),
+                 "WHERE job_id = :job_id AND script_url = '' AND frame_url <> '' AND frame_url NOT LIKE 'chrome-error://%' LIMIT 500"),
             {"job_id": job_id},
         )
     ).scalars().all()
@@ -489,7 +492,7 @@ async def _script_call_refs(session: AsyncSession, job_id: uuid.UUID) -> dict[st
             text(
                 "SELECT CASE WHEN script_url <> '' THEN script_url WHEN frame_url <> '' THEN "
                 "'(inline o eval en ' || split_part(split_part(frame_url, '?', 1), '#', 1) || ')' ELSE '' END AS script, "
-                "array_agg(id ORDER BY id) AS calls FROM fp_api_calls WHERE job_id = :job_id AND api NOT LIKE 'events.%' GROUP BY 1"
+                "array_agg(id ORDER BY id) AS calls FROM fp_api_calls WHERE job_id = :job_id AND api NOT LIKE 'events.%' AND frame_url NOT LIKE 'chrome-error://%' AND script_url NOT LIKE 'chrome-error://%' GROUP BY 1"
             ),
             {"job_id": job_id},
         )

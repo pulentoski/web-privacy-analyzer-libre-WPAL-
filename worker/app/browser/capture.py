@@ -18,7 +18,7 @@ from app.browser import profiles
 from app.browser.consent import SCENARIOS, handle_consent, tcf_info
 from app.browser.fp_monitor import PAGE_FLUSH_MS, FingerprintMonitor
 from app.browser.proxy_log import read_destinations_when_flushed
-from app.browser.launcher import launch_browser, new_context
+from app.browser.launcher import base_session_setup, launch_browser, new_context
 from app.browser.network_monitor import PROXY_ERROR_HEADER, NetworkMonitor
 from app.config import settings
 
@@ -120,6 +120,8 @@ async def _run_scan(url, timeout_s, max_requests, max_body_bytes, idle_s, fp_ins
                 max_requests=settings.max_requests if max_requests is None else max_requests,
                 max_body_bytes=settings.max_body_capture_bytes if max_body_bytes is None else max_body_bytes,
             )
+            if profile is None:
+                monitor.session_setup = base_session_setup()
             await monitor.start()
 
             started = loop.time()

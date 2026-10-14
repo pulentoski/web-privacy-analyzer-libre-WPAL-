@@ -173,6 +173,10 @@ async def run_probe(browser, profile: dict | None) -> dict | None:
         page = await context.new_page()
         if profile is not None:
             await apply_to_page(context, page, profile)
+        else:
+            from app.browser.launcher import apply_base_profile
+
+            await apply_base_profile(context, page)
         await page.route("**/*", lambda route: route.fulfill(status=200, content_type="text/html", body="<!doctype html><title>probe</title>"))
         await page.goto(PROBE_URL, timeout=10000)
         probe = await page.evaluate(PROBE_JS)

@@ -227,6 +227,9 @@ El worker solo sale a internet a través del egress-proxy.
 ## Navegador del worker (perfil base)
 Chromium con ventana real sobre Xvfb, sin marcas de automatización y sin falsear
 atributos (docs/adr/008). Es la línea base, no spoofing.
+Idioma y zona horaria (v1.4.5): `WORKER_LOCALE` (por defecto `es-CL`) y `WORKER_TIMEZONE`
+(`America/Santiago`). navigator.languages = [es-CL, es], Accept-Language `es-CL,es;q=0.9` en todas
+las requests e Intl en esa zona: coherente para el detector de inconsistencias.
 
 ## Seguridad (SSRF)
 Capa 1: validación de URL en la API (solo http/https, resolución DNS y
@@ -443,6 +446,28 @@ hacia quién la envían.
 - Analizar un sitio: cada modo con su acento (tokens `--acc-*`, AA en ambos temas), título e ícono. Indicador de
   recursos: consola (mini de tres cuadros; completa con placas, estado y detalle; ALERTA solo con RAM > 85 %).
 
+## Servicios de terceros, es-CL y correcciones de capturas reales (v1.4.5, docs/adr/032)
+- «Servicios de terceros sin señales de rastreo» (`site.summary.third_party_services`): requests a otra
+  organización por debajo de la banda de rastreador, por organización y tipo de servicio, con requests y
+  evidence_refs. La request es EVIDENCIA; el tipo de servicio, contexto (INFERENCIA). En Rastreadores, Resumen y
+  reportes, siempre (también con lista vacía); un análisis anterior no la muestra (no se inventa «0»).
+- «Su interacción se envió a X» solo cuenta ENVÍOS con datos: POST/PUT/PATCH, beacon, ping, pixel (imagen con
+  parámetros) o GET con parámetros. No cuentan descargas de recursos estáticos (.js, .mjs, .wasm, .css, fuentes,
+  imágenes sin parámetros) ni lo servido por dominios de distribución de contenido
+  (`data/interaction_signals.yaml §correlation`).
+- Catálogo propio `data/organizations.yaml`: organización por sufijo de host (los hosts de `googleapis.com`, sufijo
+  público, son de Google) y dominios de dueño desconocido. Tipos de servicio nuevos en `data/service_types.yaml`:
+  mapas, fuentes, CDN de librerías, clima, widget para compartir, video, traducción, almacenamiento, backend de
+  aplicaciones; los patrones `urls` distinguen un host o producto dentro de una organización.
+- Dueño del dominio: si el mapa de entidades trae el nombre de una persona natural, la organización es
+  `no_disponible`. Nunca se muestran nombres de personas (regla en `data/organizations.yaml §persons`).
+- Frames de error del navegador: lo que corre en `chrome-error://chromewebdata/` (iframe que no cargó) no es del
+  sitio; sus llamadas y scripts se descartan y solo consta «un recuadro no cargó» (`site.summary.error_frames`).
+- Hallazgo `analytics_accounts` (EVIDENCIA): 2 o más IDs de cuenta de medición del mismo proveedor →
+  «Los datos de la visita se enviaron a N cuentas de <proveedor>». Hallazgo `discontinued_tag` (EVIDENCIA, nota
+  informativa): IDs `UA-` de Universal Analytics → «etiqueta de un servicio descontinuado».
+- Perfil base del navegador en español de Chile (ver §Navegador del worker).
+
 ## Fases
 F0 spec · F1 infra+aislamiento · F2 captura · F3 análisis+scoring ·
 F4 instrumentación · F5 UI · F6 exposición · F7 escenarios ·
@@ -453,4 +478,6 @@ v1.2.1 terceros por organización, representatividad y contexto (versión 1.2.1)
 v1.3 HAR: importar, exportar y comparar; terceros del resumen por organización (versión 1.3.0) ·
 v1.4 captura interactiva e indicador de recursos (versión 1.4.0) ·
 v1.4.2 registro de interacción, agrupación y acentos (versión 1.4.2) ·
-v1.4.3 el indicador de recursos reserva su hueco y se puede minimizar (versión 1.4.3)
+v1.4.3 el indicador de recursos reserva su hueco y se puede minimizar (versión 1.4.3) ·
+v1.4.4 instalación simplificada y CI (versión 1.4.4) ·
+v1.4.5 servicios de terceros, es-CL y correcciones (versión 1.4.5)

@@ -171,6 +171,7 @@ async def load_capture(conn, job_id, url: str, result, finished_at=None) -> dict
             ],
             "available": meta.get("available") or [],
             "truncated": bool(meta.get("truncated")),
+            "error_frame_messages": meta.get("error_frame_messages") or 0,
         }
     return {
         "start_url": url,

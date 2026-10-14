@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"><title>Fixture v1.4.5: servicios de terceros, varias cuentas y un recuadro que no carga</title>
+  <link rel="icon" href="data:,">
+  <!-- Terceros SIN señales de rastreo: recursos estáticos de otra organización, sin parámetros. -->
+  <link rel="stylesheet" href="http://cdn-b.fixtures.test/lib.css">
+</head>
+<body>
+  <h1>Servicios de terceros sin señales de rastreo</h1>
+  <img src="http://cdn-b.fixtures.test/logo.png" alt="logo servido por otra organización">
+  <!-- Un recuadro que no carga: el sitio de fixtures no atiende HTTPS, así que Chromium muestra su página
+       de error (chrome-error://chromewebdata/) dentro del iframe. Nada de lo que corra ahí es del sitio. -->
+  <iframe src="https://cdn-b.fixtures.test/v145/no-existe" title="recuadro que no carga" width="320" height="120"></iframe>
+  <script src="/static/v145/v145.js"></script>
+</body>
+</html>
