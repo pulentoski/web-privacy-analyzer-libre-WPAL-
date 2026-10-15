@@ -230,13 +230,13 @@ COOKIES = [("PHPSESSID", "userena.cl", False), ("cf_clearance", ".userena.cl", F
 def test_cookie_purposes_in_summary_and_findings_including_first_party(config, catalog):
     result = analyze(with_cookies(COOKIES), CatalogLists({}, catalog), config)
     purposes = result["site"]["summary"]["cookie_purposes"]
-    assert purposes["level"] == "INFERENCIA" and purposes["basis"] == "nombre"
+    assert purposes["level"] == "INFERENCIA" and purposes["by_basis"] == {"nombre": 6, "organizacion": 0}
     assert purposes["by_purpose"] == {"publicidad": 2, "analitica": 2, "funcional": 2, "sin_clasificar": 1}
     assert {row["name"]: row["domain"] for row in purposes["cookies"]}["_ga"] == "userena.cl"
     by_purpose = {item["details"]["purpose"]: item for item in findings_of(result, "cookie_purpose")}
     assert set(by_purpose) == {"analitica", "publicidad"} and all(item["level"] == "INFERENCIA" for item in by_purpose.values())
-    assert by_purpose["publicidad"]["details"] == {"purpose": "publicidad", "label": "publicidad", "cookies": 2, "first_party": 1,
-                                                   "third_party": 1, "names": ["IDE", "_fbp"]}
+    assert by_purpose["publicidad"]["details"] == {"purpose": "publicidad", "label": "publicidad", "basis": "nombre", "cookies": 2,
+                                                   "first_party": 1, "third_party": 1, "names": ["IDE", "_fbp"]}
     assert "inferencia por el nombre" in by_purpose["analitica"]["claim"]
     [functional] = findings_of(result, "cookie_purpose_functional")
     assert functional["level"] == "INFERENCIA" and functional["details"]["names"] == ["PHPSESSID", "cf_clearance"]

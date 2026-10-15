@@ -119,7 +119,7 @@ terms:
   - id: proposito_cookie
     term: "Propósito de una cookie"
     plain: "funcional, analítica o publicidad"
-    definition: "Uso habitual de una cookie según su nombre conocido (por ejemplo PHPSESSID es funcional, _ga es de analítica y _fbp de publicidad). Es una Inferencia: el nombre no prueba qué guarda. Las cookies funcionales no suman al índice de exposición."
+    definition: "Uso habitual de una cookie según su nombre conocido (por ejemplo PHPSESSID es funcional, _ga es de analítica y _fbp de publicidad) o, si el nombre no se conoce, según el tipo de servicio de la organización que la creó (una empresa de publicidad, de analítica o un CDN). Es una Inferencia: ni el nombre ni la organización prueban qué guarda. Las cookies funcionales no suman al índice de exposición."
   - id: alias_organizacion
     term: "Alias de organización"
     plain: "varios dominios, un mismo dueño"

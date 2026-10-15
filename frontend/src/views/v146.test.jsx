@@ -24,6 +24,12 @@ describe("cookies por propósito", () => {
     expect(screen.getByText(/Las funcionales no suman al índice de exposición/)).toBeTruthy();
   });
 
+  it("v1.4.7: dice cuántas se clasificaron por el nombre y cuántas por la organización", () => {
+    render(<CookiePurposes purposes={{ level: "INFERENCIA", labels: LABELS, by_purpose: { publicidad: 4, analitica: 1, funcional: 0, sin_clasificar: 2 },
+      by_basis: { nombre: 2, organizacion: 3 } }} />);
+    expect(screen.getByTestId("cookie-purpose-basis").textContent).toBe("Por el nombre: 2 · por la organización que la creó: 3.");
+  });
+
   it("un análisis anterior a v1.4.6 no muestra el panel (no se inventa «0»)", () => {
     const { container } = render(<CookiePurposes purposes={undefined} />);
     expect(container.textContent).toBe("");

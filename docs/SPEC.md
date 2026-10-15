@@ -491,6 +491,15 @@ hacia quién la envían.
   (analítica, publicidad; grupo 1) y `cookie_purpose_functional` (lista técnica); `persistent_cookie.details.purposes`.
   Las cookies funcionales no suman al índice (`stored_items` = cookies no funcionales + storage). Analizador 1.13.0.
 
+## Fugas hacia un CDN y cookies por la organización (v1.4.7, docs/adr/034)
+- La librería cambia la atribución del recurso, no oculta sus fugas: `url_leak` y `referer_leak` hacia un CDN público
+  se informan y cuentan igual, y nombran al receptor real (`details.recipient`, `reasons[].data.recipient`): «CDN público
+  <cdn> (<dueño>)», o la organización del dominio si el grupo mezcla hosts. Nunca una librería.
+- Propósito de cookies en dos pasos (INFERENCIA): (a) nombre conocido; (b) si no, tipo de servicio de la organización
+  dueña del dominio de la cookie (`cookie_purposes.yaml §by_service_type`: adtech/publicidad → publicidad; analítica →
+  analítica; CDN/antibot → funcional). Sin ninguno: «sin clasificar». Cada cookie lleva `basis` (nombre | organizacion);
+  el Resumen da `by_basis`. Nombres nuevos de Alibaba/AliExpress y adtech. Analizador 1.14.0.
+
 ## Fases
 F0 spec · F1 infra+aislamiento · F2 captura · F3 análisis+scoring ·
 F4 instrumentación · F5 UI · F6 exposición · F7 escenarios ·
@@ -504,4 +513,5 @@ v1.4.2 registro de interacción, agrupación y acentos (versión 1.4.2) ·
 v1.4.3 el indicador de recursos reserva su hueco y se puede minimizar (versión 1.4.3) ·
 v1.4.4 instalación simplificada y CI (versión 1.4.4) ·
 v1.4.5 servicios de terceros, es-CL y correcciones (versión 1.4.5) ·
-v1.4.6 atribución a librerías de CDN, sincronización entre organizaciones, alias y cookies por propósito (versión 1.4.6)
+v1.4.6 atribución a librerías de CDN, sincronización entre organizaciones, alias y cookies por propósito (versión 1.4.6) ·
+v1.4.7 fugas hacia un CDN con su receptor real y cookies por la organización (versión 1.4.7)

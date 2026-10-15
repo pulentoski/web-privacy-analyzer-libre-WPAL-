@@ -302,13 +302,14 @@ findings:
   persistent_id_org:
     step: etiquetado
     EVIDENCIA: "Identificador persistente enviado a {empresa}: el valor llegó a una sola organización, por lo que no es sincronización entre organizaciones."
-  # Propósito por el nombre de la cookie: {que} analítica | publicidad; {nombres} los nombres observados.
+  # Propósito de la cookie (v1.4.7: dos bases). {base} «por el nombre» | «por la organización»;
+  # {criterio} «nombre de cookie de analítica» | «origen en una organización de publicidad»; {nombres} los nombres.
   cookie_purpose:
     step: etiquetado
-    INFERENCIA: "Propósito de cookies (inferencia por el nombre): {n|cookie tiene|cookies tienen} nombre de cookie de {que} ({nombres}); el nombre es compatible con ese uso, pero no lo prueba."
-  # Las funcionales (sesión, antibot, idioma, carrito) no suman al índice; solo en la lista técnica.
+    INFERENCIA: "Propósito de cookies (inferencia {base}): {n|cookie tiene|cookies tienen} {criterio} ({nombres}); es compatible con ese uso, pero no lo prueba."
+  # Las funcionales (sesión, antibot, idioma, carrito, seguridad) no suman al índice; solo en la lista técnica.
   cookie_purpose_functional:
-    INFERENCIA: "Cookies funcionales (inferencia por el nombre): {n|cookie tiene|cookies tienen} nombre de cookie funcional ({nombres}), lo que es compatible con sesión, antibot, idioma o carrito; no suman al índice de exposición."
+    INFERENCIA: "Cookies funcionales (inferencia {base}): {n|cookie tiene|cookies tienen} {criterio} ({nombres}), lo que es compatible con sesión, antibot, idioma, carrito o seguridad; no suman al índice de exposición."
 
   # --- v1.4.5 (docs/adr/032): solo en la lista técnica ---
   analytics_accounts:

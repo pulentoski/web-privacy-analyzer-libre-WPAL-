@@ -38,7 +38,7 @@ def test_cookie_purpose_is_an_inference_by_name():
         "purpose": "analitica", "label": "analítica", "cookies": 2, "names": ["_ga", "_ga_ABC"]}))
     assert phrase["level"] == "INFERENCIA" and phrase["generic"] is False and phrase["step"] == "etiquetado"
     assert phrase["text"] == ("Propósito de cookies (inferencia por el nombre): 2 cookies tienen nombre de cookie de analítica "
-                              "(_ga, _ga_ABC); el nombre es compatible con ese uso, pero no lo prueba.")
+                              "(_ga, _ga_ABC); es compatible con ese uso, pero no lo prueba.")
     assert explainer.hedged(phrase["text"])
     functional = explainer.finding_phrase(finding("cookie_purpose_functional", "INFERENCIA", {
         "purpose": "funcional", "label": "funcional", "cookies": 1, "names": ["PHPSESSID"]}))

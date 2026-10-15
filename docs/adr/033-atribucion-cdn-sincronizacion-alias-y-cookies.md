@@ -1,6 +1,6 @@
 # ADR 033 — Librerías en CDN público, sincronización entre organizaciones, alias de organización y propósito de cookies (v1.4.6)
 
-Estado: aceptada · Fecha: 2026-10-14
+Estado: aceptada · Fecha: 2026-10-14 · Ampliada por [ADR 034](034-fugas-a-cdn-y-cookies-por-organizacion.md) (receptor de las fugas hacia un CDN; cookies por la organización)
 
 ## Contexto
 Los scans reales de laserena.cl, userena.cl y es.aliexpress.com mostraron cinco imprecisiones:

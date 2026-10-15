@@ -83,6 +83,14 @@ class CookiePurposes:
         self._rules: list[tuple[str, str]] = [
             (str(pattern).lower(), purpose) for purpose in order for pattern in purposes.get(purpose) or [] if pattern]
         self.purposes = tuple(order)
+        # v1.4.7: tipo de servicio de la organización → propósito (paso b).
+        self._by_service = {str(service): str(purpose) for purpose, services in (raw.get("by_service_type") or {}).items()
+                            for service in services or [] if service}
+        self.basis_labels = {str(key): str(value) for key, value in (raw.get("basis_labels") or {}).items()}
+
+    def of_service(self, service_type: str | None) -> str | None:
+        """Propósito según el tipo de servicio de la organización, o None."""
+        return self._by_service.get(service_type or "")
 
     def of(self, name: str | None) -> str:
         lowered = str(name or "").lower()

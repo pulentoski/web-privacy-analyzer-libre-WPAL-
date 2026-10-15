@@ -70,8 +70,8 @@ export function CookiePurposes({ purposes }) {
   const total = keys.reduce((sum, key) => sum + (purposes.by_purpose[key] || 0), 0);
   return (
     <Panel title="Cookies por propósito" tone="neutral" testId="cookie-purposes"
-      subtitle="Propias y de terceros. El propósito se infiere del nombre de la cookie."
-      info={<><strong>Cookies por propósito</strong>: el nombre de una cookie (por ejemplo _ga o PHPSESSID) es compatible con un uso conocido, pero no lo prueba. Las cookies funcionales (sesión, antibot, idioma, carrito) no suman al índice de exposición.</>}>
+      subtitle="Propias y de terceros. El propósito se infiere del nombre de la cookie o, si no se conoce, de la organización que la creó."
+      info={<><strong>Cookies por propósito</strong>: el nombre de una cookie (por ejemplo _ga o PHPSESSID) o el tipo de servicio de la organización que la creó es compatible con un uso conocido, pero no lo prueba. Las cookies funcionales (sesión, antibot, idioma, carrito) no suman al índice de exposición.</>}>
       <p className="text-sm mb-2"><EvidenceBadge level={purposes.level || "INFERENCIA"} /> {total} {total === 1 ? "cookie" : "cookies"} al terminar la visita.</p>
       <ul className="flex flex-wrap gap-3 text-sm">
         {keys.map((key) => (
@@ -80,6 +80,11 @@ export function CookiePurposes({ purposes }) {
           </li>
         ))}
       </ul>
+      {purposes.by_basis ? (
+        <p className="muted text-xs mt-1" data-testid="cookie-purpose-basis">
+          Por el nombre: {purposes.by_basis.nombre || 0} · por la organización que la creó: {purposes.by_basis.organizacion || 0}.
+        </p>
+      ) : null}
       {purposes.by_purpose.funcional ? <p className="muted text-xs mt-1">Las funcionales no suman al índice de exposición.</p> : null}
     </Panel>
   );

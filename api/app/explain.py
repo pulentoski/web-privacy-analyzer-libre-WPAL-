@@ -166,6 +166,9 @@ class Explanations:
             return {**self.phrase(self.signals[signal], "EVIDENCIA", variables), "signal": signal}
         reason = max(known, key=lambda item: self.signals[item["signal"]].get("priority", 0))
         data = reason.get("data") if isinstance(reason.get("data"), dict) else {}
+        if isinstance(data.get("recipient"), str) and data["recipient"]:
+            # v1.4.7: la request fue a un CDN público; quien recibió la fuga es el CDN, no la librería.
+            variables["empresa"] = data["recipient"]
         others = [name for name in data.get("other_entities") or [] if name != entity] or list(data.get("other_domains") or [])
         variables.update({
             "parametro": data.get("parameter"),
@@ -193,6 +196,10 @@ class Explanations:
             name = company(scripts.get(script), script_host(script)) or "origen no identificado"
             variables.update({"empresa": name, "n": details.get("distinct_fonts") or len(details.get("properties") or []) or None})
             companies = [name]
+        if kind in ("url_leak", "referer_leak") and isinstance(details.get("recipient"), str) and details["recipient"]:
+            # v1.4.7: receptor que resolvió el analizador (un CDN público se nombra como CDN, no como la librería).
+            name = details["recipient"]
+            variables["empresa"], companies = name, [name]
         if kind == "exfiltration":
             variables["dato"] = self.data_name(details.get("api"))
         elif kind == "id_sync":
@@ -257,7 +264,15 @@ class Explanations:
             variables["empresa"], companies = name, [name] if name else []
         elif kind in ("cookie_purpose", "cookie_purpose_functional"):
             names = [str(value)[:60] for value in (details.get("names") or [])[:6] if isinstance(value, str)]
-            variables.update({"n": details.get("cookies"), "que": details.get("label"), "nombres": ", ".join(names) or UNKNOWN})
+            # v1.4.7: dos bases de la inferencia: el nombre conocido o el tipo de servicio de la organización.
+            by_org = details.get("basis") == "organizacion"
+            label = details.get("label") if isinstance(details.get("label"), str) and details.get("label") else None
+            if kind == "cookie_purpose_functional":
+                criterio = "origen en una organización de CDN, antibot o seguridad" if by_org else "nombre de cookie funcional"
+            else:
+                criterio = (f"origen en una organización de {label}" if by_org else f"nombre de cookie de {label}") if label else None
+            variables.update({"n": details.get("cookies"), "criterio": criterio, "base": "por la organización" if by_org else "por el nombre",
+                              "nombres": ", ".join(names) or UNKNOWN})
             companies = []
         elif kind == "server_side_meta":
             variables["empresa"] = details.get("host") or name

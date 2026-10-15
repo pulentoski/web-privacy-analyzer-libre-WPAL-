@@ -311,6 +311,21 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
     # --- 3. clasificación y score por request ---
     analyzed = []
     list_hits: dict[tuple[str, str], list] = defaultdict(list)
+    library_by_id: dict[int, dict] = {}
+
+    def cdn_recipient(library: dict, domain: str | None) -> str:
+        """Receptor de una request a un CDN público: el CDN y su dueño (p. ej. «CDN público cdnjs (Cloudflare)»)."""
+        entity = lists.entity(domain)
+        return f"CDN público {library['cdn']}" + (f" ({entity})" if entity != UNKNOWN_ENTITY else "")
+
+    def group_recipient(refs, domain: str) -> str:
+        """Receptor de un grupo de requests a un dominio: el CDN si todas fueron al mismo CDN público; si no, la
+        organización dueña del dominio (o el dominio). Nunca una librería: la librería no recibe la request."""
+        cdns = {(library_by_id.get(rid) or {}).get("cdn") for rid in refs}
+        if len(cdns) == 1 and None not in cdns:
+            return cdn_recipient(library_by_id[refs[0]], domain)
+        entity = lists.entity(domain)
+        return domain if entity == UNKNOWN_ENTITY else entity
     for request in requests:
         request_id = request["request_id"]
         third_party = bool(request.get("third_party"))
@@ -320,6 +335,12 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
         own_params = [p for p in params_by_request.get(request_id, []) if p.source not in VALUE_SOURCES_EXCLUDED]
         mechanism = _mechanism(request)
         reasons = []
+        # v1.4.6: un recurso de un CDN público se atribuye a la librería que sirve, no a la empresa del CDN.
+        # v1.4.7: pero quien RECIBE la request (y sus fugas) es el CDN, no la librería.
+        library = config.public_cdns.of(request.get("url"), request.get("host")) if third_party else None
+        if library:
+            library_by_id[request_id] = library
+        recipient = cdn_recipient(library, domain) if library else None
 
         def reason(signal: str, detail: str, **data) -> None:
             # `data`: los mismos hechos del detalle, sueltos, para las frases técnicas de la interfaz.
@@ -349,9 +370,10 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
                    parameter=param.name, stored_in=stored[param.value])
         if request_id in leak_by_request:
             reason("url_leak", f"El parámetro «{leak_by_request[request_id].name}» contiene la URL de la página.",
-                   parameter=leak_by_request[request_id].name)
+                   parameter=leak_by_request[request_id].name, **({"recipient": recipient} if recipient else {}))
         if external and referer_by_request.get(request_id) == "full_url":
-            reason("referer_full_url", "La cabecera Referer llevó a un tercero la URL completa de la página (ruta y parámetros).")
+            reason("referer_full_url", "La cabecera Referer llevó a un tercero la URL completa de la página (ruta y parámetros).",
+                   **({"recipient": recipient} if recipient else {}))
         if request_id in fingerprint["exfiltration_by_request"]:
             hit = fingerprint["exfiltration_by_request"][request_id][0]
             reason("fp_exfiltration", f"El parámetro «{hit['parameter']}» contiene un valor leído con {hit['api']} ({hit['form']}).",
@@ -398,8 +420,6 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
             # party == "same_org": asset estático de la misma organización, sin señal.
 
         score = max(0, min(100, sum(item["weight"] for item in reasons)))
-        # v1.4.6: un recurso de un CDN público se atribuye a la librería que sirve, no a la empresa del CDN.
-        library = config.public_cdns.of(request.get("url"), request.get("host")) if third_party else None
         if domain in config.domain_categories:
             category = config.domain_categories[domain]
         elif matches:
@@ -502,7 +522,7 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
             "EVIDENCIA",
             f"La URL de la página analizada se envió a {domain} dentro del parámetro «{name}».",
             refs,
-            {"domain": domain, "parameter": name},
+            {"domain": domain, "parameter": name, "recipient": group_recipient(refs, domain)},
         )
     referer_groups: dict[str, list[int]] = defaultdict(list)
     same_org_referer: set[str] = set()
@@ -520,7 +540,7 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
             "EVIDENCIA",
             f"La cabecera Referer enviada a {domain} contiene la URL completa de la página, con ruta y parámetros.",
             refs,
-            {"domain": domain, "exposure": "full_url"},
+            {"domain": domain, "exposure": "full_url", "recipient": group_recipient(refs, domain)},
         )
     for (list_id, domain), hits in list_hits.items():
         finding(
@@ -605,8 +625,9 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
                 email_groups[domain].append(param.request_id)
     for domain, refs in cookie_groups.items():
         finding("third_party_set_cookie", "EVIDENCIA", f"{domain} (tercero) respondió con cabeceras Set-Cookie.", refs, {"domain": domain})
-    _persistent_cookie_findings(capture, requests, params, lists, finding, config.cookie_purposes)
-    cookie_purposes = _cookie_purpose_findings(capture, requests, params, config.cookie_purposes, finding)
+    _persistent_cookie_findings(capture, requests, params, lists, finding, config.cookie_purposes, config.service_types)
+    cookie_purposes = _cookie_purpose_findings(capture, requests, params, config.cookie_purposes, finding,
+                                               lists=lists, service_types=config.service_types)
     for (domain, name), refs in identifier_groups.items():
         finding(
             "identifier_param",
@@ -1099,8 +1120,11 @@ def _cookie_domain(cookie: dict, registrable: list[str]) -> str:
 MAX_COOKIE_ROWS = 200
 
 
-def _cookie_purpose_findings(capture, requests, params, purposes, finding) -> dict:
-    """Propósito de cada cookie según su nombre conocido (v1.4.6). INFERENCIA: el nombre no prueba el uso.
+def _cookie_purpose_findings(capture, requests, params, purposes, finding, *, lists=None, service_types=None) -> dict:
+    """Propósito de cada cookie (v1.4.6). INFERENCIA: ni el nombre ni la organización prueban el uso.
+
+    v1.4.7, dos pasos: (a) el nombre conocido; (b) si no, el tipo de servicio de la organización dueña del
+    dominio de la cookie. Cada cookie lleva su base: «nombre» u «organizacion».
 
     Evidencia: las requests que fijaron o enviaron cookies con ese nombre; si ninguna viajó, la primera
     request de la visita (la cookie está en el snapshot del navegador al terminar).
@@ -1114,38 +1138,72 @@ def _cookie_purpose_findings(capture, requests, params, purposes, finding) -> di
     rows, groups = [], {}
     for cookie in cookies:
         name = str(cookie.get("name") or "")[:120]
-        purpose = purposes.of(name)
-        rows.append({"name": name, "domain": _cookie_domain(cookie, registrable)[:120], "purpose": purpose,
+        domain = _cookie_domain(cookie, registrable)[:120]
+        purpose, basis, organization, service = purposes.of(name), "nombre", None, None
+        if purpose == purposes.UNCLASSIFIED and lists is not None and service_types is not None:
+            entity = lists.entity(domain)
+            found = service_types.of(entity=entity, domain=domain)
+            by_service = purposes.of_service((found or {}).get("type"))
+            if by_service:
+                purpose, basis, service = by_service, "organizacion", found
+                organization = domain if entity == UNKNOWN_ENTITY else entity
+        if purpose == purposes.UNCLASSIFIED:
+            basis = None
+        rows.append({"name": name, "domain": domain, "purpose": purpose, "basis": basis,
                      "third_party": bool(cookie.get("third_party"))})
-        group = groups.setdefault(purpose, {"names": set(), "own": 0, "third": 0, "refs": []})
+        group = groups.setdefault((purpose, basis), {"names": set(), "own": 0, "third": 0, "refs": [],
+                                                     "organizations": set(), "services": set()})
         group["names"].add(name)
         group["third" if cookie.get("third_party") else "own"] += 1
         group["refs"] += by_name.get(cookie.get("name") or "", [])
+        if organization:
+            group["organizations"].add(organization)
+            group["services"].add(service["label"])
     for purpose in purposes.purposes:
-        group = groups.get(purpose)
-        if not group or not requests:
-            continue
-        count = group["own"] + group["third"]
-        names = sorted(group["names"])
-        finding(
-            "cookie_purpose_functional" if purpose == "funcional" else "cookie_purpose",
-            "INFERENCIA",
-            f"{count} cookie(s) tienen nombre de cookie de propósito «{purposes.label(purpose)}» ({', '.join(names[:8])}): {group['own']} del propio "
-            f"sitio y {group['third']} de terceros. Es una inferencia por el nombre: no prueba qué guarda la cookie.",
-            group["refs"] or [requests[0]["request_id"]],
-            {"purpose": purpose, "label": purposes.label(purpose), "cookies": count, "first_party": group["own"],
-             "third_party": group["third"], "names": names[:20]},
-        )
+        for basis in ("nombre", "organizacion"):
+            group = groups.get((purpose, basis))
+            if not group or not requests:
+                continue
+            count = group["own"] + group["third"]
+            names = sorted(group["names"])
+            if basis == "nombre":
+                how = f"tienen nombre de cookie de propósito «{purposes.label(purpose)}» ({', '.join(names[:8])})"
+                why = "Es una inferencia por el nombre: no prueba qué guarda la cookie."
+            else:
+                how = (f"se clasifican como «{purposes.label(purpose)}» por la organización que las creó "
+                       f"({', '.join(sorted(group['organizations'])[:6])}; {', '.join(sorted(group['services'])[:3])}): {', '.join(names[:8])}")
+                why = "Es una inferencia por la organización: no prueba qué guarda la cookie."
+            finding(
+                "cookie_purpose_functional" if purpose == "funcional" else "cookie_purpose",
+                "INFERENCIA",
+                f"{count} cookie(s) {how}. {group['own']} del propio sitio y {group['third']} de terceros. {why}",
+                group["refs"] or [requests[0]["request_id"]],
+                {"purpose": purpose, "label": purposes.label(purpose), "basis": basis, "cookies": count, "first_party": group["own"],
+                 "third_party": group["third"], "names": names[:20],
+                 **({"organizations": sorted(group["organizations"])[:20]} if basis == "organizacion" else {})},
+            )
     by_purpose = {purpose: 0 for purpose in (*purposes.purposes, purposes.UNCLASSIFIED)}
+    by_basis = {"nombre": 0, "organizacion": 0}
     for row in rows:
         by_purpose[row["purpose"]] = by_purpose.get(row["purpose"], 0) + 1
-    return {"level": "INFERENCIA", "basis": "nombre", "by_purpose": by_purpose,
+        if row["basis"]:
+            by_basis[row["basis"]] += 1
+    return {"level": "INFERENCIA", "basis": "nombre_u_organizacion", "by_purpose": by_purpose, "by_basis": by_basis,
             "labels": {purpose: purposes.label(purpose) for purpose in by_purpose},
             "cookies": sorted(rows, key=lambda row: (row["purpose"], row["domain"], row["name"]))[:MAX_COOKIE_ROWS],
             "truncated": len(rows) > MAX_COOKIE_ROWS}
 
 
-def _persistent_cookie_findings(capture, requests, params, lists, finding, purposes=None) -> None:
+def _purpose_of(purposes, name, domain, lists, service_types) -> str:
+    """Propósito de una cookie con los dos pasos (nombre; si no, tipo de servicio de la organización)."""
+    purpose = purposes.of(name)
+    if purpose == purposes.UNCLASSIFIED and service_types is not None:
+        found = service_types.of(entity=lists.entity(domain), domain=domain)
+        purpose = purposes.of_service((found or {}).get("type")) or purpose
+    return purpose
+
+
+def _persistent_cookie_findings(capture, requests, params, lists, finding, purposes=None, service_types=None) -> None:
     """Cookies que siguen en el navegador después de la visita (vencen a más de un día).
 
     Lo observado es la cookie y su fecha de vencimiento (EVIDENCIA). Para qué se usa no se
@@ -1183,8 +1241,10 @@ def _persistent_cookie_findings(capture, requests, params, lists, finding, purpo
             group["refs"] or [requests[0]["request_id"]],
             {"domain": domain, "entity": lists.entity(domain), "cookies": count, "max_days": group["max_days"],
              "names": sorted(group["names"])[:10], "third_party": group["third_party"],
-             # v1.4.6: propósito por el nombre (INFERENCIA), conteo por propósito.
-             **({"purposes": dict(Counter(purposes.of(name) for name in group["names"]))} if purposes else {})},
+             # v1.4.6: propósito por el nombre (INFERENCIA), conteo por propósito. v1.4.7: con el paso (b), por la
+             # organización dueña del dominio de estas cookies.
+             **({"purposes": dict(Counter(_purpose_of(purposes, name, domain, lists, service_types) for name in group["names"]))}
+                if purposes else {})},
         )
 
 

@@ -2,23 +2,23 @@
 #
 #   docker compose -f docker-compose.yml -f docker-compose.release.yml up -d
 #
-# Cada servicio toma pulentoski/wpa-<servicio>:1.4.3 (de Docker Hub) y se descarta su `build:`.
+# Cada servicio toma pulentoski/wpa-<servicio>:1.4.7 (de Docker Hub) y se descarta su `build:`.
 # El resto de la configuración (redes aisladas, endurecimiento, volúmenes, env) la aporta
 # docker-compose.yml. Necesita igualmente el repositorio (compose, ./data, worker/seccomp_profile.json)
 # y un .env completo. Para construir y etiquetar estas imágenes localmente: ./scripts/release-images.sh
 services:
   db:
     build: !reset null
-    image: pulentoski/wpa-db:1.4.3
+    image: pulentoski/wpa-db:1.4.7
   api:
     build: !reset null
-    image: pulentoski/wpa-api:1.4.3
+    image: pulentoski/wpa-api:1.4.7
   worker:
     build: !reset null
-    image: pulentoski/wpa-worker:1.4.3
+    image: pulentoski/wpa-worker:1.4.7
   egress-proxy:
     build: !reset null
-    image: pulentoski/wpa-egress-proxy:1.4.3
+    image: pulentoski/wpa-egress-proxy:1.4.7
   frontend:
     build: !reset null
-    image: pulentoski/wpa-frontend:1.4.3
+    image: pulentoski/wpa-frontend:1.4.7

@@ -6,8 +6,12 @@
 #                índice de exposición (componente stored_items).
 #   analitica  : medición de visitas.
 #   publicidad : publicidad y conversiones.
-# Una cookie que no coincide con ninguna regla queda «sin clasificar» (no se inventa un propósito) y sigue
-# contando en el índice como antes.
+# Dos pasos (v1.4.7), ambos INFERENCIA:
+#   (a) por el NOMBRE conocido (`purposes`);
+#   (b) si el nombre no está, por el TIPO DE SERVICIO de la organización dueña del dominio de la cookie
+#       (`by_service_type`, tipos de service_types.yaml). Una cookie del propio dominio la puede haber creado
+#       un script de terceros: ahí cuenta la organización del sitio, que normalmente no tiene tipo.
+# Sin nombre conocido ni tipo: «sin clasificar» (no se inventa un propósito); sigue contando en el índice.
 #
 # Coincidencia sin distinguir mayúsculas: nombre exacto, o patrón con «*» (cualquier texto). Se evalúan en
 # el orden de `order`; gana la primera regla que coincide.
@@ -49,6 +53,15 @@ purposes:
     - "*_carrito"
     - woocommerce_cart_hash
     - woocommerce_items_in_cart
+    # v1.4.7: Alibaba / AliExpress — país, idioma y moneda, sesión y token de la API móvil.
+    - aep_usuc_f
+    - intl_locale
+    - xman_us_f
+    - _m_h5_tk
+    # Alibaba — seguridad (antifraude y antibot): se cuentan como funcionales.
+    - isg
+    - tfstk
+    - l
   analitica:
     - _ga
     - _gid
@@ -56,6 +69,9 @@ purposes:
     - _clck
     - _clsk
     - "_hj*"
+    # v1.4.7: Alibaba — identificador de visitante de su analítica.
+    - cna
+    - ali_apache_id
   publicidad:
     - _fbp
     - _fbc
@@ -63,3 +79,20 @@ purposes:
     - _ttp
     - IDE
     - test_cookie
+    # v1.4.7: adtech común (Criteo, Microsoft Ads, The Trade Desk, Yahoo).
+    - cto_bundle
+    - MUID
+    - _uetsid
+    - _uetvid
+    - tuuid
+    - A3
+
+# Paso (b): tipo de servicio de la organización que creó la cookie → propósito.
+by_service_type:
+  publicidad: [advertising, mobile_advertising, conversion_pixel, dmp, data_broker]
+  analitica: [analytics, audience_measurement, session_recording]
+  funcional: [cdn, library_cdn, antifraud]
+
+basis_labels:
+  nombre: "por el nombre"
+  organizacion: "por la organización"
