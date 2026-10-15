@@ -36,7 +36,7 @@ terms:
   - id: sincronizacion
     term: "Sincronización de identificadores"
     plain: "cookie syncing"
-    definition: "El mismo valor con formato de identificador aparece en requests a dominios de organizaciones distintas (ID sync o cookie syncing), habitualmente mediante una redirección. Permite a ambas partes correlacionar sus registros del mismo navegador."
+    definition: "El mismo valor con formato de identificador aparece en requests a dominios de dos o más organizaciones distintas del sitio (ID sync o cookie syncing), habitualmente mediante una redirección. Permite a esas partes correlacionar sus registros del mismo navegador. Si el valor llega a una sola organización, se informa como identificador persistente enviado a esa organización."
   - id: referer
     term: "Referer"
     plain: "cabecera de página de origen"
@@ -112,13 +112,25 @@ terms:
     term: "Broker de datos"
     plain: "intermediario de datos personales"
     definition: "Empresa que compra, combina y vende datos de personas y hogares, y que ofrece enlazar identificadores de distintos orígenes."
+  - id: libreria_cdn
+    term: "Librería en CDN público"
+    plain: "jsDelivr, cdnjs, unpkg"
+    definition: "Servicio que entrega librerías públicas de JavaScript y CSS a cualquier sitio. El recurso se atribuye a la librería, leída de su ruta (/npm/<paquete>, /ajax/libs/<paquete>), y no a la empresa dueña del CDN, que solo lo distribuye."
+  - id: proposito_cookie
+    term: "Propósito de una cookie"
+    plain: "funcional, analítica o publicidad"
+    definition: "Uso habitual de una cookie según su nombre conocido (por ejemplo PHPSESSID es funcional, _ga es de analítica y _fbp de publicidad). Es una Inferencia: el nombre no prueba qué guarda. Las cookies funcionales no suman al índice de exposición."
+  - id: alias_organizacion
+    term: "Alias de organización"
+    plain: "varios dominios, un mismo dueño"
+    definition: "Dominios distintos que pertenecen al mismo dueño (por ejemplo, el sitio de una municipalidad y el de sus APIs). Entre ellos las requests son de la misma organización y no cuentan como terceros."
 
 panels:
   summary:
     title: "¿Qué es esto?"
     definition: "Vista general de la visita: número de requests, organizaciones de terceros contactadas e índice de exposición de 0 a 99."
     method: "El índice se calcula con señales observables ponderadas (data/scoring.yaml). Es una estimación para comparar visitas, no una calificación oficial."
-    terms: [request, tercero, tracker, evidencia, inferencia]
+    terms: [request, tercero, tracker, evidencia, inferencia, proposito_cookie]
   story:
     title: "¿Qué es esto?"
     definition: "Hallazgos de la visita clasificados en ocho grupos técnicos. Cada grupo indica qué se observó, con su nivel de evidencia; debajo figuran el detalle y las requests que lo respaldan."
@@ -128,7 +140,7 @@ panels:
     title: "¿Qué es esto?"
     definition: "Requests con señales de seguimiento (banda Moderado o superior), agrupadas por la organización propietaria del dominio."
     method: "La atribución de dominio a organización procede de un mapa público; un dominio sin propietario conocido se muestra por separado."
-    terms: [tracker, tercero, pixel, beacon, cookie, sincronizacion]
+    terms: [tracker, tercero, pixel, beacon, cookie, sincronizacion, libreria_cdn, alias_organizacion]
   fingerprinting:
     title: "¿Qué es esto?"
     definition: "Scripts de la página que leyeron atributos del dispositivo (GPU, pantalla, fuentes, audio) mediante APIs del navegador."

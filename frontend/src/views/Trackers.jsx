@@ -65,6 +65,7 @@ export function ThirdPartyServices({ jobId, services, compact = false }) {
                   <td className="py-1 pr-3" data-testid="third-party-service-org">
                     {entityLabel(item.organization)}
                     {item.in_trackers ? <span className="muted text-xs"> (también en rastreadores)</span> : null}
+                    {item.library && item.library.benign ? <span className="muted text-xs" data-testid="third-party-service-benign"> (librería conocida: {item.library.benign_label})</span> : null}
                   </td>
                   <td className="py-1 pr-3"><ServiceTag label={item.service_label} /></td>
                   <td className="py-1 pr-3"><Captured value={(item.hosts && item.hosts.length ? item.hosts : item.domains || []).join(", ")} limit={80} /></td>

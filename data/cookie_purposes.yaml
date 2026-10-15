@@ -1,0 +1,65 @@
+# Propósito de una cookie según su NOMBRE conocido (v1.4.6, docs/adr/033).
+#
+# Es INFERENCIA: el nombre no prueba qué guarda ni para qué se usa; un sitio puede llamar «session» a
+# cualquier cosa. Se aplica a todas las cookies de la visita, también a las del propio dominio.
+#   funcional  : necesarias para que el sitio funcione (sesión, antibot, idioma, carrito). NO suman al
+#                índice de exposición (componente stored_items).
+#   analitica  : medición de visitas.
+#   publicidad : publicidad y conversiones.
+# Una cookie que no coincide con ninguna regla queda «sin clasificar» (no se inventa un propósito) y sigue
+# contando en el índice como antes.
+#
+# Coincidencia sin distinguir mayúsculas: nombre exacto, o patrón con «*» (cualquier texto). Se evalúan en
+# el orden de `order`; gana la primera regla que coincide.
+version: 1
+
+order: [publicidad, analitica, funcional]
+
+labels:
+  funcional: "funcional"
+  analitica: "analítica"
+  publicidad: "publicidad"
+  sin_clasificar: "sin clasificar"
+
+purposes:
+  funcional:
+    - session
+    - sessionid
+    - session_id
+    # Sesión de frameworks conocidos. NO «*_session»: appier_session o taboola_session_id son de publicidad.
+    - laravel_session
+    - ci_session
+    - "wp_woocommerce_session_*"
+    - PHPSESSID
+    - JSESSIONID
+    - ASP.NET_SessionId
+    - cf_clearance
+    - __cf_bm
+    - lang
+    - language
+    - idioma
+    - locale
+    - "*_lang"
+    - "*_language"
+    - "*_idioma"
+    - cart
+    - carrito
+    - "*_cart"
+    - "cart_*"
+    - "*_carrito"
+    - woocommerce_cart_hash
+    - woocommerce_items_in_cart
+  analitica:
+    - _ga
+    - _gid
+    - "_ga_*"
+    - _clck
+    - _clsk
+    - "_hj*"
+  publicidad:
+    - _fbp
+    - _fbc
+    - _gcl_au
+    - _ttp
+    - IDE
+    - test_cookie

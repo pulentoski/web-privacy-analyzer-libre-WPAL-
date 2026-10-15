@@ -28,10 +28,14 @@ def _fold(text: str) -> str:
 
 class OrganizationCatalog:
     """Catálogo propio (data/organizations.yaml, v1.4.5): organización por sufijo de host, dominios de dueño
-    desconocido y la regla que impide mostrar como organización el nombre de una persona natural."""
+    desconocido y la regla que impide mostrar como organización el nombre de una persona natural.
+    v1.4.6: alias de organización (data/org_aliases.yaml), que ganan sobre el resto."""
 
-    def __init__(self, raw: dict | None = None) -> None:
+    def __init__(self, raw: dict | None = None, aliases: dict | None = None) -> None:
         raw = raw or {}
+        self._aliases: list[tuple[str, str]] = sorted(
+            ((str(domain).lower(), str(name)[:200]) for name, domains in ((aliases or {}).get("aliases") or {}).items()
+             for domain in domains or [] if domain), key=lambda item: -len(item[0]))
         self._suffixes: list[tuple[str, str | None]] = []
         for name, suffixes in (raw.get("organizations") or {}).items():
             self._suffixes += [(str(suffix).lower(), str(name)[:200]) for suffix in suffixes or [] if suffix]
@@ -48,7 +52,7 @@ class OrganizationCatalog:
     def lookup(self, host: str | None) -> tuple[bool, str | None]:
         """(está en el catálogo, organización o None si se declaró desconocida)."""
         host = (host or "").lower()
-        for suffix, name in self._suffixes:
+        for suffix, name in self._aliases + self._suffixes:
             if host == suffix or host.endswith("." + suffix):
                 return True, name
         return False, None
@@ -151,7 +155,8 @@ class FilterLists:
         catalog_path = pathlib.Path(data_dir) / "organizations.yaml"
         try:
             catalog_bytes = catalog_path.read_bytes()
-            self.catalog = OrganizationCatalog(yaml.safe_load(catalog_bytes.decode("utf-8")) or {})
+            aliases = self._read_aliases(pathlib.Path(data_dir) / "org_aliases.yaml", digest)
+            self.catalog = OrganizationCatalog(yaml.safe_load(catalog_bytes.decode("utf-8")) or {}, aliases)
             digest.update(hashlib.sha256(catalog_bytes).hexdigest().encode())
         except (OSError, ValueError, yaml.YAMLError) as exc:
             logger.warning("organization_catalog_unavailable", extra={"error_type": type(exc).__name__})
@@ -163,6 +168,21 @@ class FilterLists:
                                  if self.catalog.is_person(name, domains, self._legal_names.get(name)))
         digest.update(license_profile.encode() if license_profile != "no_comercial" else b"")
         self.version = digest.hexdigest()[:16]
+
+    @staticmethod
+    def _read_aliases(path: pathlib.Path, digest) -> dict:
+        """Alias de organización (v1.4.6). Sin el archivo, ninguno: el análisis sigue igual que antes."""
+        try:
+            raw = path.read_bytes()
+        except OSError:
+            return {}
+        try:
+            aliases = yaml.safe_load(raw.decode("utf-8")) or {}
+        except (ValueError, yaml.YAMLError) as exc:
+            logger.warning("org_aliases_unavailable", extra={"error_type": type(exc).__name__})
+            return {}
+        digest.update(hashlib.sha256(raw).hexdigest().encode())
+        return aliases if isinstance(aliases, dict) else {}
 
     def _add_engine(self, list_id: str, path: pathlib.Path) -> None:
         filter_set = adblock.FilterSet(debug=True)  # debug: conserva el texto de la regla

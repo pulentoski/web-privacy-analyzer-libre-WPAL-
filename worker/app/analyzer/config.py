@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 LEVELS = ("EVIDENCIA", "INFERENCIA", "POSIBLE", "DESCONOCIDO")
 
 from app.analyzer.interaction import BenignLibraries, InteractionSignals, ServerSideTracking  # noqa: E402
+from app.analyzer.attribution import CookiePurposes, PublicCdns  # noqa: E402
 
 @dataclass(frozen=True)
 class AnalyzerConfig:
@@ -45,6 +46,9 @@ class AnalyzerConfig:
     interaction: InteractionSignals = field(default_factory=InteractionSignals)
     benign_libraries: BenignLibraries = field(default_factory=BenignLibraries)
     server_side: ServerSideTracking = field(default_factory=ServerSideTracking)
+    # v1.4.6 (docs/adr/033): librerías de CDN públicos (organizations.yaml §public_cdns) y propósito de cookies.
+    public_cdns: PublicCdns = field(default_factory=PublicCdns)
+    cookie_purposes: CookiePurposes = field(default_factory=CookiePurposes)
 
     @property
     def bands(self) -> list[dict]:
@@ -102,6 +106,7 @@ def load_config(data_dir: str | pathlib.Path, *, allow_fixtures: bool = False, l
         if license_profile != "comercial":
             logger.warning("cmp_list_unavailable", extra={"error_type": type(exc).__name__})
         cmp_names = {}
+    benign = BenignLibraries(read("benign_libraries.yaml"))
     return AnalyzerConfig(
         names=NameCategories(read("param_names.yaml")), scoring=scoring, domain_categories=domain_categories,
         google_domains=frozenset(google), cmp_names=cmp_names,
@@ -112,6 +117,8 @@ def load_config(data_dir: str | pathlib.Path, *, allow_fixtures: bool = False, l
         har_signals=HarSignals(read("har_signals.yaml")),
         first_party_telemetry=FirstPartyTelemetry(read("first_party_telemetry.yaml")),
         interaction=InteractionSignals(read("interaction_signals.yaml")),
-        benign_libraries=BenignLibraries(read("benign_libraries.yaml")),
+        benign_libraries=benign,
         server_side=ServerSideTracking(read("server_side_tracking.yaml")),
+        public_cdns=PublicCdns(read("organizations.yaml").get("public_cdns"), benign),
+        cookie_purposes=CookiePurposes(read("cookie_purposes.yaml")),
     )

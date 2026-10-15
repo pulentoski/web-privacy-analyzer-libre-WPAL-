@@ -91,12 +91,13 @@ def test_third_parties_without_tracking_signals_are_listed_by_organization_and_s
     summary = result["site"]["summary"]
     assert summary["trackers"] == 0, "el caso es justamente un sitio sin rastreadores"
     listed = services(result)
-    assert listed[("Prospect One", "library_cdn")]["requests"] == 1
-    assert listed[("Cloudflare", "library_cdn")]["hosts"] == ["cdnjs.cloudflare.com"]
+    # v1.4.6: los CDN públicos se atribuyen a la librería, no a la empresa del CDN (Prospect One, Cloudflare, unpkg).
+    assert listed[("librería bootstrap en CDN público (jsDelivr)", "library_cdn")]["requests"] == 1
+    assert listed[("librería font-awesome en CDN público (cdnjs)", "library_cdn")]["hosts"] == ["cdnjs.cloudflare.com"]
     assert listed[("Google", "antifraud")]["requests"] == 2 and listed[("Google", "antifraud")]["hosts"] == ["www.google.com", "www.gstatic.com"]
     assert listed[("OpenStreetMap Foundation", "maps")]["requests"] == 2
     assert listed[("OpenWeather", "weather")]["service_label"].startswith("clima")
-    assert listed[("unpkg", "library_cdn")]["service_label"].startswith("CDN de librerías")
+    assert listed[("librería leaflet en CDN público (unpkg)", "library_cdn")]["service_label"].startswith("CDN de librerías")
     # Dueño desconocido y giro desconocido: se informa igual, sin inventar ninguno de los dos.
     unknown = listed[(UNKNOWN_ENTITY, None)]
     assert unknown["domains"] == ["munilaserena.cl"] and unknown["service_label"] is None

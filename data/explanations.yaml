@@ -297,6 +297,19 @@ findings:
     step: interaccion
     INFERENCIA: "Grabación de sesión (inferencia): se contactó a {empresa}, servicio que registra clics, movimiento del mouse y desplazamiento; la sesión podría estar siendo grabada."
 
+  # --- v1.4.6 (docs/adr/033) ---
+  # Un identificador que llegó a UNA sola organización no es sincronización: va al grupo 1.
+  persistent_id_org:
+    step: etiquetado
+    EVIDENCIA: "Identificador persistente enviado a {empresa}: el valor llegó a una sola organización, por lo que no es sincronización entre organizaciones."
+  # Propósito por el nombre de la cookie: {que} analítica | publicidad; {nombres} los nombres observados.
+  cookie_purpose:
+    step: etiquetado
+    INFERENCIA: "Propósito de cookies (inferencia por el nombre): {n|cookie tiene|cookies tienen} nombre de cookie de {que} ({nombres}); el nombre es compatible con ese uso, pero no lo prueba."
+  # Las funcionales (sesión, antibot, idioma, carrito) no suman al índice; solo en la lista técnica.
+  cookie_purpose_functional:
+    INFERENCIA: "Cookies funcionales (inferencia por el nombre): {n|cookie tiene|cookies tienen} nombre de cookie funcional ({nombres}), lo que es compatible con sesión, antibot, idioma o carrito; no suman al índice de exposición."
+
   # --- v1.4.5 (docs/adr/032): solo en la lista técnica ---
   analytics_accounts:
     EVIDENCIA: "Varias cuentas de analítica: los datos de la visita se enviaron a {n|cuenta|cuentas} de {empresa} ({cuentas})."

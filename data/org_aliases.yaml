@@ -1,0 +1,14 @@
+# Alias de organización (v1.4.6, docs/adr/033).
+#
+# Un mismo dueño publica a veces su sitio en varios dominios registrables que el mapa de entidades no
+# conoce (p. ej. una municipalidad con un dominio para el sitio y otro para sus APIs). Aquí se declara
+# que esos dominios son la MISMA organización: entre ellos las requests son «misma organización», no
+# terceros, y no cuentan en el índice de exposición.
+#
+# Coincidencia por sufijo de host (como organizations.yaml): un host es de la organización si es igual al
+# dominio o termina en «.<dominio>». Gana sobre el catálogo y el mapa de entidades. Es dato propio: entra
+# en `lists_version`. Solo se agregan dueños verificables (sitio oficial que enlaza o declara los dominios).
+version: 1
+
+aliases:
+  Municipalidad de La Serena: [laserena.cl, munilaserena.cl]

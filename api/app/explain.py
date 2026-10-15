@@ -251,6 +251,14 @@ class Explanations:
                               "n": count if isinstance(count, int) and not isinstance(count, bool) else len(raw),
                               "cuentas": ", ".join(accounts) or UNKNOWN})
             companies = [vendor]
+        elif kind == "persistent_id_org":
+            # v1.4.6: la organización la resolvió el analizador (o el dominio, si no se conoce).
+            name = company(details.get("organization"), domain)
+            variables["empresa"], companies = name, [name] if name else []
+        elif kind in ("cookie_purpose", "cookie_purpose_functional"):
+            names = [str(value)[:60] for value in (details.get("names") or [])[:6] if isinstance(value, str)]
+            variables.update({"n": details.get("cookies"), "que": details.get("label"), "nombres": ", ".join(names) or UNKNOWN})
+            companies = []
         elif kind == "server_side_meta":
             variables["empresa"] = details.get("host") or name
             companies = [variables["empresa"]]

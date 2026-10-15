@@ -168,7 +168,7 @@ def interactive_job(client):
 
 def test_har_export_has_one_page_per_visited_page_and_the_real_version(client, interactive_job, scan):
     har = client.get(f"/api/scans/{interactive_job}/har").json()["log"]
-    assert har["creator"] == {"name": "Web Privacy & Tracker Analyzer", "version": APP_VERSION} and APP_VERSION == "1.4.5"
+    assert har["creator"] == {"name": "Web Privacy & Tracker Analyzer", "version": APP_VERSION} and APP_VERSION == "1.4.6"
     assert [(page["id"], page["title"]) for page in har["pages"]] == [("page_1", "Inicio"), ("page_2", HOSTILE), ("page_3", "http://otro.example/")]
     assert har["pages"][1]["comment"] == "http://site.example/producto?id=7 · pestaña 1" and har["pages"][2]["comment"].endswith("pestaña 2")
     assert [page["startedDateTime"] for page in har["pages"]] == sorted(page["startedDateTime"] for page in har["pages"])

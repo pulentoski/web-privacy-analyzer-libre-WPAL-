@@ -3,7 +3,7 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 
 import Graph from "../components/Graph.jsx";
 import { Term, WhatIsThis } from "../components/Term.jsx";
-import { BandBadge, BlockingBanner, Captured, Empty, ErrorNotice, EvidenceLegend, EvidenceRefs, Info, LimitsNotice, Loading, Panel, PARTIAL_INDEX, Plain, StatCard } from "../components/ui.jsx";
+import { BandBadge, BlockingBanner, Captured, Empty, ErrorNotice, EvidenceBadge, EvidenceLegend, EvidenceRefs, Info, LimitsNotice, Loading, Panel, PARTIAL_INDEX, Plain, StatCard } from "../components/ui.jsx";
 import { api } from "../lib/api.js";
 import { categoryLabel, COMPONENT_LABELS, entityLabel, formatDate, STATUS_LABELS, truncate } from "../lib/format.js";
 import { useApi } from "../lib/useApi.js";
@@ -60,6 +60,31 @@ function Chart({ data, label }) {
 }
 
 /** La visita en una frase, con los números del análisis. Todo lo que dice se observó (EVIDENCIA). */
+const PURPOSE_ORDER = ["funcional", "analitica", "publicidad", "sin_clasificar"];
+
+// v1.4.6: cookies por propósito, inferido del nombre (propias y de terceros). Las funcionales no suman al índice.
+export function CookiePurposes({ purposes }) {
+  if (!purposes || !purposes.by_purpose) return null;  // análisis anterior a v1.4.6: no se inventa «0»
+  const keys = [...PURPOSE_ORDER.filter((key) => key in purposes.by_purpose),
+    ...Object.keys(purposes.by_purpose).filter((key) => !PURPOSE_ORDER.includes(key))];
+  const total = keys.reduce((sum, key) => sum + (purposes.by_purpose[key] || 0), 0);
+  return (
+    <Panel title="Cookies por propósito" tone="neutral" testId="cookie-purposes"
+      subtitle="Propias y de terceros. El propósito se infiere del nombre de la cookie."
+      info={<><strong>Cookies por propósito</strong>: el nombre de una cookie (por ejemplo _ga o PHPSESSID) es compatible con un uso conocido, pero no lo prueba. Las cookies funcionales (sesión, antibot, idioma, carrito) no suman al índice de exposición.</>}>
+      <p className="text-sm mb-2"><EvidenceBadge level={purposes.level || "INFERENCIA"} /> {total} {total === 1 ? "cookie" : "cookies"} al terminar la visita.</p>
+      <ul className="flex flex-wrap gap-3 text-sm">
+        {keys.map((key) => (
+          <li key={key} data-testid="cookie-purpose" data-purpose={key}>
+            <span className="font-semibold">{purposes.by_purpose[key]}</span> {(purposes.labels || {})[key] || key}
+          </li>
+        ))}
+      </ul>
+      {purposes.by_purpose.funcional ? <p className="muted text-xs mt-1">Las funcionales no suman al índice de exposición.</p> : null}
+    </Panel>
+  );
+}
+
 export function headline(capture, summary, source = "scan") {
   const requests = capture.total_requests;
   const third = summary.third_party_domains;
@@ -200,6 +225,7 @@ export default function Dashboard({ jobId }) {
         )}
       </div>
       <ThirdPartyServices services={site.summary.third_party_services} compact />
+      <CookiePurposes purposes={site.summary.cookie_purposes} />
       {sameOrg.length > 0 && (
         <Panel title="Recursos de la misma organización (no son terceros)" testId="same-org">
           <p className="text-sm muted">Dominios de otra dirección pero del mismo dueño que el sitio, según el mapa de entidades. No cuentan como terceros ni entran en el índice de exposición.</p>

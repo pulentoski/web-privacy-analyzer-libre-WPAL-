@@ -188,7 +188,9 @@ def test_persistent_cookies_become_a_finding_with_evidence(config):
     assert set(found) == {"alpha-ads.example", "site.example"}
     alpha = found["alpha-ads.example"]
     assert alpha["level"] == "EVIDENCIA" and alpha["evidence_refs"] == [1]
-    assert alpha["details"] == {"domain": "alpha-ads.example", "entity": "Alpha", "cookies": 2, "max_days": 390, "names": ["t_gid", "t_s"], "third_party": True}
+    assert alpha["details"] == {"domain": "alpha-ads.example", "entity": "Alpha", "cookies": 2, "max_days": 390, "names": ["t_gid", "t_s"], "third_party": True,
+                                # v1.4.6: propósito por el nombre (ninguno de los dos es un nombre conocido).
+                                "purposes": {"sin_clasificar": 2}}
     # La creó un script y nunca viajó: la evidencia es la primera request de la visita.
     site = found["site.example"]
     assert site["details"]["cookies"] == 1 and site["details"]["max_days"] == 2 and site["evidence_refs"] == [0]

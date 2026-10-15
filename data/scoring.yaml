@@ -49,7 +49,7 @@ site_exposure:
   url_leak_recipients:      {cap: 12, k: 4}    # terceros que recibieron la URL de la página (parámetro o Referer)
   persistent_id_recipients: {cap: 13, k: 4}    # terceros que recibieron un valor igual a cookie/storage
   third_party_domains:      {cap: 5,  k: 15}   # amplitud: dominios de terceros contactados
-  stored_items:             {cap: 5,  k: 10}   # cookies + ítems de storage que deja el sitio
+  stored_items:             {cap: 5,  k: 10}   # cookies no funcionales (v1.4.6) + ítems de storage que deja el sitio
   fp_scripts:               {cap: 10, k: 2}    # scripts con patrón compatible con fingerprinting
   fp_exfiltration:          {cap: 10, k: 2}    # APIs cuyos valores leídos aparecen en requests
   first_party_telemetry:    {cap: 4,  k: 6}    # v1.3.4: endpoints de eventos propios + scripts de analítica propia

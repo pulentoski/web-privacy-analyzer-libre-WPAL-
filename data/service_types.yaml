@@ -146,3 +146,8 @@ types:
     label: "identificación de dispositivo (huella del navegador)"
     entities: [FingerprintJS]
     domains: [fingerprint.com, fpjs.io, fpjs.pro]
+  # v1.4.6: widget que ajusta contraste, tamaño de texto y lectura en voz alta.
+  accessibility_widget:
+    label: "widget de accesibilidad"
+    entities: [UserWay]
+    domains: [userway.org]

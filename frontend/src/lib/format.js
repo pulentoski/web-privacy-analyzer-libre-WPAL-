@@ -231,7 +231,7 @@ export const COMPONENT_LABELS = {
   url_leak_recipients: "Terceros que recibieron la URL de la página",
   persistent_id_recipients: "Terceros que recibieron un identificador guardado",
   third_party_domains: "Dominios de terceros contactados",
-  stored_items: "Cookies e ítems de storage",
+  stored_items: "Cookies (sin las funcionales) e ítems de storage",
   fp_scripts: "Scripts con patrón de fingerprinting",
   fp_exfiltration: "APIs distintas cuyos valores leídos aparecen en requests",
   first_party_telemetry: "Telemetría propia (endpoints de eventos y scripts de analítica propia)",

@@ -13,6 +13,28 @@ version: 1
 # («Google», no «Google LLC»), para que sus dominios se agrupen juntos.
 organizations:
   Google: [googleapis.com]
+  # v1.4.6: widget de accesibilidad (cdn.userway.org, api.userway.org): una sola organización.
+  UserWay: [userway.org]
+
+# CDN públicos de librerías (v1.4.6, docs/adr/033). La empresa dueña del CDN (p. ej. Prospect One por
+# jsDelivr) no es quien escribió el script: el recurso se atribuye a la librería, leída de la RUTA de la URL
+# (`prefixes`: lo que sigue es el nombre del paquete, con @scope si lo tiene, sin la versión). `segments: 2`
+# toma dos tramos (usuario/repositorio en /gh/). Si la ruta no permite leer el paquete: «librería en CDN
+# público (<cdn>)». Si la ruta coincide con benign_libraries.yaml, la librería se marca como conocida.
+public_cdns:
+  - name: jsDelivr
+    hosts: [cdn.jsdelivr.net, fastly.jsdelivr.net, gcore.jsdelivr.net, testingcf.jsdelivr.net, quantil.jsdelivr.net]
+    prefixes:
+      - {prefix: /npm/}
+      - {prefix: /gh/, segments: 2}
+  - name: cdnjs
+    hosts: [cdnjs.cloudflare.com]
+    prefixes:
+      - {prefix: /ajax/libs/}
+  - name: unpkg
+    hosts: [unpkg.com]
+    prefixes:
+      - {prefix: /}
 
 # Dominios cuya organización NO se conoce con certeza: se muestra «no disponible» aunque el mapa de
 # entidades traiga un nombre (p. ej. el de la persona que registró el dominio).

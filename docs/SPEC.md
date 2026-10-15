@@ -66,11 +66,11 @@ alcanza ~63 % de su tope.
 | Componente | n | cap | k |
 |---|---|---|---|
 | tracker_domains | dominios registrables de terceros con ≥ 1 request tracker | 30 | 8 |
-| id_sync | valores distintos enviados a dominios de varias organizaciones | 15 | 3 |
+| id_sync | valores distintos enviados a dominios de 2 o más organizaciones distintas del sitio | 15 | 3 |
 | url_leak_recipients | terceros que recibieron la URL de la página (parámetro o Referer completo) | 12 | 4 |
 | persistent_id_recipients | terceros que recibieron un valor igual a una cookie/storage | 13 | 4 |
 | third_party_domains | dominios de terceros contactados | 5 | 15 |
-| stored_items | cookies + ítems de storage que deja el sitio | 5 | 10 |
+| stored_items | cookies no funcionales (v1.4.6) + ítems de storage que deja el sitio | 5 | 10 |
 | fp_scripts | scripts con patrón compatible con fingerprinting | 10 | 2 |
 | fp_exfiltration | APIs cuyos valores leídos aparecen en requests | 10 | 2 |
 
@@ -468,6 +468,29 @@ hacia quién la envían.
   informativa): IDs `UA-` de Universal Analytics → «etiqueta de un servicio descontinuado».
 - Perfil base del navegador en español de Chile (ver §Navegador del worker).
 
+## Atribución, sincronización y cookies por propósito (v1.4.6, docs/adr/033)
+- Librerías en CDN público (`data/organizations.yaml §public_cdns`: jsDelivr, cdnjs, unpkg): el recurso se atribuye a
+  la librería leída de la ruta (`/npm/<paquete>`, `/gh/<usuario>/<repo>`, `/ajax/libs/<paquete>`, `unpkg.com/<paquete>`),
+  nunca a la empresa del CDN (p. ej. Prospect One por jsDelivr): «librería <paquete> en CDN público (<cdn>)»; si la ruta no
+  lo permite, «librería en CDN público (<cdn>)». Si la ruta coincide con `data/benign_libraries.yaml`, la librería se marca
+  como conocida (`third_party_services.items[].library.benign`). La clasificación por organización (`party`) no cambia;
+  en el conteo de organizaciones de «Servicios de terceros», las librerías de un CDN cuentan como una (la del CDN).
+- Catálogo: UserWay (`userway.org`, `cdn.userway.org`, `api.userway.org`) es una organización; tipo de servicio
+  «widget de accesibilidad».
+- Sincronización (grupo 5): solo si el mismo identificador llega a 2 o más organizaciones distintas DEL SITIO (el sitio
+  no cuenta como segunda organización). Con una sola organización, hallazgo `persistent_id_org` en el grupo 1:
+  «Identificador persistente enviado a <org>» (EVIDENCIA). El índice no cambia por la reclasificación salvo el
+  componente `id_sync`, que cuenta solo valores que llegaron a 2 o más organizaciones externas.
+- Alias de organización (`data/org_aliases.yaml`): dominios del mismo dueño (p. ej. laserena.cl y munilaserena.cl,
+  Municipalidad de La Serena) son la misma organización (`same_org`). Ganan sobre el catálogo y el mapa de entidades;
+  entran en `lists_version`.
+- Propósito de cookies por su nombre (`data/cookie_purposes.yaml`): funcional (sesión, PHPSESSID, cf_clearance, __cf_bm,
+  idioma, carrito), analítica (_ga, _gid, _ga_*, _clck, _clsk, _hj*) y publicidad (_fbp, _fbc, _gcl_au, _ttp, IDE,
+  test_cookie); el resto, «sin clasificar». Todas las cookies, también las del propio dominio. INFERENCIA: el nombre no
+  prueba el uso. Resumen: `site.summary.cookie_purposes` (conteo por propósito); Hallazgos: `cookie_purpose`
+  (analítica, publicidad; grupo 1) y `cookie_purpose_functional` (lista técnica); `persistent_cookie.details.purposes`.
+  Las cookies funcionales no suman al índice (`stored_items` = cookies no funcionales + storage). Analizador 1.13.0.
+
 ## Fases
 F0 spec · F1 infra+aislamiento · F2 captura · F3 análisis+scoring ·
 F4 instrumentación · F5 UI · F6 exposición · F7 escenarios ·
@@ -480,4 +503,5 @@ v1.4 captura interactiva e indicador de recursos (versión 1.4.0) ·
 v1.4.2 registro de interacción, agrupación y acentos (versión 1.4.2) ·
 v1.4.3 el indicador de recursos reserva su hueco y se puede minimizar (versión 1.4.3) ·
 v1.4.4 instalación simplificada y CI (versión 1.4.4) ·
-v1.4.5 servicios de terceros, es-CL y correcciones (versión 1.4.5)
+v1.4.5 servicios de terceros, es-CL y correcciones (versión 1.4.5) ·
+v1.4.6 atribución a librerías de CDN, sincronización entre organizaciones, alias y cookies por propósito (versión 1.4.6)
