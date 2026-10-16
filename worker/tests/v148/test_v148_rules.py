@@ -188,6 +188,7 @@ pc.dispatchEvent(event('candidate:3 1 udp 2122260223 4a2b3c4d-1111-2222-3333-444
 </script>"""
 
 
+@pytest.mark.needs_stack  # lanza el Chromium del worker; se omite en CI (WPA_UNIT_ONLY=1).
 def test_instrumentation_classifies_ice_candidates_without_storing_the_address():
     async def collect():
         async with async_playwright() as playwright:
