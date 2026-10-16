@@ -10,11 +10,18 @@ set -eu
 cd "$(dirname "$0")/.."
 
 suites="${*:-api worker frontend e2e}"
+# Variables que este script exporta solo para las pruebas. Al restaurar se quitan del entorno: si siguieran
+# exportadas, docker compose las preferiría a .env y el stack quedaría en configuración de test (v1.4.9).
+TEST_VARS="ALLOW_FIXTURES SCAN_RATE_LIMIT BLOCKING_MIN_REQUESTS"
 restore() {
     # Las pruebas no dejan nada en el historial (v1.4.2): fuera los scans de fixtures, .example y HAR sintéticos.
     ./scripts/purge-test-scans.sh >&2 || echo "No se pudieron borrar los scans de prueba: ejecutar ./scripts/purge-test-scans.sh" >&2
     echo "== Restaurando el stack con los valores de .env ==" >&2
+    for var in $TEST_VARS; do unset "$var"; done
     START_BUILD=0 ./scripts/start.sh --profile test >/dev/null
+    # Comprobación: lo que ve el worker después de restaurar (BLOCKING_MIN_REQUESTS vacío = el umbral de scoring.yaml).
+    docker compose exec -T worker sh -c 'echo "== Worker restaurado: ALLOW_FIXTURES=${ALLOW_FIXTURES:-} BLOCKING_MIN_REQUESTS=${BLOCKING_MIN_REQUESTS:-(sin definir)} =="' >&2 \
+        || echo "No se pudo leer la configuración del worker restaurado." >&2
 }
 trap restore EXIT
 
