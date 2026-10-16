@@ -287,6 +287,31 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
                 target[value] = domains
             elif target is synced:
                 excluded.append({"reason": why, "preview": _preview(value), "domains": len(domains)})
+    # v1.4.9: sincronización por redirección. Un salto 3xx que lleva el mismo identificador de una organización
+    # externa a otra distinta es EVIDENCIA de sincronización (la cadena se observó), no un indicio por el nombre.
+    by_seq = {request.get("seq"): request for request in requests}
+    values_by_request: dict[int, set[str]] = defaultdict(set)
+    for param in value_params:
+        if param.identifier_like and len(param.value) >= MIN_SHARED_VALUE_CHARS and param.value not in account_values:
+            values_by_request[param.request_id].add(param.value)
+    redirect_syncs = []
+    for request in requests:
+        previous = by_seq.get(request.get("redirected_from_seq")) if request.get("redirected_from_seq") is not None else None
+        source_domain, target_domain = (previous or {}).get("registrable_domain"), request.get("registrable_domain")
+        if previous is None or not source_domain or not target_domain:
+            continue
+        source_owner, target_owner = owner(source_domain), owner(target_domain)
+        if source_owner == target_owner or source_owner in site_owners or target_owner in site_owners:
+            continue  # salto dentro de la misma organización, o desde/hacia el sitio
+        for value in sorted(values_by_request[previous["request_id"]] & values_by_request[request["request_id"]]):
+            if config.shared_constants.classify(value, shared_names[value], environment) is not None:
+                continue
+            redirect_syncs.append({"value": value, "from": previous["request_id"], "to": request["request_id"],
+                                   "from_domain": source_domain, "to_domain": target_domain, "status": previous.get("response_status")})
+            # Cuenta como sincronización (un valor una sola vez, aunque ya la hubiera detectado la regla general).
+            entry = synced.setdefault(value, defaultdict(set))
+            entry[source_domain].add(previous["request_id"])
+            entry[target_domain].add(request["request_id"])
     sync_by_request: dict[int, str] = {}
     for value, domains in synced.items():
         for request_ids in domains.values():
@@ -295,8 +320,10 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
 
     # 2b. valor igual al de una cookie o un ítem de storage del snapshot
     stored: dict[str, str] = {}
+    stored_cookie: dict[str, str] = {}  # v1.4.9: valor → nombre de la cookie (para «un script copió el valor…»)
     for cookie in capture.get("cookies") or []:
         stored.setdefault(cookie.get("value") or "", f"la cookie «{cookie.get('name')}»")
+        stored_cookie.setdefault(cookie.get("value") or "", str(cookie.get("name") or "")[:120])
     for item in capture.get("storage") or []:
         kind = "localStorage" if item.get("storage_type") == "local" else "sessionStorage"
         stored.setdefault(item.get("value") or "", f"el ítem «{item.get('key')}» de {kind}")
@@ -310,6 +337,13 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
     # Un valor igual a una cookie/storage enviado a la MISMA organización no es persistencia hacia
     # un tercero (point 2): solo cuenta cuando el destino es de otra organización.
     persistent_by_request: dict[int, Param] = {}
+    # v1.4.9: requests que enviaron cookies (cabecera Cookie). Si el valor de una cookie viaja en la URL o el cuerpo
+    # de una request que NO envió cookies, lo puso ahí un script: se dice así.
+    cookie_sent = {param.request_id for param in params if param.source == "cookie"}
+
+    def copied_cookie(request_ids, value: str) -> str | None:
+        name = stored_cookie.get(value)
+        return name if name and not any(request_id in cookie_sent for request_id in request_ids) else None
     for param in value_params:
         if param.value in stored and param.request_id in external_ids:
             persistent_by_request.setdefault(param.request_id, param)
@@ -338,6 +372,20 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
         benign=config.benign_libraries, interaction=config.interaction,
     )
     fp_scripts = fingerprint["fp_scripts"]
+
+    # --- 2d. v1.4.9: Client Hints (solicitud, envío y delegación; data/client_hints.yaml) ---
+    def ch_organization(request: dict) -> str:
+        domain = index_domain(request.get("registrable_domain"))
+        entity = lists.entity(domain)
+        return (domain or request.get("host") or UNKNOWN_ENTITY) if entity == UNKNOWN_ENTITY else entity
+
+    navigations = [r for r in requests if r.get("is_navigation") and party_by_id.get(r["request_id"]) == "first_party"]
+    main_document = next((r for r in navigations if (r.get("url") or "").rstrip("/") == (page_url or "").rstrip("/")), None) \
+        or next((r for r in navigations if isinstance(r.get("response_status"), int) and r["response_status"] < 300), None)
+    client_hints = config.client_hints.analyze(requests, party_by_id, ch_organization, main_document, capture.get("page_meta"))
+    # Una sola vez por organización la solicitud (primera respuesta con Accept-CH); el envío, en cada request que lo llevó.
+    ch_request_by_id = {item["first_request_id"]: item for item in client_hints["requests"]}
+    ch_sent_by_id = {item["request_id"]: item for item in client_hints["sends"]}
 
     # --- 3. clasificación y score por request ---
     analyzed = []
@@ -397,8 +445,11 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
                    other_domains=others[:5], other_entities=sorted({lists.entity(other) for other in others} - {UNKNOWN_ENTITY})[:5])
         if request_id in persistent_by_request:
             param = persistent_by_request[request_id]
-            reason("persistent_id", f"El parámetro «{param.name}» lleva el mismo valor que {stored[param.value]} del navegador.",
-                   parameter=param.name, stored_in=stored[param.value])
+            copied = copied_cookie([request_id], param.value)
+            reason("persistent_id", f"El parámetro «{param.name}» lleva el mismo valor que {stored[param.value]} del navegador."
+                   + (f" La request no envió cookies: un script copió el valor de la cookie «{copied}» en la URL o el cuerpo de la request."
+                      if copied else ""),
+                   parameter=param.name, stored_in=stored[param.value], **({"copied_cookie": copied} if copied else {}))
         if request_id in leak_by_request:
             reason("url_leak", f"El parámetro «{leak_by_request[request_id].name}» contiene la URL de la página.",
                    parameter=leak_by_request[request_id].name, **({"recipient": recipient} if recipient else {}))
@@ -409,6 +460,13 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
             hit = fingerprint["exfiltration_by_request"][request_id][0]
             reason("fp_exfiltration", f"El parámetro «{hit['parameter']}» contiene un valor leído con {hit['api']} ({hit['form']}).",
                    parameter=hit["parameter"], api=hit["api"], form=hit["form"])
+        if request_id in ch_request_by_id:
+            asked = ch_request_by_id[request_id]["hints"]
+            reason("client_hints_request", f"La respuesta pidió por Accept-CH datos de alta entropía del navegador ({', '.join(asked)}). "
+                   + config.client_hints.texts.get("request", ""), hints=asked)
+        if request_id in ch_sent_by_id:
+            sent = ch_sent_by_id[request_id]["hints"]
+            reason("client_hints_sent", f"La request llevó las cabeceras {', '.join(sent)} (Client Hints de alta entropía).", hints=sent)
         initiator_script = request.get("initiator_script") or (request.get("initiator") or {}).get("script_url")
         if request.get("url") in fp_scripts:
             reason("fp_script", "Este recurso es un script con un patrón de uso compatible con fingerprinting.")
@@ -508,6 +566,19 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
         entity = lists.entity(domain)
         return domain if entity == UNKNOWN_ENTITY else entity
 
+    for item in redirect_syncs:
+        source, target = by_id[item["from"]], by_id[item["to"]]
+        finding(
+            "redirect_sync",
+            "EVIDENCIA",
+            f"La respuesta {item['status'] or 'de redirección'} de {item['from_domain']} (request #{source['seq'] + 1}) redirigió a "
+            f"{item['to_domain']} (request #{target['seq'] + 1}) con el mismo identificador ({_preview(item['value'])}) en la dirección: "
+            f"sincronización de identificadores entre {organization_name(item['from_domain'])} y {organization_name(item['to_domain'])}.",
+            [item["from"], item["to"]],
+            {"domains": [item["from_domain"], item["to_domain"]], "from_domain": item["from_domain"], "to_domain": item["to_domain"],
+             "status": item["status"], "value_length": len(item["value"])},
+        )
+
     def external_domain(domains) -> str:
         return next(domain for domain in sorted(domains) if owner(domain) not in site_owners)
     persistent_groups: dict[tuple[str, str], list[int]] = defaultdict(list)
@@ -518,9 +589,11 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
             finding(
                 "persistent_id",
                 "EVIDENCIA",
-                f"Un valor enviado a {domain} ({_preview(value)}) coincide con el valor de {stored[value]} del navegador.",
+                f"Un valor enviado a {domain} ({_preview(value)}) coincide con el valor de {stored[value]} del navegador."
+                + (f" Las requests no enviaron cookies: un script copió el valor de la cookie «{copied_cookie(refs, value)}» en la URL o "
+                   "el cuerpo de la request." if copied_cookie(refs, value) else ""),
                 refs,
-                {"domain": domain, "stored_in": stored[value]},
+                {"domain": domain, "stored_in": stored[value], **({"copied_cookie": copied_cookie(refs, value)} if copied_cookie(refs, value) else {})},
             )
             continue
         # v1.4.6: el valor no llegó a una segunda organización: no es sincronización (grupo 1, no grupo 5).
@@ -528,9 +601,12 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
             "persistent_id_org",
             "EVIDENCIA",
             f"Identificador persistente enviado a {organization_name(domain)}: un valor enviado a {domain} ({_preview(value)}) "
-            f"coincide con el valor de {stored[value]} del navegador y no llegó a otra organización.",
+            f"coincide con el valor de {stored[value]} del navegador y no llegó a otra organización."
+            + (f" Las requests no enviaron cookies: un script copió el valor de la cookie «{copied_cookie(refs, value)}» en la URL o "
+               "el cuerpo de la request." if copied_cookie(refs, value) else ""),
             refs,
-            {"domain": domain, "organization": organization_name(domain), "stored_in": stored[value]},
+            {"domain": domain, "organization": organization_name(domain), "stored_in": stored[value],
+             **({"copied_cookie": copied_cookie(refs, value)} if copied_cookie(refs, value) else {})},
         )
     persistent_pairs = set(persistent_groups)
     for value, domains in single_org.items():
@@ -581,6 +657,28 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
             f"{len(hits)} request(s) a {domain} coinciden con reglas de la lista {list_id} (p. ej. «{hits[0][1]}»).",
             [request_id for request_id, _ in hits],
             {"list": list_id, "domain": domain},
+        )
+    # v1.4.9: Client Hints. La solicitud nunca se presenta como recepción; el envío exige la cabecera en la request.
+    for item in client_hints["requests"]:
+        finding(
+            "client_hints_requested",
+            "EVIDENCIA",
+            f"{item['organization']} pidió por Accept-CH {', '.join(item['hints'])}. {client_hints['request_text']}",
+            item["request_ids"],
+            {"organization": item["organization"], "hints": item["hints"], "hosts": item["hosts"], "sent": item["sent"]},
+        )
+    sends_by_org: dict[str, list[dict]] = defaultdict(list)
+    for item in client_hints["sends"]:
+        sends_by_org[item["organization"]].append(item)
+    for organization, items in sorted(sends_by_org.items()):
+        hints = sorted({hint for item in items for hint in item["hints"]})
+        finding(
+            "client_hints_sent",
+            "EVIDENCIA",
+            f"El navegador envió a {organization} las cabeceras {', '.join(hints)} en {len(items)} request(s).",
+            [item["request_id"] for item in items],
+            {"organization": organization, "hints": hints, "hosts": sorted({item["host"] or "" for item in items})[:10],
+             "after_request": any(item["after_request"] for item in items)},
         )
     # Telemetría propia (v1.3.4): eventos enviados al propio sitio o a su misma organización.
     telemetry = config.first_party_telemetry.detect(requests, party_by_id)
@@ -813,15 +911,36 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
         # Telemetría propia (v1.3.4): endpoints de eventos distintos + scripts de analítica propia.
         "first_party_telemetry": telemetry["endpoints"] + telemetry["scripts"],
     }
+    # v1.4.9: cuántos de esos ítems se sostienen solo con EVIDENCIA. Un dominio rastreador cuenta como evidencia si
+    # alguna de sus requests llega a la banda de rastreador con las razones de nivel EVIDENCIA, sin las inferencias.
+    tracker_floor = next((band["max"] + 1 for band, following in zip(config.bands, config.bands[1:])
+                          if following["name"] == config.scoring["tracker_min_band"]), 0)
+
+    def evidence_score(item: dict) -> int:
+        return max(0, min(100, sum(reason["weight"] for reason in item["reasons"] if reason["level"] == "EVIDENCIA")))
+
+    evidence_counts = {
+        "tracker_domains": len({index_domain(t["registrable_domain"]) for t in trackers if t["party"] == "third_party"
+                                and t["registrable_domain"] and evidence_score(t) >= tracker_floor}),
+        "fp_scripts": 0,  # patrón compatible con fingerprinting: siempre inferencia
+        "first_party_telemetry": telemetry["scripts"],  # scripts conocidos = evidencia; endpoints por reglas = inferencia
+    }
     # Asintótica: cada componente tiende a su tope sin alcanzarlo, y la suma nunca llega a 100.
     breakdown = []
     for component, spec in config.scoring["site_exposure"].items():
         count = counts.get(component, 0)
+        points = round(spec["cap"] * (1 - math.exp(-count / spec["k"])), 2)
+        evidence = min(count, evidence_counts.get(component, count))
+        evidence_points = round(spec["cap"] * (1 - math.exp(-evidence / spec["k"])), 2)
         breakdown.append(
-            {"component": component, "count": count, "cap": spec["cap"], "k": spec["k"],
-             "points": round(spec["cap"] * (1 - math.exp(-count / spec["k"])), 2)}
+            {"component": component, "count": count, "cap": spec["cap"], "k": spec["k"], "points": points,
+             # Parte de los puntos que se sostiene solo con evidencia; el resto depende de inferencias.
+             "evidence_count": evidence, "evidence_points": evidence_points,
+             "inference_points": round(max(0.0, points - evidence_points), 2)}
         )
     site_score = max(0, min(99, math.floor(sum(item["points"] for item in breakdown))))
+    score_by_level = {"EVIDENCIA": round(sum(item["evidence_points"] for item in breakdown), 1),
+                      "INFERENCIA": round(sum(item["inference_points"] for item in breakdown), 1)}
 
     # "Rastreadores" = organizaciones de terceros (otra organización). El giro (point 5) es contexto.
     entities: dict[str, dict] = {}
@@ -955,6 +1074,10 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
                 "search_leaks": [{key: leak[key] for key in ("host", "domain", "term", "parameter", "party")} for leak in search_leaks[:20]],
                 # v1.4.8: valores descartados por coincidir con el título o la meta description/keywords de la página.
                 "search_leaks_page_text": search_page_text,
+                # v1.4.9: Client Hints (solicitud ≠ envío; delegación como contexto) y puntos del índice por nivel.
+                "client_hints": client_hints,
+                "score_by_level": score_by_level,
+                "redirect_syncs": len(redirect_syncs),
                 # Requests que el navegador del usuario canceló por una extensión (solo capturas HAR).
                 "blocked_by_client": sum(1 for request in requests if "ERR_BLOCKED_BY_CLIENT" in (request.get("failure_text") or "")),
                 "source": capture.get("source") or "scan",

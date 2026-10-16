@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  bandClass, BANDS, buildQuery, errorMessage, formatBytes, isFinished, levelInfo, LEVELS, orUnavailable, PROGRESS_STAGES, safeHttpUrl,
+  bandClass, bands, buildQuery, setBands, errorMessage, formatBytes, isFinished, levelInfo, LEVELS, orUnavailable, PROGRESS_STAGES, safeHttpUrl,
   sanitizeRequestFilters, scanStage, stageIndex, stageLabel, truncate, validateScanUrl,
 } from "./format.js";
 import { buildHash, parseHash } from "./router.js";
@@ -67,7 +67,9 @@ describe("niveles de evidencia y bandas", () => {
     expect(levelInfo("<img src=x onerror=alert(1)>").label).toBe("<img src=x onerror=alert(1)>");
   });
   it("cada banda tiene su clase y lo desconocido una neutra", () => {
-    expect(new Set(BANDS.map(bandClass)).size).toBe(5);
+    // v1.4.9: las bandas las entrega la api (data/scoring.yaml); el color va por posición.
+    setBands([{ name: "Bajo" }, { name: "Bajo-moderado" }, { name: "Moderado" }, { name: "Alto" }, { name: "Muy alto" }]);
+    expect(new Set(bands().map(bandClass)).size).toBe(5);
     expect(bandClass("Otra")).toContain("bg-white");
   });
 });
@@ -140,6 +142,7 @@ describe("filtros de la tabla", () => {
     expect(buildQuery({ domain: "a&b=c" })).toBe("?domain=a%26b%3Dc");
   });
   it("sanitizeRequestFilters descarta claves y valores no válidos", () => {
+    setBands([{ name: "Bajo" }, { name: "Alto" }]);
     expect(sanitizeRequestFilters({
       band: "Alto", category: "analytics", mechanism: "pixel", third_party: "true", blocked: "false", domain: "google",
       sort: "-score", page: "3", page_size: "100",

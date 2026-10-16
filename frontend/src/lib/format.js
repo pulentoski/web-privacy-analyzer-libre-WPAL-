@@ -28,19 +28,35 @@ export function levelInfo(level) {
   return LEVELS[level] || { label: String(level ?? "sin nivel"), description: "Nivel no reconocido.", className: "bg-white text-slate-900 border-slate-500" };
 }
 
-// Mismos nombres y orden que data/scoring.yaml (lo comprueba v148.test.jsx contra el archivo).
-export const BANDS = ["Bajo", "Bajo-moderado", "Moderado", "Alto", "Muy alto"];
+// v1.4.9: los nombres de banda NO viven aquí. Única fuente: data/scoring.yaml, servida por GET /api/bands y
+// cargada al arrancar (main.jsx). El color depende de la posición de la banda (de menor a mayor), no del nombre.
+const BAND_COLORS = [
+  "bg-slate-100 text-slate-800 border-slate-400",
+  "bg-yellow-100 text-yellow-900 border-yellow-600",
+  "bg-orange-100 text-orange-900 border-orange-600",
+  "bg-red-100 text-red-900 border-red-600",
+  "bg-red-700 text-white border-red-900",
+];
+let bandNames = [];
 
-const BAND_CLASSES = {
-  Bajo: "bg-slate-100 text-slate-800 border-slate-400",
-  "Bajo-moderado": "bg-yellow-100 text-yellow-900 border-yellow-600",
-  Moderado: "bg-orange-100 text-orange-900 border-orange-600",
-  Alto: "bg-red-100 text-red-900 border-red-600",
-  "Muy alto": "bg-red-700 text-white border-red-900",
-};
+/** Nombres de banda de menor a mayor, tal como los entregó la api (vacío hasta cargarlos). */
+export function bands() {
+  return bandNames;
+}
+
+/** Fija las bandas (respuesta de /api/bands). Solo nombres de texto corto: el resto se descarta. */
+export function setBands(list) {
+  bandNames = (Array.isArray(list) ? list : [])
+    .map((band) => (band && typeof band.name === "string" ? band.name : typeof band === "string" ? band : null))
+    .filter((name) => name && name.length <= 40);
+}
 
 export function bandClass(band) {
-  return BAND_CLASSES[band] || "bg-white text-slate-700 border-slate-300";
+  const index = bandNames.indexOf(band);
+  if (index < 0) return "bg-white text-slate-700 border-slate-300";
+  // Con más o menos bandas que colores, se reparten de menor a mayor.
+  const position = bandNames.length > 1 ? Math.round((index * (BAND_COLORS.length - 1)) / (bandNames.length - 1)) : 0;
+  return BAND_COLORS[position];
 }
 
 export const STATUS_LABELS = { observado: "Observado", inferido: "Inferido", potencial: "Potencial" };
@@ -211,7 +227,7 @@ export const REQUEST_FILTER_KEYS = ["band", "category", "mechanism", "third_part
 export function sanitizeRequestFilters(query) {
   const out = {};
   const source = query || {};
-  if (BANDS.includes(source.band)) out.band = source.band;
+  if (bands().includes(source.band)) out.band = source.band;
   ["category", "mechanism", "domain"].forEach((key) => {
     if (typeof source[key] === "string" && source[key] && source[key].length <= 255) out[key] = source[key];
   });

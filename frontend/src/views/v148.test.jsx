@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { BANDS, bandClass } from "../lib/format.js";
+import { bandClass, bands, setBands } from "../lib/format.js";
 import { BlockingBanner, NO_MEASUREMENT, NO_NET_ERROR, NoMeasurement, PartialScanNotice } from "../components/ui.jsx";
 
 afterEach(cleanup);
@@ -54,19 +54,18 @@ describe("nota Posible (pocas requests o rastreo anómalo sin señal dura)", () 
   });
 });
 
-describe("bandas (única fuente: data/scoring.yaml)", () => {
-  it("el frontend usa los mismos nombres y orden, sin «Posible»", () => {
-    expect(BANDS).toEqual(["Bajo", "Bajo-moderado", "Moderado", "Alto", "Muy alto"]);
-    expect(BANDS).not.toContain("Posible");
-    BANDS.forEach((band) => expect(bandClass(band)).not.toContain("bg-white"));
-    const file = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "data", "scoring.yaml");
-    if (!fs.existsSync(file)) {
-      // Igual que wording.test.js: el contenedor del frontend sin data/ montado no puede comparar.
-      expect(process.env.WPA_DATA_REQUIRED).not.toBe("1");
-      return;
-    }
-    const text = fs.readFileSync(file, "utf8");
-    const block = text.slice(text.indexOf("bands:"), text.indexOf("tracker_min_band:"));
-    expect([...block.matchAll(/name:\s*([^,}]+?)\s*,/g)].map((match) => match[1])).toEqual(BANDS);
+describe("bandas (única fuente: data/scoring.yaml, vía /api/bands)", () => {
+  it("el frontend no tiene una lista propia de bandas", () => {
+    const here = path.dirname(fileURLToPath(import.meta.url));
+    const format = fs.readFileSync(path.resolve(here, "..", "lib", "format.js"), "utf8");
+    ["Bajo-moderado", "Muy alto", "Moderado"].forEach((name) => expect(format).not.toContain(`"${name}"`));
+  });
+  it("usa los nombres que entrega la api, sin «Posible», y lo desconocido queda neutro", () => {
+    setBands([{ name: "Bajo", max: 20 }, { name: "Bajo-moderado", max: 40 }, { name: "Moderado", max: 60 }, { name: "Alto", max: 80 }, { name: "Muy alto", max: 100 }]);
+    expect(bands()).toEqual(["Bajo", "Bajo-moderado", "Moderado", "Alto", "Muy alto"]);
+    bands().forEach((band) => expect(bandClass(band)).not.toContain("bg-white"));
+    expect(bandClass("Posible")).toContain("bg-white");
+    setBands([{ name: "<b>x</b>".repeat(20) }, null, 7]);
+    expect(bands()).toEqual([]);
   });
 });

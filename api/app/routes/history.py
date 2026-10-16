@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import history
+from app.bands import BAND_LIMITS, TRACKER_BANDS
 from app.config import get_settings
 from app.db import get_session
 from app.errors import AppError
@@ -38,6 +39,12 @@ def _require_enabled() -> None:
         raise AppError(
             "HISTORY_DELETE_DISABLED", "En modo demo no se puede borrar el historial.", stage="history", status_code=403,
         )
+
+
+@router.get("/api/bands")
+async def get_bands() -> dict:
+    """Bandas del tracking_score y del índice, de menor a mayor (v1.4.9). Única fuente: data/scoring.yaml."""
+    return {"bands": [{"name": band["name"], "max": band["max"]} for band in BAND_LIMITS], "tracker_min_band": TRACKER_BANDS[0]}
 
 
 @router.get("/api/glossary")

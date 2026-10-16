@@ -58,6 +58,7 @@ export const api = {
   deleteAllScans: (confirm) =>
     request("/api/scans", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirm }) }),
   glossary: () => request("/api/glossary"),
+  bands: () => request("/api/bands"),
   report: (jobId) => request(`/api/scans/${id(jobId)}/report`),
   domains: (jobId) => request(`/api/scans/${id(jobId)}/domains`),
   requests: (jobId, query) => request(`/api/scans/${id(jobId)}/requests${query || ""}`),

@@ -20,6 +20,7 @@ LEVELS = ("EVIDENCIA", "INFERENCIA", "POSIBLE", "DESCONOCIDO")
 
 from app.analyzer.interaction import BenignLibraries, InteractionSignals, ServerSideTracking  # noqa: E402
 from app.analyzer.attribution import CookiePurposes, PublicCdns  # noqa: E402
+from app.analyzer.client_hints import ClientHintsRules  # noqa: E402
 
 @dataclass(frozen=True)
 class AnalyzerConfig:
@@ -49,6 +50,8 @@ class AnalyzerConfig:
     # v1.4.6 (docs/adr/033): librerías de CDN públicos (organizations.yaml §public_cdns) y propósito de cookies.
     public_cdns: PublicCdns = field(default_factory=PublicCdns)
     cookie_purposes: CookiePurposes = field(default_factory=CookiePurposes)
+    # v1.4.9: Client Hints (data/client_hints.yaml): solicitud, envío y delegación.
+    client_hints: ClientHintsRules = field(default_factory=ClientHintsRules)
 
     @property
     def bands(self) -> list[dict]:
@@ -121,4 +124,5 @@ def load_config(data_dir: str | pathlib.Path, *, allow_fixtures: bool = False, l
         server_side=ServerSideTracking(read("server_side_tracking.yaml")),
         public_cdns=PublicCdns(read("organizations.yaml").get("public_cdns"), benign),
         cookie_purposes=CookiePurposes(read("cookie_purposes.yaml")),
+        client_hints=ClientHintsRules(read("client_hints.yaml")),
     )

@@ -132,6 +132,8 @@ signals:
   persistent_id:
     priority: 90
     EVIDENCIA: "Identificador persistente: la request transmitió a {empresa} el valor almacenado en {guardado}."
+    # v1.4.9: la request no envió cookies; el valor viajó en la URL o el cuerpo porque un script lo copió.
+    copied: "Identificador persistente: un script copió el valor de la cookie «{cookie}» en la URL o el cuerpo de la request a {empresa}."
   url_leak:
     priority: 85
     EVIDENCIA: "Fuga de URL: la URL de la página se envió a {empresa} en un parámetro de la request."
@@ -164,6 +166,13 @@ signals:
     EVIDENCIA: "Coincidencia con lista de filtros: la request a {empresa} coincide con una regla de {lista}."
   list_easylist: *list_signal
   list_test-fixtures: *list_signal
+  # v1.4.9 (data/client_hints.yaml): la solicitud no es recepción; el envío exige la cabecera en la request.
+  client_hints_sent:
+    priority: 42
+    EVIDENCIA: "Envío de Client Hints: la request a {empresa} llevó datos de alta entropía del navegador ({hints})."
+  client_hints_request:
+    priority: 30
+    EVIDENCIA: "Solicitud de Client Hints: {empresa} pidió datos del navegador potencialmente útiles para identificarlo; esta solicitud no demuestra que los haya recibido."
   encoded_payload_third_party:
     priority: 40
     INFERENCIA: "Carga codificada (inferencia): se envió a {empresa} un valor codificado; podría contener datos no legibles directamente."
@@ -224,6 +233,13 @@ findings:
   property_sweep:
     step: equipo
     INFERENCIA: "Barrido de propiedades (inferencia): un script de {empresa} leyó {n|propiedad|propiedades} del navegador y de la pantalla; el patrón es compatible con la construcción de una huella del dispositivo."
+  # v1.4.9 (grupo 2): Client Hints. La solicitud se informa como solicitud, nunca como recepción.
+  client_hints_requested:
+    step: equipo
+    EVIDENCIA: "Solicitud de Client Hints: {empresa} pidió {hints}. El servidor pidió datos del navegador potencialmente útiles para identificarlo; esta solicitud no demuestra que los haya recibido."
+  client_hints_sent:
+    step: equipo
+    EVIDENCIA: "Envío de Client Hints: el navegador envió a {empresa} {hints} en {n|request|requests}."
   # v1.4.8 (grupo 2): hechos observados por la instrumentación de RTCPeerConnection.
   webrtc_connection:
     step: equipo
@@ -270,6 +286,11 @@ findings:
   persistent_id:
     step: identificador
     EVIDENCIA: "Identificador persistente: se transmitió a {empresa} el valor almacenado en {guardado}."
+    copied: "Identificador persistente: un script copió el valor de la cookie «{cookie}» en la URL o el cuerpo de la request a {empresa}."
+  # v1.4.9: el mismo identificador viajó en un salto 3xx entre dos organizaciones (cadena de redirección observada).
+  redirect_sync:
+    step: identificador
+    EVIDENCIA: "Sincronización por redirección: una respuesta 3xx llevó el mismo identificador de {empresas} en la dirección del salto; el valor común permite correlacionar sus registros del mismo navegador."
   session_token_third_party:
     step: identificador
     INFERENCIA: "Token de sesión a tercero (inferencia): el parámetro «{parametro}» enviado a {empresa} podría contener una credencial de sesión; la inferencia se basa en el formato del valor, no en su contenido."
@@ -286,6 +307,8 @@ findings:
   # --- Solo en la lista técnica ---
   list_match:
     EVIDENCIA: "Coincidencia con lista de filtros: {empresa} figura en {lista} ({n|request|requests} en esta visita)."
+    # v1.4.9: en el detalle de una request, el conteo es el del scan e incluye la request que se está viendo.
+    in_request: "Coincidencia con lista de filtros: {empresa} figura en {lista} ({n} en esta visita, incluida esta)."
 
   # --- v1.4.2 (docs/adr/030) ---
   canvas_read_benign:
@@ -312,6 +335,7 @@ findings:
   persistent_id_org:
     step: etiquetado
     EVIDENCIA: "Identificador persistente enviado a {empresa}: el valor llegó a una sola organización, por lo que no es sincronización entre organizaciones."
+    copied: "Identificador persistente enviado a {empresa}: un script copió el valor de la cookie «{cookie}» en la URL o el cuerpo de la request; llegó a una sola organización, por lo que no es sincronización entre organizaciones."
   # Propósito de la cookie (v1.4.7: dos bases). {base} «por el nombre» | «por la organización»;
   # {criterio} «nombre de cookie de analítica» | «origen en una organización de publicidad»; {nombres} los nombres.
   cookie_purpose:

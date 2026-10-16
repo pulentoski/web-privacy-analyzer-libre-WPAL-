@@ -146,6 +146,28 @@ export function InteractiveTimeline({ info }) {
   );
 }
 
+// v1.4.9: Client Hints del sitio: solicitudes por organización, envíos observados y delegación (contexto).
+function SiteClientHints({ info }) {
+  if (!info || ((info.requests || []).length === 0 && (info.sends || []).length === 0)) return null;
+  const delegation = info.delegation || {};
+  return (
+    <Panel title={<Term id="client_hints">Client Hints</Term>} subtitle="Solicitud, envío y delegación: tres hechos distintos." testId="site-client-hints">
+      <ul className="space-y-1 text-sm">
+        {(info.requests || []).map((item) => (
+          <li key={item.organization} data-testid="site-ch-request">
+            <EvidenceBadge level="EVIDENCIA" /> <strong>Solicitud</strong>: <span className="captured">{item.organization}</span> pidió <span className="captured">{item.hints.join(", ")}</span>.{" "}
+            Envío: {item.sent === "confirmado" ? `confirmado (${item.sent_hints.join(", ")})` : "no observado en esta captura"}.
+          </li>
+        ))}
+        {(info.sends || []).length > 0 && <li data-testid="site-ch-sends"><EvidenceBadge level="EVIDENCIA" /> <strong>Envíos</strong>: {(info.sends || []).length} request(s) llevaron hints de alta entropía.</li>}
+        <li data-testid="site-ch-delegation"><strong>Delegación por el sitio</strong>: {delegation.label || "No determinado"}{delegation.note ? `. ${delegation.note}` : ""}</li>
+      </ul>
+      <p className="muted text-xs mt-1">{info.request_text}</p>
+      {(info.notes || []).length > 0 && <ul className="muted text-xs list-disc ml-5">{info.notes.map((note, index) => <li key={index}>{note}</li>)}</ul>}
+    </Panel>
+  );
+}
+
 export default function Dashboard({ jobId }) {
   const report = useApi(() => api.report(jobId), `report-${jobId}`);
   const domains = useApi(() => api.domains(jobId), `domains-${jobId}`);
@@ -193,6 +215,12 @@ export default function Dashboard({ jobId }) {
             <span className="text-5xl font-bold" data-testid="exposure-score">{site.exposure_score}</span>
             <BandBadge band={site.band} />
           </div>
+          {site.summary.score_by_level && (
+            <p className="text-sm" data-testid="exposure-levels">
+              Evidencia {site.summary.score_by_level.EVIDENCIA} + Inferencia {site.summary.score_by_level.INFERENCIA}{" "}
+              <Info label="Evidencia e inferencia en el índice">Puntos que se sostienen solo con hechos observados (Evidencia) y los que dependen de inferencias, como un patrón compatible con fingerprinting o el puntaje de una request que necesita razones de nivel Inferencia para llegar a la banda de rastreador.</Info>
+            </p>
+          )}
           {data.scan.source === "har_import" && (
             <p className="text-sm font-medium" data-testid="exposure-partial">
               {PARTIAL_INDEX.charAt(0).toUpperCase() + PARTIAL_INDEX.slice(1)}: no es comparable con el índice de un scan.
@@ -204,7 +232,8 @@ export default function Dashboard({ jobId }) {
                 <tr key={component.component} className="border-t border-slate-200">
                   <td className="py-0.5 pr-2">{COMPONENT_LABELS[component.component] || component.component}</td>
                   <td className="pr-2 text-right">{component.count}</td>
-                  <td className="text-right whitespace-nowrap">+{component.points} <span className="muted">de {component.cap}</span></td>
+                  <td className="text-right whitespace-nowrap">+{component.points} <span className="muted">de {component.cap}</span>
+                    {component.inference_points > 0 && <span className="muted text-xs" data-testid="component-inference"> (inferencia {component.inference_points})</span>}</td>
                 </tr>
               ))}
             </tbody>
@@ -230,6 +259,7 @@ export default function Dashboard({ jobId }) {
         )}
       </div>
       <ThirdPartyServices services={site.summary.third_party_services} compact />
+      <SiteClientHints info={site.summary.client_hints} />
       <CookiePurposes purposes={site.summary.cookie_purposes} />
       {sameOrg.length > 0 && (
         <Panel title="Recursos de la misma organización (no son terceros)" testId="same-org">

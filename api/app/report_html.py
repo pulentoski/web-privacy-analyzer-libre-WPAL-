@@ -453,9 +453,11 @@ def executive_summary(report: dict) -> dict:
         )
     else:
         found.append(
-            f"Índice de exposición estimado: {site.get('exposure_score')} de 99 (banda «{site.get('band')}»). "
-            "Es una estimación para comparar visitas, no una calificación oficial."
+            f"Índice de exposición estimado: {site.get('exposure_score')} de 99 (banda «{site.get('band')}»)"
+            + (f"; {score_levels_text(by_level)}" if (by_level := (site.get("summary") or {}).get("score_by_level")) else "")
+            + ". Es una estimación para comparar visitas, no una calificación oficial."
         )
+    found.extend(client_hints_sentences((site.get("summary") or {}).get("client_hints")))
 
     why = []
     if tracker_requests or third_domains:
@@ -543,6 +545,35 @@ BLOCKING_BANNER = ("Resultado posiblemente no representativo: el sitio pudo dete
 
 # v1.3.2: firma antibot en un componente con rastreo normal; aviso informativo.
 PARTIAL_BLOCK_BANNER = "Bloqueo parcial: un componente mostró verificación antibot."
+
+
+def score_levels_text(by_level: dict) -> str:
+    """v1.4.9: «Evidencia X + Inferencia Y» (puntos del índice que se sostienen solo con evidencia, y el resto)."""
+    return f"Evidencia {by_level.get('EVIDENCIA', 0):g} + Inferencia {by_level.get('INFERENCIA', 0):g}"
+
+
+def client_hints_sentences(client_hints: dict | None) -> list[str]:
+    """Client Hints (v1.4.9): la solicitud se dice como solicitud; el envío solo si se observó la cabecera."""
+    if not isinstance(client_hints, dict):
+        return []
+    out = []
+    for item in client_hints.get("requests") or []:
+        text = (f"Solicitud de Client Hints: {item.get('organization')} pidió {', '.join(item.get('hints') or [])}. "
+                f"{client_hints.get('request_text') or ''}").strip()
+        if item.get("sent") == "confirmado":
+            text += f" Envío confirmado: {', '.join(item.get('sent_hints') or [])} aparecen en requests posteriores a esa organización."
+        out.append(text)
+    for organization in sorted({item.get("organization") for item in client_hints.get("sends") or []} - {None}):
+        hints = sorted({hint for item in client_hints.get("sends") or [] if item.get("organization") == organization for hint in item.get("hints") or []})
+        out.append(f"Envío de Client Hints: el navegador envió a {organization} {', '.join(hints)}.")
+    delegation = client_hints.get("delegation") or {}
+    if out and delegation.get("label"):
+        out.append(f"Delegación de Client Hints por el sitio: {delegation['label']}"
+                   + (f" ({'; '.join(delegation.get('evidence') or [])})" if delegation.get("evidence") else "") + "."
+                   + (f" {delegation['note']}" if delegation.get("note") else ""))
+    if out:
+        out.extend(client_hints.get("notes") or [])
+    return out
 
 
 NO_MEASUREMENT_LABEL = "Sin medición"

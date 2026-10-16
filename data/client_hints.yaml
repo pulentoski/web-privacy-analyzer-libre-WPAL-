@@ -1,0 +1,33 @@
+# Client Hints (v1.4.9, docs/adr/036). Tres hechos distintos que no se mezclan:
+#
+#   solicitud  — un servidor de otra organización responde con Accept-CH (o Critical-CH) pidiendo hints de alta
+#                entropía. Es EVIDENCIA de que los pidió, NUNCA de que los recibió.
+#   envío      — una request a esa organización lleva la cabecera Sec-CH-UA-* correspondiente. EVIDENCIA de envío.
+#                No se infiere el envío solo por Accept-CH.
+#   delegación — el documento principal cede los hints a terceros con Permissions-Policy (ch-ua-*) o con
+#                <meta http-equiv="delegate-ch">. Es CONTEXTO: «sin delegación detectada» no prueba que el envío
+#                sea imposible, y una captura parcial sin la cabecera no basta para concluir que nunca se transmitió.
+#
+# El navegador de captura no reinicia la navegación por el frame ACCEPT_CH (ADR 035): la primera request a un origen
+# no lleva los hints pedidos por ALPS. Que falten ahí no se atribuye al sitio.
+version: 1
+
+# Hints de alta entropía (nombre de la cabecera; se compara sin mayúsculas). En Permissions-Policy y delegate-ch la
+# directiva es el mismo nombre sin el prefijo «sec-» (ch-ua-model).
+high_entropy:
+  - Sec-CH-UA-Full-Version-List
+  - Sec-CH-UA-Model
+  - Sec-CH-UA-Arch
+  - Sec-CH-UA-Bitness
+  - Sec-CH-UA-Platform-Version
+
+texts:
+  request: "El servidor pidió datos del navegador potencialmente útiles para identificarlo; esta solicitud no demuestra que los haya recibido."
+  no_send_observed: "No se observó el envío de esos datos en esta captura. Una captura parcial sin la cabecera no basta para concluir que nunca se transmitieron."
+  capture_browser: "Si falta un Sec-CH-UA-* en la primera request a un origen, no se atribuye al sitio: está condicionado por la configuración del navegador de captura (no reinicia la navegación por el frame ACCEPT_CH, ADR 035)."
+  no_delegation: "Sin delegación detectada no prueba que el envío sea imposible."
+
+delegation_labels:
+  detectada: "Delegación detectada"
+  sin_delegacion: "Sin delegación detectada"
+  no_determinado: "No determinado"

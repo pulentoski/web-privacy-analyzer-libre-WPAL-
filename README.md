@@ -10,7 +10,7 @@ con qué métodos y hacia quién la envían.
 </p>
 
 <p align="center">
-  <em>Versión 1.4.8 · beta · herramienta de investigación · se ejecuta solo en <code>127.0.0.1</code></em>
+  <em>Versión 1.4.9 · beta · herramienta de investigación · se ejecuta solo en <code>127.0.0.1</code></em>
 </p>
 
 <p align="center">

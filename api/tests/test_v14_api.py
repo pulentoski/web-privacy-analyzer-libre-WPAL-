@@ -195,7 +195,7 @@ def test_interactive_session_end_to_end(client):
         assert scan["status"] == "completed" and scan["analysis_status"] == "completed" and scan["source"] == "interactive"
         assert scan["result"]["capture"]["total_requests"] > 5 and scan["result"]["capture"]["end_reason"] == "user_stop"
         report = client.get(f"/api/scans/{job_id}/report").json()
-        assert report["schema_version"] == "1.8.0" and not list(report_validator().iter_errors(report))
+        assert report["schema_version"] == "1.9.0" and not list(report_validator().iter_errors(report))
         assert report["scan"]["source"] == "interactive" and report["scan"]["import"] is None
         assert report["scan"]["interactive"]["masked_fields"] == []  # nada que enmascarar en esta sesión
         timeline = report["scan"]["interactive"]["timeline"]

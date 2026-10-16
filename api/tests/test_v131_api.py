@@ -94,7 +94,7 @@ WAVE = {"available": True, "detected": False, "requests": 0, "organizations": 0,
 
 
 def _side(source, trackers, organizations, blocked=False):
-    return {"job_id": "x", "url": "https://tienda.example/", "source": source, "analyzer_version": "1.8.0", "finished_at": None, "requests": 100,
+    return {"job_id": "x", "url": "https://tienda.example/", "source": source, "analyzer_version": "1.9.0", "finished_at": None, "requests": 100,
             "import": None, "sync_wave": WAVE, "trackers": trackers, "possibly_blocked": blocked,
             "organizations": {name: {"requests": 1, "blocked": 0, "domains": [name.lower()]} for name in organizations}}
 

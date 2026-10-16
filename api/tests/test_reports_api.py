@@ -161,7 +161,7 @@ def test_export_is_masked_by_default_and_sha256_matches_the_json(client, secret_
     assert digest == status["sha256"] == exported.headers["x-report-sha256"]
     assert exported.headers["content-disposition"] == f'attachment; filename="reporte-{secret_scan}.json"'
     assert SECRET not in exported.text and PATH_ID not in exported.text
-    assert exported.json()["masked"] is True and exported.json()["schema_version"] == "1.8.0"
+    assert exported.json()["masked"] is True and exported.json()["schema_version"] == "1.9.0"
 
     page = client.get(f"/api/scans/{secret_scan}/export/html")
     assert page.status_code == 200 and page.headers["content-type"].startswith("text/html")

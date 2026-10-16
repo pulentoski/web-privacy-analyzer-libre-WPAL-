@@ -32,7 +32,7 @@ from app.routes.scans import _get_job, _summary
 
 router = APIRouter(prefix="/api/scans")
 
-REPORT_SCHEMA_VERSION = "1.8.0"
+REPORT_SCHEMA_VERSION = "1.9.0"
 INTERACTIVE_END_REASONS = ("user_stop", "idle_timeout", "max_duration", "max_requests", "window_closed", "browser_closed")
 
 
@@ -83,6 +83,19 @@ LIMITATIONS = [
     "Este reporte describe hechos técnicos observados; no evalúa el cumplimiento de ninguna ley.",
     "La exfiltración solo se detecta si el valor viaja tal cual o como sha256/sha1/md5; otros hashes (p. ej. murmur) no se reconocen.",
 ]
+
+# v1.4.9: se añade cuando la página creó conexiones WebRTC (hallazgo webrtc_connection).
+WEBRTC_LIMITATION = ("El navegador de captura no tiene salida UDP; los candidatos ICE obtenidos por STUN (IP pública) no son "
+                     "observables. Un visitante real podría exponerlos.")
+
+
+def limitations_for(fingerprinting: dict | None) -> list[str]:
+    """Límites de la medición de este scan: los fijos y los que dependen de lo observado."""
+    fingerprinting = fingerprinting or {}
+    heuristics = {item.get("heuristic") for item in fingerprinting.get("findings") or [] if isinstance(item, dict)}
+    for script in fingerprinting.get("scripts") or []:
+        heuristics |= {item.get("heuristic") for item in script.get("heuristics") or [] if isinstance(item, dict)}
+    return LIMITATIONS + ([WEBRTC_LIMITATION] if "webrtc_connection" in heuristics else [])
 
 
 EVIDENCE_LEVELS = {
@@ -682,7 +695,7 @@ async def build_report(session: AsyncSession, job_id: uuid.UUID) -> dict:
         "evidence_levels": EVIDENCE_LEVELS,
         "legal_notice": LEGAL_NOTICE,
         "masked": False,
-        "limitations": LIMITATIONS,
+        "limitations": limitations_for(fingerprinting),
     }
     errors = sorted(report_validator().iter_errors(report), key=lambda error: list(error.absolute_path))
     if errors:

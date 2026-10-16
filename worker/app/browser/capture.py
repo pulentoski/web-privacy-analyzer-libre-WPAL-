@@ -47,9 +47,12 @@ def clean_text(value: object, limit: int) -> str:
 NET_ERROR_RE = re.compile(r"net::ERR_[A-Z0-9_]+")
 MAX_META_CHARS = 1000
 # Meta description y keywords de la página (v1.4.8): un «término de búsqueda» igual a ellos no es una búsqueda.
+# v1.4.9: también el meta delegate-ch (delegación de Client Hints). La clave presente = el meta se leyó.
 PAGE_META_JS = """() => {
   const read = (name) => { const el = document.querySelector(`meta[name="${name}" i]`); return el ? el.getAttribute("content") : null; };
-  return {description: read("description"), keywords: read("keywords")};
+  // v1.4.9: delegación de Client Hints a terceros (<meta http-equiv="delegate-ch">).
+  const delegate = document.querySelector('meta[http-equiv="delegate-ch" i]');
+  return {description: read("description"), keywords: read("keywords"), delegate_ch: delegate ? delegate.getAttribute("content") : null};
 }"""
 
 
@@ -59,9 +62,11 @@ async def page_meta(page) -> dict:
         raw = await asyncio.wait_for(page.evaluate(PAGE_META_JS), 3)
     except (PlaywrightError, asyncio.TimeoutError):
         raw = None
-    raw = raw if isinstance(raw, dict) else {}
+    if not isinstance(raw, dict):
+        # Sin lectura: sin la clave delegate_ch, la delegación queda «no determinada» (no «sin delegación»).
+        return {"description": None, "keywords": None}
     return {key: (clean_text(raw.get(key), MAX_META_CHARS) or None) if isinstance(raw.get(key), str) else None
-            for key in ("description", "keywords")}
+            for key in ("description", "keywords", "delegate_ch")}
 
 
 def net_error_code(*texts: object) -> str | None:

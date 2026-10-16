@@ -205,7 +205,7 @@ def test_full_flow(session):
         page.get_by_test_id("export").click()
     report = json.loads(pathlib.Path(download.value.path()).read_text())
     assert download.value.suggested_filename == f"reporte-{job_id}.json"
-    assert report["schema_version"] == "1.8.0" and report["scan"]["job_id"] == job_id
+    assert report["schema_version"] == "1.9.0" and report["scan"]["job_id"] == job_id
     assert report["site"]["exposure_score"] == score
     session.assert_clean("flujo completo")
 

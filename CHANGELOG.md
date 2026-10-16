@@ -3,6 +3,32 @@
 Formato: una sección por versión, la más reciente arriba. Las decisiones de diseño de cada versión están en
 [docs/adr/](docs/adr/README.md); las versiones anteriores a 1.4.6, en la sección «Fases» de [docs/SPEC.md](docs/SPEC.md).
 
+## 1.4.9 — 2026-10-15
+
+Analizador 1.16.0 · schema de reporte 1.9.0 · [ADR 036](docs/adr/036-client-hints-redirecciones-y-puntaje-por-nivel.md).
+Actualizar los scans guardados con `./scripts/reanalyze.sh --all`.
+
+### Corregido
+- Detalle de request: la «Coincidencia con lista de filtros» decía «0 requests en esta visita» (p. ej. AliExpress #244,
+  Appier). Usa el conteo del scan: «N en esta visita, incluida esta».
+- Identificador igual a una cookie en una request que no envió cookies: el texto dice que un script copió el valor de
+  la cookie en la URL o el cuerpo de la request.
+- El frontend ya no repite la lista de bandas: la lee de la api (`data/scoring.yaml`).
+
+### Agregado
+- Client Hints en tres hechos: solicitud (Accept-CH; nunca se presenta como recepción), envío (solo con la cabecera
+  Sec-CH-UA-* observada) y delegación del sitio (Permissions-Policy o meta delegate-ch: detectada, sin delegación
+  detectada o no determinado). Puntos separados: solicitud baja, envío confirmado mayor.
+- Cadena de redirección 3xx en el detalle de request (Location → request siguiente) y sincronización por redirección
+  como Evidencia cuando un salto lleva el mismo identificador a otra organización.
+- Desglose «Evidencia X + Inferencia Y» en el puntaje de cada request y en el índice del sitio.
+- «Límites de la medición»: aviso de que los candidatos ICE por STUN no son observables, si la página creó conexiones
+  WebRTC.
+- Glosario: Client Hints, Accept-CH, Delegación de Client Hints y Cadena de redirección.
+
+### Cambiado
+- Appier se clasifica como publicidad también por la organización.
+
 ## 1.4.8 — 2026-10-15
 
 Analizador 1.15.0 · schema de reporte 1.8.0 · [ADR 035](docs/adr/035-accept-ch-scans-fallidos-y-parciales.md).

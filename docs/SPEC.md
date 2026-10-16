@@ -532,6 +532,30 @@ hacia quién la envían.
   local, IP pública, mDNS; nunca la dirección). EVIDENCIA: `webrtc_connection`, `webrtc_ice_exposed`. Glosario: WebRTC,
   Candidato ICE.
 
+## Client Hints, redirecciones y puntaje por nivel (v1.4.9, docs/adr/036)
+- Client Hints (`data/client_hints.yaml`), tres hechos distintos:
+  - Solicitud (EVIDENCIA de solicitud): respuesta de otra organización con Accept-CH que pide hints de alta entropía
+    (Sec-CH-UA-Full-Version-List, -Model, -Arch, -Bitness, -Platform-Version): «El servidor pidió datos del navegador
+    potencialmente útiles para identificarlo; esta solicitud no demuestra que los haya recibido».
+  - Envío (EVIDENCIA de envío): solo con la cabecera Sec-CH-UA-* en una request a esa organización. No se infiere por
+    Accept-CH.
+  - Delegación (contexto): Permissions-Policy (ch-ua-*) o meta delegate-ch del documento principal. «Delegación
+    detectada» · «Sin delegación detectada» (no prueba que el envío sea imposible) · «No determinado», con evidencia.
+  - Un hint ausente en la primera request a un origen está condicionado por el navegador de captura (ADR 035); una
+    captura parcial sin la cabecera no basta para concluir que nunca se transmitió.
+  - Puntos: `client_hints_request` (bajo, una vez por organización) y `client_hints_sent` (mayor, por request), en el
+    tracking_score de la request; sin componente nuevo del índice.
+- Detalle de request: cadena 3xx (Location → request #n); puntaje «Evidencia X + Inferencia Y»; Client Hints de esa
+  request; conteo de la coincidencia con lista «N en esta visita, incluida esta».
+- Sincronización por redirección (`redirect_sync`, EVIDENCIA, grupo 5): un salto 3xx lleva el mismo identificador de
+  una organización externa a otra.
+- Índice: cada componente con sus puntos de evidencia e inferencia; `summary.score_by_level`. Schema `report-1.9.0`.
+- Identificador igual a una cookie en una request que no envió cookies: «un script copió el valor de la cookie «X» en
+  la URL o el cuerpo de la request».
+- Appier → publicidad. Bandas: el frontend las lee de `GET /api/bands`. Límites de la medición: aviso de STUN/UDP si la
+  página creó conexiones WebRTC. Glosario: Client Hints, Accept-CH, Delegación de Client Hints, Cadena de redirección.
+  Analizador 1.16.0.
+
 ## Fases
 F0 spec · F1 infra+aislamiento · F2 captura · F3 análisis+scoring ·
 F4 instrumentación · F5 UI · F6 exposición · F7 escenarios ·
@@ -547,4 +571,5 @@ v1.4.4 instalación simplificada y CI (versión 1.4.4) ·
 v1.4.5 servicios de terceros, es-CL y correcciones (versión 1.4.5) ·
 v1.4.6 atribución a librerías de CDN, sincronización entre organizaciones, alias y cookies por propósito (versión 1.4.6) ·
 v1.4.7 fugas hacia un CDN con su receptor real y cookies por la organización (versión 1.4.7) ·
-v1.4.8 navegación con ACCEPT_CH, scans fallidos y parciales, alerta antibot con señal dura, bandas y reglas corregidas, WebRTC (versión 1.4.8)
+v1.4.8 navegación con ACCEPT_CH, scans fallidos y parciales, alerta antibot con señal dura, bandas y reglas corregidas, WebRTC (versión 1.4.8) ·
+v1.4.9 Client Hints (solicitud, envío y delegación), cadena de redirección y puntaje por nivel (versión 1.4.9)

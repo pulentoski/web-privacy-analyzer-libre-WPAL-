@@ -47,7 +47,8 @@ RETURNING id
 REQUESTS_SQL = """
 SELECT id, seq, method, url, host, resource_type, is_navigation, query_params, request_headers,
        response_headers, post_data, post_data_encoding, post_data_size, sizes, mime_type, third_party,
-       registrable_domain, response_status, initiator->>'script_url' AS initiator_script, ts, failure_text, frame_url
+       registrable_domain, response_status, initiator->>'script_url' AS initiator_script, ts, failure_text, frame_url,
+       redirected_from_seq
   FROM scan_requests WHERE job_id = $1 ORDER BY seq
 """
 
@@ -154,6 +155,8 @@ async def load_capture(conn, job_id, url: str, result, finished_at=None) -> dict
                 "ts": row["ts"].timestamp() if row["ts"] is not None else None,
                 "failure_text": row["failure_text"],
                 "frame_url": row["frame_url"],
+                # v1.4.9: salto 3xx anterior de la cadena de redirección (sincronización por redirección).
+                "redirected_from_seq": row["redirected_from_seq"],
             }
         )
     # None = scan sin instrumentación (anterior a F4 o desactivada): no se inventa "sin llamadas".

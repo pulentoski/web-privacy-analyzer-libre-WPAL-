@@ -62,6 +62,8 @@ DETAILS = {
     "events": ["click", "scroll"], "label": "profundidad de desplazamiento", "interactions": 3,
     # v1.3: fuga de búsqueda y ola de sincronización.
     "term": "zapatillas rojas", "initiator": "gum.tracker.example", "organizations": 5, "requests": 9,
+    # v1.4.9: Client Hints.
+    "hints": ["Sec-CH-UA-Model", "Sec-CH-UA-Arch"], "hosts": ["t.tracker.example"],
 }
 
 
@@ -289,7 +291,7 @@ def test_story_has_the_seven_steps_in_order_with_phrase_count_level_and_evidence
     response = client.get(f"/api/scans/{job_id}/report")
     assert response.status_code == 200, response.text
     report = response.json()
-    assert report["schema_version"] == "1.8.0" and not list(report_validator().iter_errors(report))
+    assert report["schema_version"] == "1.9.0" and not list(report_validator().iter_errors(report))
     steps = report["story"]["steps"]
     assert [step["id"] for step in steps] == STEP_IDS and [step["number"] for step in steps] == [1, 2, 3, 4, 5, 6, 7, 8]
     assert [step["title"] for step in steps] == ["Identificadores persistentes", "Fingerprinting", "Fugas de URL y Referer", "Exfiltración de atributos",

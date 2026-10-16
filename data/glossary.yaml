@@ -133,6 +133,23 @@ terms:
     term: "Candidato ICE"
     plain: "dirección de red ofrecida por WebRTC"
     definition: "Cada una de las direcciones (IP local, IP pública vista desde fuera o un nombre .local en lugar de la IP) que WebRTC propone para conectarse. Si la página lee un candidato con IP, esa dirección del equipo queda expuesta a sus scripts."
+  # v1.4.9
+  - id: client_hints
+    term: "Client Hints"
+    plain: "datos del navegador en cabeceras Sec-CH-UA-*"
+    definition: "Cabeceras con las que el navegador informa a un servidor su marca, versión, plataforma y otros datos. Las de alta entropía (versión completa, modelo, arquitectura, bitness, versión de la plataforma) solo se envían si el servidor las pide y, en recursos de terceros, si el sitio las delega."
+  - id: accept_ch
+    term: "Accept-CH"
+    plain: "cabecera con la que un servidor pide Client Hints"
+    definition: "Cabecera de respuesta en la que un servidor enumera los Client Hints que quiere recibir. Es una solicitud: que aparezca no demuestra que el navegador los haya enviado; el envío se comprueba con las cabeceras Sec-CH-UA-* de las requests siguientes."
+  - id: delegacion_client_hints
+    term: "Delegación de Client Hints"
+    plain: "el sitio cede los Client Hints a terceros"
+    definition: "Permiso que el documento principal da para que el navegador envíe Client Hints a otros orígenes, con la cabecera Permissions-Policy (ch-ua-*) o con el meta delegate-ch. Que no se detecte la delegación no prueba que el envío sea imposible."
+  - id: cadena_redireccion
+    term: "Cadena de redirección"
+    plain: "saltos 3xx de una dirección a otra"
+    definition: "Secuencia de respuestas 3xx en la que cada una indica, en la cabecera Location, la dirección siguiente. Si un salto lleva el mismo identificador de una organización a otra, es una sincronización de identificadores observada."
 
 panels:
   summary:
@@ -154,9 +171,9 @@ panels:
     title: "¿Qué es esto?"
     definition: "Scripts de la página que leyeron atributos del dispositivo (GPU, pantalla, fuentes, audio) mediante APIs del navegador."
     method: "Las llamadas se registran con instrumentación de las APIs. La lectura es Evidencia; que su propósito sea reconocer el dispositivo (fingerprinting) es siempre una Inferencia."
-    terms: [fingerprinting, canvas, webgl, webrtc, ice, user_agent, exfiltracion]
+    terms: [fingerprinting, canvas, webgl, webrtc, ice, client_hints, user_agent, exfiltracion]
   traffic:
     title: "¿Qué es esto?"
     definition: "Todas las requests realizadas por la página durante la visita, una por fila, con su destino, su mecanismo y su puntaje de seguimiento."
     method: "Se capturan durante la visita automatizada del navegador. Son la evidencia primaria de las demás vistas."
-    terms: [request, referer, base64, url_codificada, pixel, beacon]
+    terms: [request, referer, base64, url_codificada, pixel, beacon, cadena_redireccion]

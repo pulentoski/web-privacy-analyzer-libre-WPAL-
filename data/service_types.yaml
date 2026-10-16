@@ -31,14 +31,16 @@ types:
   advertising:
     label: "publicidad (venta y entrega de anuncios, segmentación)"
     entities: [Google Ads, Criteo, The Trade Desk, Taboola, Outbrain, PubMatic, Rubicon Project,
-               OpenX, AppNexus, Index Exchange, Amazon Advertising, Media.net, Adform]
+               OpenX, AppNexus, Index Exchange, Amazon Advertising, Media.net, Adform,
+               # v1.4.9: por la organización, no solo por appier.net.
+               Appier]
     domains: [doubleclick.net, googlesyndication.com, googleadservices.com, adnxs.com, criteo.com,
               criteo.net, taboola.com, outbrain.com, rubiconproject.com, pubmatic.com, openx.net,
               amazon-adsystem.com, adsrvr.org, casalemedia.com, smartadserver.com, teads.tv,
               bidswitch.net, 3lift.com, adform.net, moatads.com, 2mdn.net, mgid.com,
               # v1.4.2: Appier, RTB House, LiveIntent, Improve Digital, Telaria, Media.net, Geniee, Opera Ads,
               # Nativo, RhythmOne, Times Internet (Columbia), Unruly, Supership.
-              appier.net, creativecdn.com, rtbhouse.com, liadm.com, liveintent.com, 360yield.com, tremorhub.com,
+              appier.net, appier.com, creativecdn.com, rtbhouse.com, liadm.com, liveintent.com, 360yield.com, tremorhub.com,
               telaria.com, media.net, gssprt.jp, geniee.co.jp, opera.com, adx.opera.com, postrelease.com, nativo.com,
               1rx.io, rhythmone.com, clmbtech.com, unrulymedia.com, socdm.com, revcontent.com]
   mobile_advertising:

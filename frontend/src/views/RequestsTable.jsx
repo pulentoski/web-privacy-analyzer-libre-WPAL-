@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Term, WhatIsThis } from "../components/Term.jsx";
 import { BandBadge, Captured, Empty, ErrorNotice, Link, Loading, Panel, Plain } from "../components/ui.jsx";
 import { api } from "../lib/api.js";
-import { BANDS, buildQuery, categoryLabel, CATEGORY_LABELS, partyLabel, requestOutcome, sanitizeRequestFilters } from "../lib/format.js";
+import { bands, buildQuery, categoryLabel, CATEGORY_LABELS, partyLabel, requestOutcome, sanitizeRequestFilters } from "../lib/format.js";
 import { navigate } from "../lib/router.js";
 import { useApi } from "../lib/useApi.js";
 
@@ -55,7 +55,7 @@ export default function RequestsTable({ jobId, query }) {
     <WhatIsThis panel="traffic" />
     <Panel title="Tráfico: requests capturadas durante la visita" testId="requests">
       <form className="flex flex-wrap items-end gap-3 mb-3" onSubmit={(event) => { event.preventDefault(); update({ domain }); }}>
-        <Select label="Banda" value={filters.band} onChange={(band) => update({ band })} options={BANDS.map((band) => [band, band])} testId="filter-band" />
+        <Select label="Banda" value={filters.band} onChange={(band) => update({ band })} options={bands().map((band) => [band, band])} testId="filter-band" />
         <Select label="Categoría" value={filters.category} onChange={(category) => update({ category })} options={Object.entries(CATEGORY_LABELS)} testId="filter-category" />
         <Select label="Mecanismo" value={filters.mechanism} onChange={(mechanism) => update({ mechanism })} options={MECHANISMS.map((item) => [item, item])} testId="filter-mechanism" />
         <Select label="Origen" value={filters.third_party} onChange={(value) => update({ third_party: value })} options={[["true", "Terceros"], ["false", "Propio del sitio"]]} testId="filter-third" />

@@ -212,10 +212,24 @@ def _plain(request: ScanRequest, analysis: RequestAnalysis | None) -> dict | Non
     return {key: phrase[key] for key in ("text", "level", "signal")}
 
 
+def score_by_level(reasons) -> dict | None:
+    """Suma de pesos por nivel de evidencia (v1.4.9): «Evidencia X + Inferencia Y». El score se acota a 0–100;
+    `clamped` indica que la suma lo excede y por eso no coincide con el total. None = sin análisis."""
+    if reasons is None:
+        return None
+    sums = {"EVIDENCIA": 0, "INFERENCIA": 0, "POSIBLE": 0}
+    for reason in reasons:
+        if isinstance(reason, dict) and reason.get("level") in sums and isinstance(reason.get("weight"), (int, float)):
+            sums[reason["level"]] += reason["weight"]
+    total = sum(sums.values())
+    return {**sums, "clamped": total > 100 or total < 0}
+
+
 def _analysis_item(analysis: RequestAnalysis | None) -> dict:
     # None en todos = la request aún no tiene análisis (no es lo mismo que score 0).
     return {
         "score": analysis.score if analysis else None,
+        "score_by_level": score_by_level(analysis.reasons) if analysis else None,
         "band": analysis.band if analysis else None,
         "category": analysis.category if analysis else None,
         "mechanism": analysis.mechanism if analysis else None,
@@ -280,9 +294,12 @@ def _request_detail(
         "timing": request.timing,
         "registrable_domain": request.registrable_domain,
         "redirected_from_seq": request.redirected_from_seq,
+        # v1.4.9: cada salto con su Location (la URL del salto siguiente) y la request a la que llevó.
         "redirect_chain": [
-            {"hop": hop.hop_index, "request_seq": hop.request_seq, "url": hop.url, "status": hop.status}
-            for hop in redirect_chain
+            {"hop": hop.hop_index, "request_seq": hop.request_seq, "url": hop.url, "status": hop.status,
+             "location": redirect_chain[index + 1].url if index + 1 < len(redirect_chain) else None,
+             "next_request_seq": redirect_chain[index + 1].request_seq if index + 1 < len(redirect_chain) else None}
+            for index, hop in enumerate(redirect_chain)
         ],
     }
 
@@ -514,6 +531,24 @@ async def list_requests(
     }
 
 
+async def _request_client_hints(session: AsyncSession, job_id: uuid.UUID, request_id: int) -> dict | None:
+    """Client Hints de esta request (v1.4.9): solicitud, envío y la delegación del sitio. None = análisis anterior."""
+    summary = await session.scalar(text("SELECT summary->'client_hints' FROM site_analysis WHERE job_id = :job_id"), {"job_id": job_id})
+    if not isinstance(summary, dict):
+        return None
+    asked = next((item for item in summary.get("requests") or [] if request_id in (item.get("request_ids") or [])), None)
+    sent = next((item for item in summary.get("sends") or [] if item.get("request_id") == request_id), None)
+    return {
+        # Solicitud: esta respuesta pidió hints. Nunca prueba que se recibieran.
+        "requested": {"organization": asked["organization"], "hints": asked["hints"], "sent": asked["sent"],
+                      "sent_hints": asked.get("sent_hints") or [], "text": summary.get("request_text")} if asked else None,
+        # Envío: esta request llevó las cabeceras.
+        "sent": {"organization": sent["organization"], "hints": sent["hints"], "after_request": sent.get("after_request")} if sent else None,
+        "delegation": summary.get("delegation"),
+        "notes": summary.get("notes") or [],
+    }
+
+
 @router.get("/{job_id}/requests/{request_id}")
 async def get_request(
     job_id: uuid.UUID, request_id: int, session: AsyncSession = Depends(get_session)
@@ -563,9 +598,10 @@ async def get_request(
     findings = (
         await session.execute(
             text(
-                "SELECT id, 'general' AS kind, type, level, claim, details, NULL AS script_url FROM findings "
+                # v1.4.9: con sus referencias, para que los conteos sean los del scan (no 0).
+                "SELECT id, 'general' AS kind, type, level, claim, details, NULL AS script_url, evidence_refs FROM findings "
                 "WHERE job_id = :job_id AND evidence_refs @> CAST(:ref AS jsonb) "
-                "UNION ALL SELECT id, 'fingerprinting', heuristic, level, claim, details, script_url FROM fp_findings "
+                "UNION ALL SELECT id, 'fingerprinting', heuristic, level, claim, details, script_url, request_refs FROM fp_findings "
                 "WHERE job_id = :job_id AND request_refs @> CAST(:ref AS jsonb) ORDER BY kind, id"
             ),
             params,
@@ -579,14 +615,29 @@ async def get_request(
             {"job_id": job_id},
         )
     }
+    detail = _request_detail(request, chain, analysis)
+    detail["client_hints"] = await _request_client_hints(session, job_id, request.id)
+    if chain:
+        # Request, host y organización de cada salto (para enlazar «→ request #n»).
+        hops = (await session.execute(
+            text("SELECT r.seq, r.id, r.host, a.entity FROM scan_requests r LEFT JOIN request_analysis a ON a.request_id = r.id "
+                 "WHERE r.job_id = :job_id AND r.seq = ANY(:seqs)"),
+            {"job_id": job_id, "seqs": [hop.request_seq for hop in chain]},
+        )).mappings().all()
+        by_seq = {row["seq"]: row for row in hops}
+        for hop in detail["redirect_chain"]:
+            row = by_seq.get(hop["request_seq"]) or {}
+            hop.update({"request_id": row.get("id"), "host": row.get("host"), "entity": row.get("entity")})
+            following = by_seq.get(hop["next_request_seq"]) or {}
+            hop["next_request_id"] = following.get("id")
     return {
-        **_request_detail(request, chain, analysis),
+        **detail,
         "parameters": [dict(row) for row in parameters],
         "decoded_values": [dict(row) for row in decoded],
         "findings": [
             {
                 "id": row["id"], "kind": row["kind"], "type": row["type"], "level": row["level"], "claim": row["claim"],
-                "plain": explanations().finding_phrase(dict(row), entities)["text"],
+                "plain": explanations().finding_phrase(dict(row), entities, in_request=True)["text"],
             }
             for row in findings
         ],

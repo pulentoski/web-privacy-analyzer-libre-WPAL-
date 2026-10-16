@@ -43,6 +43,79 @@ function Headers({ headers }) {
   );
 }
 
+/** v1.4.9: «Evidencia X + Inferencia Y» de un puntaje (suma de pesos por nivel, antes de acotar a 0–100). */
+export function ScoreLevels({ levels, testId = "score-levels" }) {
+  if (!levels) return null;
+  const parts = [`Evidencia ${levels.EVIDENCIA}`, `Inferencia ${levels.INFERENCIA}`];
+  if (levels.POSIBLE) parts.push(`Posible ${levels.POSIBLE}`);
+  return (
+    <span className="text-sm" data-testid={testId}>
+      {parts.join(" + ")}
+      {levels.clamped && <span className="muted"> (la suma excede el rango 0–100; el puntaje se acota)</span>}
+    </span>
+  );
+}
+
+/** v1.4.9: cadena de redirección 3xx: cada salto, su Location y la request a la que llevó. */
+export function RedirectChain({ jobId, chain, current }) {
+  if (!chain || chain.length < 2) return null;
+  return (
+    <Panel title={<><Term id="cadena_redireccion">Cadena de redirección</Term> (3xx)</>} testId="redirect-chain">
+      <ol className="space-y-1 text-sm">
+        {chain.map((hop) => (
+          <li key={hop.hop} data-testid="redirect-hop" className={hop.request_seq === current ? "font-semibold" : ""}>
+            {hop.request_id ? <Link to={["scan", jobId, "request", hop.request_id]}>#{hop.request_seq + 1}</Link> : <>#{hop.request_seq + 1}</>}{" "}
+            <span className="captured">{orUnavailable(hop.status)}</span> · <span className="captured">{orUnavailable(hop.host)}</span> · {entityLabel(hop.entity)}
+            {hop.location && (
+              <div className="ml-4 muted">
+                Location: <Captured value={hop.location} limit={120} /> → {hop.next_request_id
+                  ? <Link to={["scan", jobId, "request", hop.next_request_id]} testId="redirect-next">request #{hop.next_request_seq + 1}</Link>
+                  : <>request #{hop.next_request_seq + 1}</>}
+              </div>
+            )}
+          </li>
+        ))}
+      </ol>
+    </Panel>
+  );
+}
+
+/** v1.4.9: Client Hints de esta request. Solicitud ≠ envío; la delegación es contexto. */
+export function ClientHints({ info }) {
+  if (!info || (!info.requested && !info.sent)) return null;
+  const delegation = info.delegation || {};
+  return (
+    <Panel title={<Term id="client_hints">Client Hints</Term>} testId="client-hints">
+      <ul className="space-y-2 text-sm">
+        {info.requested && (
+          <li data-testid="ch-requested">
+            <EvidenceBadge level="EVIDENCIA" /> <strong>Solicitud</strong> (<Term id="accept_ch">Accept-CH</Term>):{" "}
+            <span className="captured">{info.requested.organization}</span> pidió <span className="captured">{info.requested.hints.join(", ")}</span>.{" "}
+            {info.requested.text}
+            <div className="muted" data-testid="ch-sent-state">
+              Envío: {info.requested.sent === "confirmado"
+                ? <>confirmado ({info.requested.sent_hints.join(", ")} en requests posteriores a esa organización).</>
+                : <>no observado en esta captura.</>}
+            </div>
+          </li>
+        )}
+        {info.sent && (
+          <li data-testid="ch-sent">
+            <EvidenceBadge level="EVIDENCIA" /> <strong>Envío</strong>: esta request llevó <span className="captured">{info.sent.hints.join(", ")}</span>
+            {info.sent.after_request ? " después de que la organización los pidiera." : "."}
+          </li>
+        )}
+        <li data-testid="ch-delegation">
+          <strong><Term id="delegacion_client_hints">Delegación</Term> por el sitio</strong>: {delegation.label || "No determinado"}
+          {(delegation.evidence || []).length > 0 && <ul className="list-disc ml-5">{delegation.evidence.map((item, index) => <li key={index}><Captured value={item} limit={200} /></li>)}</ul>}
+          {delegation.note && <div className="muted">{delegation.note}</div>}
+        </li>
+      </ul>
+      {(info.notes || []).length > 0 && <ul className="muted text-xs mt-2 list-disc ml-5">{info.notes.map((note, index) => <li key={index}>{note}</li>)}</ul>}
+    </Panel>
+  );
+}
+
 export default function RequestDetail({ jobId, requestId }) {
   const { data, error, loading } = useApi(() => api.requestDetail(jobId, requestId), `${jobId}-${requestId}`);
   if (loading) return <Loading what="la request" />;
@@ -99,7 +172,7 @@ export default function RequestDetail({ jobId, requestId }) {
       </Panel>
 
       <Panel title="Puntaje de tracking" testId="score-panel">
-        <p className="mb-2"><BandBadge band={r.band} score={r.score} /> <span className="muted text-sm">Estimación a partir de las señales de abajo; no es un veredicto.</span></p>
+        <p className="mb-2"><BandBadge band={r.band} score={r.score} /> <ScoreLevels levels={r.score_by_level} /> <span className="muted text-sm">Estimación a partir de las señales de abajo; no es un veredicto.</span></p>
         {!r.reasons || r.reasons.length === 0 ? <Empty>Ninguna señal presente.</Empty> : (
           <table className="w-full text-sm" data-testid="reasons">
             <thead><tr className="text-left border-b border-slate-400"><th className="pr-2">Nivel</th><th className="pr-2">Peso</th><th>Razón</th></tr></thead>
@@ -115,6 +188,9 @@ export default function RequestDetail({ jobId, requestId }) {
           </table>
         )}
       </Panel>
+
+      <RedirectChain jobId={jobId} chain={r.redirect_chain} current={r.seq} />
+      <ClientHints info={r.client_hints} />
 
       <Panel title="Hallazgos relacionados" testId="related-findings">
         {!r.findings || r.findings.length === 0 ? <Empty>Ningún hallazgo cita esta request.</Empty> : (
