@@ -25,6 +25,9 @@ CHROMIUM_ARGS = [
     f"--component-updater=url-source=http://{BLACKHOLE}/update",
     # QUIC es UDP y no pasa por un proxy HTTP.
     "--disable-quic",
+    # Sin esto, un frame ACCEPT_CH (Client Hints por ALPS, p. ej. los frontends de Google) reinicia la
+    # navegación, el reinicio queda abortado (ERR_ABORTED) y goto no termina nunca (docs/adr/035).
+    "--disable-features=AcceptCHFrame",
     # WebRTC no puede abrir UDP fuera del proxy (evita fugas de IP y de tráfico).
     "--force-webrtc-ip-handling-policy=disable_non_proxied_udp",
     # Perfil base (docs/adr/008): sin esto navigator.webdriver es true y el sitio ve un bot.

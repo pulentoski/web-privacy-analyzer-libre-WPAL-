@@ -84,13 +84,32 @@ class HarSignals:
             and not (set(param.shapes) & NON_TEXT_SHAPES)
         )
 
-    def search_leaks(self, params_by_request: dict, by_id: dict, page_host: str | None, party_by_id: dict) -> list[dict]:
+    @staticmethod
+    def _page_texts(texts) -> set[str]:
+        """Título, meta description y meta keywords normalizados; de keywords, también cada palabra clave."""
+        out = set()
+        for index, text in enumerate(texts or []):
+            if not isinstance(text, str):
+                continue
+            normalized = " ".join(text.split()).lower()
+            if normalized:
+                out.add(normalized)
+            if index == 2:  # meta keywords: lista separada por comas
+                out.update(" ".join(part.split()).lower() for part in text.split(",") if part.strip())
+        return out
+
+    def search_leaks(self, params_by_request: dict, by_id: dict, page_host: str | None, party_by_id: dict,
+                     page_texts=None) -> tuple[list[dict], int]:
         """Términos de búsqueda enviados a un host distinto del de la página.
 
-        Devuelve un grupo por (host, término): {host, domain, term, parameter, rule, party, request_ids}.
+        Devuelve (grupos, descartados): un grupo por (host, término) {host, domain, term, parameter, rule, party,
+        request_ids}, y cuántos valores se descartaron por ser el título o la meta description/keywords de la
+        página (`page_texts` = [título, description, keywords]).
         """
         if not self.search_names and not self.contextual:
-            return []
+            return [], 0
+        own_text = self._page_texts(page_texts)
+        discarded = 0
         groups: dict[tuple[str, str], dict] = {}
         for request_id, params in params_by_request.items():
             request = by_id[request_id]
@@ -115,13 +134,16 @@ class HarSignals:
                         candidates.append((param, "contexto"))
             for param, rule_kind in candidates:
                 term = self._term(param)
+                if term.lower() in own_text:
+                    discarded += 1
+                    continue
                 entry = groups.setdefault((host, term.lower()), {
                     "host": host, "domain": request.get("registrable_domain") or host, "term": term, "parameter": _leaf(param.name),
                     "rule": rule_kind, "party": party_by_id.get(request_id), "request_ids": [],
                 })
                 if request_id not in entry["request_ids"]:
                     entry["request_ids"].append(request_id)
-        return sorted(groups.values(), key=lambda entry: (entry["host"], entry["term"].lower()))
+        return sorted(groups.values(), key=lambda entry: (entry["host"], entry["term"].lower())), discarded
 
     # --- ola de sincronización ---
 

@@ -20,7 +20,7 @@ from app.errors import AppError
 from app.models import Job
 from app.privacy import REAL, build_result
 from app.ratelimit import client_ip, scan_limiter
-from app.routes.analysis import TRACKER_BANDS
+from app.bands import TRACKER_BANDS
 from app.routes.scans import date_bounds, like_pattern, scan_progress
 from app.testscans import is_test_scan
 from app.url_cleaning import clean_url, describe

@@ -4,7 +4,7 @@ version: 1
 
 bands:            # límite superior inclusivo de cada banda
   - {name: Bajo, max: 20}
-  - {name: Posible, max: 40}
+  - {name: Bajo-moderado, max: 40}   # «Posible» hasta v1.4.7: chocaba con el nivel de evidencia POSIBLE
   - {name: Moderado, max: 60}
   - {name: Alto, max: 80}
   - {name: Muy alto, max: 100}

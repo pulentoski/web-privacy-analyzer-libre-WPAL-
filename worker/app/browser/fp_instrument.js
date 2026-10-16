@@ -460,6 +460,39 @@
     detail(item);
   });
 
+  // Tipo de dirección de un candidato ICE: 'mdns' (nombre .local que oculta la IP), 'local_ip' (privada,
+  // enlace local, loopback o CGNAT), 'public_ip' u otro texto → null. Sin métodos de String del sitio.
+  function iceScope(address) {
+    if (typeof address !== 'string' || !address.length || address.length > 64) return null;
+    const n = address.length;
+    if (n > 6 && call2(strSlice, address, n - 6, n) === '.local') return 'mdns';
+    if (call1(strIndexOf, address, ':') !== -1) {
+      const head = call2(strSlice, address, 0, 4);
+      const low = (code) => (code >= 65 && code <= 90 ? code + 32 : code);
+      const c0 = low(call1(strCharCodeAt, head, 0)), c1 = low(call1(strCharCodeAt, head, 1));
+      const c2 = low(call1(strCharCodeAt, head, 2));
+      if (address === '::1' || (c0 === 102 && (c1 === 99 || c1 === 100)) ||  // fc00::/7
+          (c0 === 102 && c1 === 101 && (c2 === 56 || c2 === 57 || c2 === 97 || c2 === 98))) return 'local_ip';  // fe80::/10
+      return 'public_ip';
+    }
+    const octets = nullArr();
+    let current = -1;
+    for (let i = 0; i < n; i++) {
+      const code = call1(strCharCodeAt, address, i);
+      if (code >= 48 && code <= 57) {
+        current = (current < 0 ? 0 : current * 10) + (code - 48);
+        if (current > 255) return null;
+      } else if (code === 46 && current >= 0 && octets.length < 3) {
+        push(octets, current); current = -1;
+      } else return null;
+    }
+    if (current < 0 || octets.length !== 3) return null;
+    const a = octets[0], b = octets[1];
+    if (a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) ||
+        (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127)) return 'local_ip';
+    return 'public_ip';
+  }
+
   // --- WebRTC ---
   {
     const rtcProto = constructorOf(['RTCPeerConnection', 'webkitRTCPeerConnection'], 'webrtc.RTCPeerConnection');
@@ -468,6 +501,23 @@
       method(rtcProto, 'createOffer', 'webrtc.createOffer');
       setter(rtcProto, 'onicecandidate', () => bump('webrtc.onicecandidate', scriptUrl()));
       push(available, 'webrtc.onicecandidate');
+    }
+    // v1.4.8: candidatos ICE que recibe la página (por onicecandidate o addEventListener: ambos leen
+    // event.candidate). Solo se anota el TIPO de dirección (IP local, IP pública, nombre mDNS), nunca la IP.
+    const iceEventProto = proto('RTCPeerConnectionIceEvent');
+    const iceCandidateGet = getOf(iceEventProto, 'candidate');
+    const candidateAddress = getOf(proto('RTCIceCandidate'), 'address');
+    if (iceCandidateGet && candidateAddress) {
+      const descriptor = ReflectGetOwnPropertyDescriptor(iceEventProto, 'candidate');
+      descriptor.get = wrap(iceCandidateGet, null, (self, args, result) => {
+        if (result === null || result === undefined) return;
+        const scope = iceScope(call0(candidateAddress, result));
+        if (scope) bump('webrtc.icecandidate.' + scope, scriptUrl());
+      });
+      if (ReflectDefineProperty(iceEventProto, 'candidate', descriptor)) {
+        push(available, 'webrtc.icecandidate.local_ip'); push(available, 'webrtc.icecandidate.public_ip');
+        push(available, 'webrtc.icecandidate.mdns');
+      }
     }
   }
 

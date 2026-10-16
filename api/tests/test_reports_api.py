@@ -161,7 +161,7 @@ def test_export_is_masked_by_default_and_sha256_matches_the_json(client, secret_
     assert digest == status["sha256"] == exported.headers["x-report-sha256"]
     assert exported.headers["content-disposition"] == f'attachment; filename="reporte-{secret_scan}.json"'
     assert SECRET not in exported.text and PATH_ID not in exported.text
-    assert exported.json()["masked"] is True and exported.json()["schema_version"] == "1.7.0"
+    assert exported.json()["masked"] is True and exported.json()["schema_version"] == "1.8.0"
 
     page = client.get(f"/api/scans/{secret_scan}/export/html")
     assert page.status_code == 200 and page.headers["content-type"].startswith("text/html")
@@ -469,7 +469,7 @@ GROUP_REPORT = {
     "schema_version": "group-1.0.0", "generated_at": "2026-10-07T12:00:00+00:00",
     "group": {"group_id": "g", "url": "http://site.example/", "created_at": "2026-10-07T11:00:00+00:00",
               "config": {"scenarios": ["sin_interaccion", "rechazar"], "profiles": ["real"], "runs": 2}, "progress": {"done": 4, "total": 4, "failed": 0}},
-    "scans": [{"job_id": "j1", "scenario": "rechazar", "profile": "real", "run": 1, "status": "completed", "exposure_score": 40, "band": "Posible"}],
+    "scans": [{"job_id": "j1", "scenario": "rechazar", "profile": "real", "run": 1, "status": "completed", "exposure_score": 40, "band": "Bajo-moderado"}],
     "result": {
         "cells": [{"key": "rechazar|real", "scenario": "rechazar", "profile": "real", "runs": 2, "completed": 2,
                    "requests": {"median": 10, "min": 9, "max": 11, "values": [9, 11]}, "third_party_domains": None, "tracker_requests": None,

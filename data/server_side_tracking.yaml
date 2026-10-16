@@ -18,3 +18,7 @@ meta:
   # O al menos `min_payload` de estas claves del payload de un evento de Meta.
   payload: [event_name, event_id, website_context, event_source_url, user_data, custom_data, action_source, event_time]
   min_payload: 2
+  # v1.4.8: un host inferido como servidor CAPI no es una organización distinta de Meta: en la sincronización
+  # y en el índice cuenta como el dominio de Meta, y se muestra con esta etiqueta (sigue siendo INFERENCIA).
+  owner_domain: facebook.com
+  organization_label: "Meta (vía servidor CAPI, inferencia)"

@@ -119,6 +119,9 @@ def test_consent_scenarios(session):
     # La captura del banner se sirve desde nuestra API y carga bajo la CSP.
     banner = page.get_by_test_id("consent-banner")
     expect(banner).to_be_visible()
+    # Visible no es cargada: se espera a que la imagen termine de decodificarse antes de medirla.
+    page.wait_for_function("(() => { const img = document.querySelector('[data-testid=consent-banner]');"
+                           " return img && img.complete && img.naturalWidth > 0; })()", timeout=10000)
     assert page.evaluate("document.querySelector('[data-testid=consent-banner]').naturalWidth") > 100
     # Antes de interactuar: en las 3 corridas. Tras rechazar: el que ignora el rechazo. Solo tras aceptar: uno.
     pre = page.get_by_test_id("pre-consent-item").all_inner_texts()

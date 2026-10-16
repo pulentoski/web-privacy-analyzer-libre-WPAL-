@@ -67,7 +67,8 @@ DETAILS = {
 
 def finding(kind, level, **details):
     fingerprinting = kind in ("canvas_fingerprinting", "font_enumeration", "audio_fingerprinting", "webgl_fingerprinting",
-                              "webgl_unmasked_read", "webrtc_ip_discovery", "property_sweep", "exfiltration", "fp_read", "interaction_listener", "canvas_read_benign")
+                              "webgl_unmasked_read", "webrtc_ip_discovery", "webrtc_connection", "webrtc_ice_exposed", "property_sweep", "exfiltration",
+                              "fp_read", "interaction_listener", "canvas_read_benign")
     return {"type": kind, "level": level, "kind": "fingerprinting" if fingerprinting else "general", "claim": "detalle técnico",
             "script_url": "https://t.tracker.example/fp.js" if fingerprinting else None, "details": {**DETAILS, **details},
             "evidence_refs": {"requests": [1, 2], "calls": [3]}}
@@ -268,7 +269,7 @@ def story_scan(client):
                 )
             await session.execute(
                 text("INSERT INTO site_analysis (job_id, analyzer_version, lists_version, lists, score, band, breakdown, data_categories, mechanisms, summary, partial, duration_ms) "
-                     "VALUES (:job, '1.4.0', 'abc', '[]', 40, 'Posible', '[]', '[]', '{}', '{\"trackers\": 3}', false, 10)"),
+                     "VALUES (:job, '1.4.0', 'abc', '[]', 40, 'Bajo-moderado', '[]', '[]', '{}', '{\"trackers\": 3}', false, 10)"),
                 {"job": job_id},
             )
             await session.commit()
@@ -288,7 +289,7 @@ def test_story_has_the_seven_steps_in_order_with_phrase_count_level_and_evidence
     response = client.get(f"/api/scans/{job_id}/report")
     assert response.status_code == 200, response.text
     report = response.json()
-    assert report["schema_version"] == "1.7.0" and not list(report_validator().iter_errors(report))
+    assert report["schema_version"] == "1.8.0" and not list(report_validator().iter_errors(report))
     steps = report["story"]["steps"]
     assert [step["id"] for step in steps] == STEP_IDS and [step["number"] for step in steps] == [1, 2, 3, 4, 5, 6, 7, 8]
     assert [step["title"] for step in steps] == ["Identificadores persistentes", "Fingerprinting", "Fugas de URL y Referer", "Exfiltración de atributos",

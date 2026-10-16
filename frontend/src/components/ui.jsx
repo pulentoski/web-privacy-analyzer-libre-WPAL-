@@ -311,6 +311,20 @@ export function BlockingBanner({ blocking, inRanking = true }) {
       </div>
     );
   }
+  if (blocking && !blocking.blocked && blocking.possible_variant) {
+    // v1.4.8: pocas requests o rastreo anómalo sin señal dura de bloqueo. Posible; no excluye del ranking.
+    const variant = blocking.possible_variant;
+    return (
+      <div role="status" className="panel p-3 border-sky-700 bg-sky-100 text-sky-900 text-sm" data-testid="possible-variant-note">
+        <EvidenceBadge level={variant.level} /> {variant.text} El scan sigue en el ranking del Panel.
+        {variant.signals && variant.signals.length > 0 && (
+          <ul className="list-disc ml-5 mt-1">
+            {variant.signals.map((signal, index) => <li key={index}>{signal.detail}</li>)}
+          </ul>
+        )}
+      </div>
+    );
+  }
   if (!blocking || !blocking.blocked) return null;
   return (
     <div role="alert" className="panel hazard p-3 border-amber-600 bg-amber-50 text-sm" data-tone="danger" data-testid="blocking-banner">
@@ -322,6 +336,35 @@ export function BlockingBanner({ blocking, inRanking = true }) {
         </ul>
       )}
     </div>
+  );
+}
+
+// v1.4.8 (docs/adr/035): un scan fallido no es una medición. Sin índice ni «nada observado»: el motivo y el
+// código net::ERR_* real del navegador, si dio uno.
+export const NO_MEASUREMENT = "Sin medición";
+export const NO_NET_ERROR = "el navegador no informó un código net::ERR_*";
+
+export function NoMeasurement({ failure, message }) {
+  const info = failure || {};
+  return (
+    <div className="mt-2" role="alert" data-testid="scan-failed">
+      <strong data-testid="no-measurement">{NO_MEASUREMENT}.</strong> El scan no se completó: {message}{" "}
+      <span data-testid="net-error">{info.net_error ? <span className="captured text-xs">{String(info.net_error)}</span> : <span className="muted">({NO_NET_ERROR})</span>}</span>
+      {info.error_code && <> <span className="captured text-xs">({String(info.error_code)})</span></>}
+      <p className="text-sm muted mt-1">Lo capturado no permite calcular el índice de exposición ni afirmar que no se observó nada.</p>
+    </div>
+  );
+}
+
+// v1.4.8: goto agotó el tiempo con respuestas ya recibidas; se analizó lo capturado.
+export const PARTIAL_SCAN = "Scan parcial";
+
+export function PartialScanNotice({ partial }) {
+  if (!partial) return null;
+  return (
+    <p className="mt-3 text-sm" role="note" data-testid="partial-scan-notice">
+      <strong>{PARTIAL_SCAN}:</strong> {partial.message}{partial.net_error && <> <span className="captured text-xs">{String(partial.net_error)}</span></>}
+    </p>
   );
 }
 

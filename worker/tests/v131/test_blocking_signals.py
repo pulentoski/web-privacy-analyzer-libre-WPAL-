@@ -128,9 +128,11 @@ def test_signature_with_very_low_tracking_is_still_possibly_blocked(config):
         assert "challenge_url" in {s["signal"] for s in result["signals"]}
 
 
-def test_only_anomalous_tracking_is_possibly_blocked(config):
+def test_only_anomalous_tracking_is_a_possible_note(config):
+    # v1.4.8: sin señal dura, el rastreo anómalo no marca la visita.
     result = verdict(config, 1, challenge=False)
-    assert result["blocked"] is True and [s["signal"] for s in result["signals"]] == ["tracker_anomaly"]
+    assert result["blocked"] is False and result["signals"] == []
+    assert [s["signal"] for s in result["possible_variant"]["signals"]] == ["tracker_anomaly"]
 
 
 def test_signature_on_the_page_itself_is_blocked_even_with_tracking(config):

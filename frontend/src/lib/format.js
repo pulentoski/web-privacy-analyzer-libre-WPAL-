@@ -28,11 +28,12 @@ export function levelInfo(level) {
   return LEVELS[level] || { label: String(level ?? "sin nivel"), description: "Nivel no reconocido.", className: "bg-white text-slate-900 border-slate-500" };
 }
 
-export const BANDS = ["Bajo", "Posible", "Moderado", "Alto", "Muy alto"];
+// Mismos nombres y orden que data/scoring.yaml (lo comprueba v148.test.jsx contra el archivo).
+export const BANDS = ["Bajo", "Bajo-moderado", "Moderado", "Alto", "Muy alto"];
 
 const BAND_CLASSES = {
   Bajo: "bg-slate-100 text-slate-800 border-slate-400",
-  Posible: "bg-yellow-100 text-yellow-900 border-yellow-600",
+  "Bajo-moderado": "bg-yellow-100 text-yellow-900 border-yellow-600",
   Moderado: "bg-orange-100 text-orange-900 border-orange-600",
   Alto: "bg-red-100 text-red-900 border-red-600",
   "Muy alto": "bg-red-700 text-white border-red-900",

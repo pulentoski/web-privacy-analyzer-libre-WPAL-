@@ -59,6 +59,7 @@
         "url": "http://site.fixtures.test/static/fp/webrtc.js",
         "fingerprinting_inferred": true,
         "heuristics": [
+          "webrtc_connection",
           "webrtc_ip_discovery"
         ]
       },

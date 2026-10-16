@@ -65,7 +65,7 @@ def analyzed_scan(client):
                 text(
                     "INSERT INTO site_analysis (job_id, analyzer_version, lists_version, lists, score, band, breakdown,"
                     " data_categories, mechanisms, summary, partial, duration_ms) VALUES (:job, :v, 'abc', CAST(:lists AS jsonb),"
-                    " 34, 'Posible', CAST(:breakdown AS jsonb), CAST(:data AS jsonb), '{\"pixel\": 1}', '{\"trackers\": 3}', false, 12)"
+                    " 34, 'Bajo-moderado', CAST(:breakdown AS jsonb), CAST(:data AS jsonb), '{\"pixel\": 1}', '{\"trackers\": 3}', false, 12)"
                 ),
                 {
                     "job": job_id, "v": VERSION,
@@ -100,7 +100,7 @@ def test_requests_include_analysis(client, analyzed_scan):
 @pytest.mark.parametrize(
     "params, expected",
     [
-        ({"band": "Bajo"}, [0]), ({"band": "Alto"}, [1]), ({"band": "Muy alto"}, [3]), ({"band": "Posible"}, []),
+        ({"band": "Bajo"}, [0]), ({"band": "Alto"}, [1]), ({"band": "Muy alto"}, [3]), ({"band": "Bajo-moderado"}, []),
         ({"category": "analytics"}, [1]), ({"category": "no-existe"}, []),
         ({"band": "Moderado", "category": "advertising", "third_party": "true"}, [2]),
         ({"band": "Moderado", "category": "analytics"}, []),
@@ -167,7 +167,7 @@ def test_report_validates_against_schema(client, analyzed_scan):
     schema = json.loads(SCHEMA_PATH.read_text())
     Draft202012Validator.check_schema(schema)
     assert list(Draft202012Validator(schema).iter_errors(report)) == []
-    assert report["schema_version"] == schema["properties"]["schema_version"]["const"] == "1.7.0"
+    assert report["schema_version"] == schema["properties"]["schema_version"]["const"] == "1.8.0"
     assert report["analysis"]["analyzer_version"] == VERSION
     assert report["analysis"]["lists"][0]["noncommercial"] is True
     assert report["site"]["exposure_score"] == 34 and report["capture"]["total_requests"] == 4
@@ -211,7 +211,7 @@ def test_invalid_report_is_not_served(client, analyzed_scan):
         response = client.get(f"/api/scans/{job_id}/report")
         assert response.status_code == 500 and response.json()["error_code"] == "REPORT_INVALID"
     finally:
-        client.portal.call(set_band, "Posible")
+        client.portal.call(set_band, "Bajo-moderado")
 
 
 def test_report_before_analysis(client, scan):
@@ -343,6 +343,6 @@ def test_report_includes_fingerprinting_section(client, fp_scan):
     assert response.status_code == 200, response.text
     report = response.json()
     assert list(report_validator().iter_errors(report)) == []
-    assert report["schema_version"] == "1.7.0"
+    assert report["schema_version"] == "1.8.0"
     assert report["fingerprinting"]["scripts"][0]["fingerprinting_inferred"] is True
     assert report["fingerprinting"]["exfiltrations"][0]["evidence_refs"]["requests"]

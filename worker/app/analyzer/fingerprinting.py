@@ -28,6 +28,9 @@ def script_key(call: dict) -> str:
 
 CANVAS_READS = ("canvas.toDataURL", "canvas.toBlob", "canvas.getImageData")
 AUDIO_READS = ("audio.getChannelData", "audio.getFloatFrequencyData")
+# v1.4.8: candidatos ICE que leyó la página, por tipo de dirección. Con IP = la dirección quedó expuesta al script.
+ICE_CANDIDATES = ("webrtc.icecandidate.local_ip", "webrtc.icecandidate.public_ip", "webrtc.icecandidate.mdns")
+ICE_SCOPE_LABELS = {"webrtc.icecandidate.local_ip": "IP local", "webrtc.icecandidate.public_ip": "IP pública"}
 WEBGL_UNMASKED = ("webgl.UNMASKED_RENDERER_WEBGL", "webgl.UNMASKED_VENDOR_WEBGL")
 SWEEP_PREFIXES = ("navigator.", "screen.", "window.devicePixelRatio", "intl.timeZone")
 INFERRED = ("canvas_fingerprinting", "font_enumeration", "audio_fingerprinting", "webgl_fingerprinting",
@@ -41,7 +44,7 @@ ATTRIBUTES = {
     "webgl_renderer": ("webgl.UNMASKED_RENDERER_WEBGL",),
     "webgl_parameters": ("webgl.getParameter", "webgl.getSupportedExtensions", "webgl.readPixels"),
     "audio": ("audio.OfflineAudioContext", "audio.startRendering") + AUDIO_READS,
-    "webrtc": ("webrtc.RTCPeerConnection", "webrtc.createDataChannel", "webrtc.createOffer", "webrtc.onicecandidate"),
+    "webrtc": ("webrtc.RTCPeerConnection", "webrtc.createDataChannel", "webrtc.createOffer", "webrtc.onicecandidate") + ICE_CANDIDATES,
     "user_agent": ("navigator.userAgent",),
     "user_agent_client_hints": ("navigator.userAgentData.getHighEntropyValues",),
     "platform": ("navigator.platform",),
@@ -180,13 +183,33 @@ def analyze_fingerprinting(fingerprinting: dict | None, value_params: list, by_i
                 f"La lectura de {what} por el script {name} es compatible con fingerprinting por WebGL.",
                 refs(*unmasked),
             )
+        # v1.4.8: crear una RTCPeerConnection y recibir candidatos ICE con IP son hechos observados (grupo 2).
+        exposed = [api for api in ICE_CANDIDATES if api in ICE_SCOPE_LABELS and apis.get(api)]
+        if apis.get("webrtc.RTCPeerConnection"):
+            finding(
+                script_url, "webrtc_connection", "EVIDENCIA",
+                f"El script {name} creó {apis['webrtc.RTCPeerConnection']} conexión(es) WebRTC (RTCPeerConnection).",
+                refs("webrtc.RTCPeerConnection"),
+                details={"connections": apis["webrtc.RTCPeerConnection"],
+                         "mdns_candidates": apis.get("webrtc.icecandidate.mdns", 0)},
+            )
+        if exposed:
+            kinds = " y ".join(ICE_SCOPE_LABELS[api] for api in exposed)
+            finding(
+                script_url, "webrtc_ice_exposed", "EVIDENCIA",
+                f"El script {name} recibió candidatos ICE de WebRTC con {kinds} del equipo "
+                f"({sum(apis[api] for api in exposed)} lectura(s)). La dirección no se registra en este análisis.",
+                refs(*exposed), details={"scopes": [api.rsplit(".", 1)[1] for api in exposed],
+                                         "reads": {api.rsplit(".", 1)[1]: apis[api] for api in exposed}},
+            )
         if (apis.get("webrtc.createDataChannel") or apis.get("webrtc.createOffer")) and apis.get("webrtc.onicecandidate"):
             finding(
                 script_url, "webrtc_ip_discovery", "INFERENCIA",
                 f"El script {name} abrió una conexión WebRTC y escuchó candidatos ICE: patrón compatible con un intento "
-                "de descubrir direcciones IP. El worker bloquea el UDP fuera del proxy, así que no pudo obtenerlas.",
-                refs("webrtc.RTCPeerConnection", "webrtc.createDataChannel", "webrtc.createOffer", "webrtc.onicecandidate"),
-                details={"blocked_by_policy": True},
+                "de descubrir direcciones IP." + (" Obtuvo candidatos con dirección IP (ver hallazgo de Evidencia)." if exposed else
+                " El worker bloquea el UDP fuera del proxy y no se observaron candidatos con IP."),
+                refs("webrtc.RTCPeerConnection", "webrtc.createDataChannel", "webrtc.createOffer", "webrtc.onicecandidate", *exposed),
+                details={"blocked_by_policy": not exposed},
             )
         swept = sorted(api for api in apis if api.startswith(SWEEP_PREFIXES))
         if len(swept) >= thresholds["sweep_threshold"]:

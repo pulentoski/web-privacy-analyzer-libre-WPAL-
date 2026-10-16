@@ -87,10 +87,16 @@ purposes:
     - tuuid
     - A3
 
+# v1.4.8: nombres cortos y genéricos que otros sitios también usan. Por el nombre solo se clasifican si la
+# cookie es de uno de estos dominios (sufijo); si no, pasan al paso (b) o quedan «sin clasificar».
+name_domains:
+  l: [alibaba.com, aliexpress.com, alicdn.com, mmstat.com]
+  cna: [alibaba.com, aliexpress.com, alicdn.com, mmstat.com]
+
 # Paso (b): tipo de servicio de la organización que creó la cookie → propósito.
 by_service_type:
-  publicidad: [advertising, mobile_advertising, conversion_pixel, dmp, data_broker]
-  analitica: [analytics, audience_measurement, session_recording]
+  publicidad: [advertising, mobile_advertising, conversion_pixel, ad_attribution, server_side_meta, dmp, data_broker]
+  analitica: [analytics, audience_measurement, session_recording, cms_analytics]
   funcional: [cdn, library_cdn, antifraud]
 
 basis_labels:

@@ -25,12 +25,14 @@ from app.db import get_session
 from app.destinations import build_destinations
 from app.errors import AppError
 from app.explain import explanations, glossary
+from app.failures import failure, partial_navigation
 from app.models import RequestAnalysis, ScanRequest
-from app.routes.scans import BANDS, _get_job, _summary
+from app.bands import BANDS, TRACKER_BANDS
+from app.routes.scans import _get_job, _summary
 
 router = APIRouter(prefix="/api/scans")
 
-REPORT_SCHEMA_VERSION = "1.7.0"
+REPORT_SCHEMA_VERSION = "1.8.0"
 INTERACTIVE_END_REASONS = ("user_stop", "idle_timeout", "max_duration", "max_requests", "window_closed", "browser_closed")
 
 
@@ -63,8 +65,6 @@ def interactive_section(result: dict) -> dict | None:
         "masked_fields": masked if isinstance(raw.get("masked_fields"), list) else None,
     }
 SCHEMA_PATH = pathlib.Path(__file__).parent.parent / "schemas" / f"report-{REPORT_SCHEMA_VERSION}.schema.json"
-# "Tracker" = request con banda >= Moderado (SPEC §Scores).
-TRACKER_BANDS = BANDS[BANDS.index("Moderado"):]
 UNKNOWN = "no_disponible"
 
 LIMITATIONS = [
@@ -640,6 +640,9 @@ async def build_report(session: AsyncSession, job_id: uuid.UUID) -> dict:
             "source": result.get("source") if result.get("source") in ("har_import", "interactive") else "scan",
             "import": result.get("import") if result.get("source") == "har_import" else None,
             "interactive": interactive_section(result),
+            # v1.4.8 (docs/adr/035): scan fallido = sin medición; scan parcial = goto agotó el tiempo con respuestas.
+            "failure": failure(job.status, job.error),
+            "partial_navigation": partial_navigation(result),
         },
         "analysis": {
             "analyzer_version": site["analyzer_version"],

@@ -124,6 +124,15 @@ terms:
     term: "Alias de organización"
     plain: "varios dominios, un mismo dueño"
     definition: "Dominios distintos que pertenecen al mismo dueño (por ejemplo, el sitio de una municipalidad y el de sus APIs). Entre ellos las requests son de la misma organización y no cuentan como terceros."
+  # v1.4.8
+  - id: webrtc
+    term: "WebRTC"
+    plain: "conexiones directas entre navegadores"
+    definition: "API del navegador para audio, video y datos en tiempo real entre equipos (RTCPeerConnection). Para establecer la conexión, el navegador reúne las direcciones de red del equipo, que la página puede leer."
+  - id: ice
+    term: "Candidato ICE"
+    plain: "dirección de red ofrecida por WebRTC"
+    definition: "Cada una de las direcciones (IP local, IP pública vista desde fuera o un nombre .local en lugar de la IP) que WebRTC propone para conectarse. Si la página lee un candidato con IP, esa dirección del equipo queda expuesta a sus scripts."
 
 panels:
   summary:
@@ -145,7 +154,7 @@ panels:
     title: "¿Qué es esto?"
     definition: "Scripts de la página que leyeron atributos del dispositivo (GPU, pantalla, fuentes, audio) mediante APIs del navegador."
     method: "Las llamadas se registran con instrumentación de las APIs. La lectura es Evidencia; que su propósito sea reconocer el dispositivo (fingerprinting) es siempre una Inferencia."
-    terms: [fingerprinting, canvas, webgl, user_agent, exfiltracion]
+    terms: [fingerprinting, canvas, webgl, webrtc, ice, user_agent, exfiltracion]
   traffic:
     title: "¿Qué es esto?"
     definition: "Todas las requests realizadas por la página durante la visita, una por fila, con su destino, su mecanismo y su puntaje de seguimiento."

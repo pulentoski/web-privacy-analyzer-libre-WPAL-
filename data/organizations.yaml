@@ -15,6 +15,9 @@ organizations:
   Google: [googleapis.com]
   # v1.4.6: widget de accesibilidad (cdn.userway.org, api.userway.org): una sola organización.
   UserWay: [userway.org]
+  # v1.4.8: Liferay (DXP y Analytics Cloud) y Podscribe (atribución de publicidad en podcasts).
+  Liferay: [lfr.cloud, liferay.com]
+  Podscribe: [pdscrb.com]
 
 # CDN públicos de librerías (v1.4.6, docs/adr/033). La empresa dueña del CDN (p. ej. Prospect One por
 # jsDelivr) no es quien escribió el script: el recurso se atribuye a la librería, leída de la RUTA de la URL

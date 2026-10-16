@@ -88,15 +88,18 @@ def test_low_third_party_tracking_with_own_telemetry_is_a_note_not_a_block(confi
     assert result["note"]["detail"].startswith("Rastreo de terceros bajo; telemetría propia detectada")
 
 
-def test_low_tracking_without_own_telemetry_is_still_possibly_blocked(config):
+def test_low_tracking_without_own_telemetry_is_a_possible_variant(config):
     for own_requests in (0, 2):
         result = verdict(config, own_requests=own_requests)
-        assert result["blocked"] is True and result["note"] is None and [s["signal"] for s in result["signals"]] == ["tracker_anomaly"]
+        assert result["blocked"] is False and result["note"] is None and result["signals"] == []
+        assert [s["signal"] for s in result["possible_variant"]["signals"]] == ["tracker_anomaly"]
 
 
 def test_note_needs_a_normal_title_and_no_antibot_signature(config):
-    assert verdict(config, own_requests=40, title="")["blocked"] is True
-    assert verdict(config, own_requests=40, title="Just a moment...")["blocked"] is True
+    untitled = verdict(config, own_requests=40, title="")
+    assert untitled["blocked"] is False and untitled["note"] is None and untitled["possible_variant"] is not None
+    challenged = verdict(config, own_requests=40, title="Just a moment...")
+    assert challenged["blocked"] is True and {s["signal"] for s in challenged["signals"]} == {"challenge_text", "tracker_anomaly"}
     challenge = own(900, f"{SITE}/_____tmd_____/punish?x5secdata=a", resource_type="document")
     result = verdict(config, own_requests=40, extra=[challenge])
     assert result["blocked"] is True and result["note"] is None

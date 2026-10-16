@@ -5,6 +5,7 @@ simulan dominios distintos. Registra cada request recibida y la expone en
 /__received para compararla con lo que capturó el worker.
 """
 
+import asyncio
 import base64
 import hashlib
 import json
@@ -106,6 +107,19 @@ async def ssrf_redirect(request: web.Request) -> web.Response:
     raise web.HTTPFound(target)
 
 
+# v1.4.8 (docs/adr/035): documento que nunca responde a tiempo, directo o tras una redirección ya respondida.
+HANG_S = 90
+
+
+async def hang(request: web.Request) -> web.Response:
+    await asyncio.sleep(HANG_S)
+    return web.Response(text="tarde", content_type="text/html")
+
+
+async def redirect_to_hang(request: web.Request) -> web.Response:
+    raise web.HTTPFound("/v148/hang")
+
+
 async def redirect_hop(request: web.Request) -> web.Response:
     raise web.HTTPMovedPermanently(f"http://{CDN}/redirect/final")
 
@@ -203,6 +217,8 @@ def build_app() -> web.Application:
             web.get("/api/data", api_data),
             web.post("/metrics", collect),
             web.get("/redirect/start", redirect_start),
+            web.get("/v148/hang", hang),
+            web.get("/v148/redirect-to-hang", redirect_to_hang),
             web.get("/ssrf/redirect/{target}", ssrf_redirect),
             web.get("/ws", websocket),
             web.get("/sw.js", static("sw.js", "application/javascript")),

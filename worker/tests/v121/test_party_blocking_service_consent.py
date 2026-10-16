@@ -90,7 +90,8 @@ def test_value_shared_only_within_same_org_is_not_id_sync(config):
 # --- Point 2: fuga hacia el mismo dueño ---
 
 def test_url_leak_to_same_org_is_informational_not_a_finding(config):
-    leaked = f"{PAGE}listing/123"
+    # v1.4.8: la URL de la página entera (con query); «{PAGE}listing/123» sería otra página, no una fuga de esta.
+    leaked = f"{PAGE}?source=listing"
     cap = capture([
         req(1, "https://www.muscache.com/collect", params={"dl": leaked}),
         req(2, "https://ads.doubleclick.net/collect", params={"dl": leaked}),
@@ -117,11 +118,15 @@ def test_referer_full_url_to_same_org_is_informational(config):
 
 # --- Point 3: alerta de visita posiblemente bloqueada ---
 
-def test_blocking_by_few_requests(config):
+def test_few_requests_alone_is_a_possible_note_not_a_block(config):
+    # v1.4.8 (docs/adr/035): pocas requests no es una señal dura; queda la nota POSIBLE y el scan sigue en el ranking.
     cap = capture([req(1, "https://www.muscache.com/a.png")])  # 2 requests en total (< 20)
     blocking = analyze(cap, Lists(ENTITIES), config)["site"]["summary"]["blocking"]
-    assert blocking["blocked"] is True
-    assert any(s["signal"] == "few_requests" for s in blocking["signals"])
+    assert blocking["blocked"] is False and blocking["signals"] == []
+    variant = blocking["possible_variant"]
+    assert variant["level"] == "POSIBLE" and [s["signal"] for s in variant["signals"]] == ["few_requests"]
+    assert variant["text"] == ("La página podría haber mostrado una versión distinta al navegador automatizado; "
+                               "compare con un HAR propio.")
 
 
 def test_blocking_by_challenge_title_and_status(config):

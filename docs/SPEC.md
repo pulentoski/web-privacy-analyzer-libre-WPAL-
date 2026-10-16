@@ -41,7 +41,8 @@ Ambos son estimaciones, no verdades. Todos los pesos están en `data/scoring.yam
 guarda como razón `{signal, weight, level, evidence_ref, detail}`; una request con
 score > 20 siempre tiene al menos una razón.
 
-Bandas: 0–20 Bajo · 21–40 Posible · 41–60 Moderado · 61–80 Alto · 81–100 Muy alto.
+Bandas (`data/scoring.yaml`, única fuente): 0–20 Bajo · 21–40 Bajo-moderado (v1.4.8; antes «Posible», que es
+un nivel de evidencia) · 41–60 Moderado · 61–80 Alto · 81–100 Muy alto. Las mismas bandas valen para el índice del sitio.
 "Tracker" = request en banda ≥ Moderado.
 
 Señales positivas: coincidencia con una lista (solo cuenta la de mayor peso),
@@ -327,10 +328,10 @@ hacia quién la envían.
   muestra aparte. La clasificación se guarda en `request_analysis.party`.
 - Una URL o un Referer completo enviados a un dominio de la misma organización (p. ej. amazon.com →
   ssl-images-amazon.com) es dato informativo, no hallazgo de fuga.
-- Alerta «visita posiblemente bloqueada» (`site.summary.blocking`, umbrales en `data/scoring.yaml`): pocas
-  requests (< 20 configurable), texto de verificación antibot en el título (captcha, «unusual traffic»,
-  desafío de Cloudflare…) o estado 403/429/503. Banner en Resumen, Historial, Panel y reportes; estos scans
-  se excluyen del ranking del Panel.
+- Alerta «visita posiblemente bloqueada» (`site.summary.blocking`, umbrales en `data/scoring.yaml`): texto de
+  verificación antibot en el título (captcha, «unusual traffic», desafío de Cloudflare…) o estado 403/429/503.
+  Banner en Resumen, Historial, Panel y reportes; estos scans se excluyen del ranking del Panel. Desde v1.4.8
+  pocas requests (< 20 configurable) ya no marcan por sí solas (ver §Scans fallidos y parciales).
 - Parámetros de seguimiento de la URL de entrada en `data/tracking_params.yaml` (se añaden gad_source,
   gad_campaignid, srsltid, spm, scm, igshid, si, _hsenc, _hsmi, mkt_tok, oly_anon_id, oly_enc_id, rb_clickid,
   s_cid, vero_id, wickedid, ref_src).
@@ -371,7 +372,8 @@ hacia quién la envían.
 - v1.3.2 (analizador 1.9.0): la firma sola no marca la visita. Firma + rastreo normal (`challenge_partial`:
   ≥ 10 requests de rastreo y ≥ 5 % del total), sin otra señal y sin estar en la dirección de la propia
   página = «bloqueo parcial: un componente mostró verificación antibot» (`blocking.partial`, informativo,
-  sigue en el ranking). Firma + rastreo muy bajo, o solo rastreo anómalo = «visita posiblemente bloqueada».
+  sigue en el ranking). Firma + rastreo muy bajo = «visita posiblemente bloqueada». Solo rastreo anómalo: nota
+  Posible desde v1.4.8 (ver §Scans fallidos y parciales).
 - El índice de un HAR importado se muestra como «índice parcial (sin cookies ni fingerprinting)» en
   Historial, Resumen, Panel y reportes; el ranking del Panel lo excluye (`partial_sites`). La comparación
   scan vs HAR informa requests de rastreo y organizaciones (`tracking`), no el índice.
@@ -500,6 +502,36 @@ hacia quién la envían.
   analítica; CDN/antibot → funcional). Sin ninguno: «sin clasificar». Cada cookie lleva `basis` (nombre | organizacion);
   el Resumen da `by_basis`. Nombres nuevos de Alibaba/AliExpress y adtech. Analizador 1.14.0.
 
+## Scans fallidos y parciales, alerta antibot con señal dura (v1.4.8, docs/adr/035)
+- Chromium del worker con `--disable-features=AcceptCHFrame` (scan y captura interactiva): un frame ACCEPT_CH (Client
+  Hints por ALPS) reiniciaba la navegación y el reinicio quedaba abortado (`ERR_ABORTED`). Efecto: los Client Hints de
+  alta entropía pedidos por ALPS no van en la primera request de cada origen; siguen yendo por `Accept-CH`.
+- Scan fallido = «Sin medición»: sin índice, sin resumen ni «Nada observado»; se muestran el motivo, el código
+  `net::ERR_*` real del navegador (`error.net_error`; si no hubo, se dice) y las requests capturadas antes del fallo.
+  Historial: «Sin medición». API: `measured`, `failure`; reporte `scan.failure` (schema `report-1.8.0`).
+- Scan parcial: si `goto` agota el tiempo con respuestas ya recibidas, el scan termina y se analiza lo capturado con
+  el aviso «Scan parcial» (`result.partial`, `scan.partial_navigation`, `end_reason = navigation_timeout_partial`).
+  En la captura interactiva la sesión sigue.
+- Alerta antibot: señal dura (estado 403/429/503, título de desafío o firma antibot en la URL) → «el sitio pudo
+  detectar el navegador automatizado» y exclusión del ranking. Pocas requests o rastreo anómalo sin señal dura →
+  nota POSIBLE «La página podría haber mostrado una versión distinta al navegador automatizado; compare con un HAR
+  propio.» (`blocking.possible_variant`), sin exclusión del ranking. Sin veredicto en scans fallidos, capturas
+  interactivas ni HAR; en un scan parcial solo cuentan las señales duras. Analizador 1.15.0.
+- Bandas: solo las de `data/scoring.yaml`; la 21–40 es «Bajo-moderado» (antes «Posible»). La api las lee del archivo.
+- «Servicios de terceros sin señales de rastreo» excluye las organizaciones de publicidad o analítica (tipos de
+  `cookie_purposes.yaml §by_service_type`); se cuentan en `excluded_requests`.
+- Fuga de búsqueda: no si el valor es el título, la meta description o una meta keyword de la página
+  (`result.page_meta`; los scans anteriores solo tienen el título).
+- Servidor CAPI de Meta inferido (host de nube): cuenta como Meta en la sincronización y en el índice; se muestra
+  «Meta (vía servidor CAPI, inferencia)».
+- Fuga de URL: el valor debe contener la URL de la página entera (origen y ruta) seguida de fin o separador; otra
+  ruta del mismo origen u otro host que empieza igual no cuentan.
+- Catálogo: Liferay (plataforma CMS/analítica), Podscribe (publicidad/atribución), alias INACAP (inacap.cl,
+  inacapmovil.cl). Cookies `l` y `cna`: por el nombre solo en dominios de Alibaba.
+- WebRTC (grupo 2): creación de RTCPeerConnection y candidatos ICE leídos por la página, por tipo de dirección (IP
+  local, IP pública, mDNS; nunca la dirección). EVIDENCIA: `webrtc_connection`, `webrtc_ice_exposed`. Glosario: WebRTC,
+  Candidato ICE.
+
 ## Fases
 F0 spec · F1 infra+aislamiento · F2 captura · F3 análisis+scoring ·
 F4 instrumentación · F5 UI · F6 exposición · F7 escenarios ·
@@ -514,4 +546,5 @@ v1.4.3 el indicador de recursos reserva su hueco y se puede minimizar (versión 
 v1.4.4 instalación simplificada y CI (versión 1.4.4) ·
 v1.4.5 servicios de terceros, es-CL y correcciones (versión 1.4.5) ·
 v1.4.6 atribución a librerías de CDN, sincronización entre organizaciones, alias y cookies por propósito (versión 1.4.6) ·
-v1.4.7 fugas hacia un CDN con su receptor real y cookies por la organización (versión 1.4.7)
+v1.4.7 fugas hacia un CDN con su receptor real y cookies por la organización (versión 1.4.7) ·
+v1.4.8 navegación con ACCEPT_CH, scans fallidos y parciales, alerta antibot con señal dura, bandas y reglas corregidas, WebRTC (versión 1.4.8)

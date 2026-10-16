@@ -11,7 +11,7 @@ from app.analyzer.engine import analyze, prepare_capture
 from tests.helpers import find
 
 LEVELS = {"EVIDENCIA", "INFERENCIA", "POSIBLE", "DESCONOCIDO"}
-BANDS = ["Bajo", "Posible", "Moderado", "Alto", "Muy alto"]
+BANDS = ["Bajo", "Bajo-moderado", "Moderado", "Alto", "Muy alto"]
 
 
 def analyzed(analysis, capture, host, path, method="GET"):
@@ -51,10 +51,13 @@ def test_clean_cdn_assets_and_first_party_metrics_are_low(analysis, capture, man
 def test_bands_match_scores(analysis, analyzer_resources):
     config = analyzer_resources[1]
     limits = [(band["name"], band["max"]) for band in config.bands]
-    assert limits == [("Bajo", 20), ("Posible", 40), ("Moderado", 60), ("Alto", 80), ("Muy alto", 100)]
-    assert [config.band(score) for score in (0, 20, 21, 40, 41, 60, 61, 80, 81, 100)] == [
-        "Bajo", "Bajo", "Posible", "Posible", "Moderado", "Moderado", "Alto", "Alto", "Muy alto", "Muy alto",
+    # v1.4.8: la banda 21–40 se llama «Bajo-moderado» (antes «Posible», que es un nivel de evidencia).
+    assert limits == [("Bajo", 20), ("Bajo-moderado", 40), ("Moderado", 60), ("Alto", 80), ("Muy alto", 100)]
+    assert [config.band(score) for score in (0, 20, 21, 37, 40, 41, 60, 61, 80, 81, 99, 100)] == [
+        "Bajo", "Bajo", "Bajo-moderado", "Bajo-moderado", "Bajo-moderado", "Moderado", "Moderado", "Alto", "Alto",
+        "Muy alto", "Muy alto", "Muy alto",
     ]
+    assert "Posible" not in {band["name"] for band in config.bands}
     for item in analysis["requests"]:
         assert 0 <= item["score"] <= 100 and item["band"] == config.band(item["score"])
 

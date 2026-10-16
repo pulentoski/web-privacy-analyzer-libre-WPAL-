@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { DeleteAllHistory, DeletedNotice, DeleteScanButton } from "../components/HistoryControls.jsx";
-import { BandBadge, Captured, Empty, Link, Panel } from "../components/ui.jsx";
+import { BandBadge, Captured, Empty, Link, NO_MEASUREMENT, Panel, PARTIAL_SCAN } from "../components/ui.jsx";
 import { api } from "../lib/api.js";
 import { formatBytes, formatDate, scanStage, stageLabel } from "../lib/format.js";
 
@@ -130,7 +130,12 @@ export default function History() {
                       {scan.group_id && <div className="text-xs"><Link to={["privacy", scan.group_id]} testId="scan-group">Parte de un grupo de Opciones avanzadas</Link></div>}
                     </td>
                     <td className="pr-2">{stageLabel(scanStage(scan))}{scan.error_code && <div className="captured text-xs">{String(scan.error_code)}</div>}</td>
-                    <td className="pr-2">{scan.site_exposure_score === null ? <span className="muted">sin análisis</span> : <BandBadge band={scan.band} score={scan.site_exposure_score} partial={scan.source === "har_import"} />}</td>
+                    <td className="pr-2">
+                      {scan.measured === false
+                        ? <span data-testid="history-no-measurement">{NO_MEASUREMENT}{scan.net_error && <div className="captured text-xs">{String(scan.net_error)}</div>}</span>
+                        : scan.site_exposure_score === null ? <span className="muted">sin análisis</span> : <BandBadge band={scan.band} score={scan.site_exposure_score} partial={scan.source === "har_import"} />}
+                      {scan.partial_navigation && <div className="text-xs" data-testid="history-partial-scan">{PARTIAL_SCAN.toLowerCase()}</div>}
+                    </td>
                     <td className="pr-2">{scan.trackers === null ? "—" : scan.trackers}</td>
                     <td className="pr-2 whitespace-nowrap">{formatDate(scan.created_at)}</td>
                     {canDelete && <td><DeleteScanButton jobId={scan.job_id} onDeleted={onDeleted} compact /></td>}

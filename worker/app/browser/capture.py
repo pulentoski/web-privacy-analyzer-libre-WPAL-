@@ -6,6 +6,7 @@ SCAN_TIMEOUT_S, lo que ocurra primero. Al llegar a MAX_REQUESTS se corta.
 
 import asyncio
 import logging
+import re
 import uuid
 from dataclasses import dataclass
 
@@ -43,8 +44,50 @@ def clean_text(value: object, limit: int) -> str:
     return "".join(ch for ch in value if ch.isprintable())[:limit]
 
 
-def _error(code: str, message: str) -> dict:
-    return {"error_code": code, "message": message, "stage": "navigation"}
+NET_ERROR_RE = re.compile(r"net::ERR_[A-Z0-9_]+")
+MAX_META_CHARS = 1000
+# Meta description y keywords de la página (v1.4.8): un «término de búsqueda» igual a ellos no es una búsqueda.
+PAGE_META_JS = """() => {
+  const read = (name) => { const el = document.querySelector(`meta[name="${name}" i]`); return el ? el.getAttribute("content") : null; };
+  return {description: read("description"), keywords: read("keywords")};
+}"""
+
+
+async def page_meta(page) -> dict:
+    """Meta description y keywords de la página, como texto acotado. None si falta o no se pudo leer. Nunca lanza."""
+    try:
+        raw = await asyncio.wait_for(page.evaluate(PAGE_META_JS), 3)
+    except (PlaywrightError, asyncio.TimeoutError):
+        raw = None
+    raw = raw if isinstance(raw, dict) else {}
+    return {key: (clean_text(raw.get(key), MAX_META_CHARS) or None) if isinstance(raw.get(key), str) else None
+            for key in ("description", "keywords")}
+
+
+def net_error_code(*texts: object) -> str | None:
+    """Primer código net::ERR_* que aparezca en los textos de error del navegador. None = no hubo."""
+    for value in texts:
+        match = NET_ERROR_RE.search(value) if isinstance(value, str) else None
+        if match:
+            return match.group(0)
+    return None
+
+
+def _error(code: str, message: str, net_error: str | None = None) -> dict:
+    # net_error: código real de Chromium (net::ERR_*); None si el navegador no informó ninguno (p. ej. timeout).
+    return {"error_code": code, "message": message, "stage": "navigation", "net_error": net_error}
+
+
+def partial_navigation(monitor: NetworkMonitor, timeout_s: float) -> dict:
+    """goto agotó el tiempo, pero ya había respuestas: se analiza lo capturado como scan parcial (docs/adr/035)."""
+    return {
+        "reason": "navigation_timeout",
+        "net_error": net_error_code(monitor.navigation_failure()),
+        "requests": monitor.count,
+        "responses": monitor.responses,
+        "message": (f"La navegación no terminó en {round(timeout_s)} s; se analiza lo capturado hasta ese momento "
+                    f"({monitor.count} requests, {monitor.responses} con respuesta)."),
+    }
 
 
 async def _wait_for_end(page, monitor: NetworkMonitor, deadline: float, idle_s: float) -> str:
@@ -129,24 +172,29 @@ async def _run_scan(url, timeout_s, max_requests, max_body_bytes, idle_s, fp_ins
             if progress is not None:
                 # Desde aquí corre el tiempo máximo y el contador de requests es el del monitor.
                 progress.navigating(lambda: monitor.count)
-            error, response, end_reason = None, None, "navigation_failed"
+            error, response, end_reason, partial = None, None, "navigation_failed", None
             try:
                 # "commit": el resto de la carga la vigila _wait_for_end, para poder cortar
                 # por timeout o por MAX_REQUESTS sin perder lo ya capturado.
                 response = await page.goto(url, timeout=timeout_s * 1000, wait_until="commit")
             except PlaywrightTimeoutError:
-                error = _error("NAVIGATION_TIMEOUT", "La navegación superó el tiempo límite.")
+                if monitor.responses:
+                    partial, end_reason = partial_navigation(monitor, timeout_s), "navigation_timeout_partial"
+                else:
+                    error = _error("NAVIGATION_TIMEOUT", "La navegación superó el tiempo límite.",
+                                   net_error_code(monitor.navigation_failure()))
             except PlaywrightError as exc:
-                error = _error("NAVIGATION_FAILED", clean_text(exc.message.splitlines()[0] if exc.message else "", 300))
+                message = exc.message.splitlines()[0] if exc.message else ""
+                error = _error("NAVIGATION_FAILED", clean_text(message, 300), net_error_code(message, monitor.navigation_failure()))
 
-            if error is None and response is None:
-                error = _error("NAVIGATION_FAILED", "La navegación no produjo respuesta.")
-            if error is None:
+            if error is None and response is None and partial is None:
+                error = _error("NAVIGATION_FAILED", "La navegación no produjo respuesta.", net_error_code(monitor.navigation_failure()))
+            if error is None and response is not None:
                 proxy_error = response.headers.get(PROXY_ERROR_HEADER)
                 if proxy_error:
                     code = "EGRESS_BLOCKED" if response.status == 403 else "EGRESS_ERROR"
                     error = _error(code, f"El egress-proxy no entregó el destino ({clean_text(proxy_error, 64)}).")
-            if error is None:
+            if error is None and partial is None:
                 if progress is not None:
                     progress.capturing()
                 end_reason = await _wait_for_end(
@@ -154,7 +202,8 @@ async def _run_scan(url, timeout_s, max_requests, max_body_bytes, idle_s, fp_ins
                 )
 
             consent, artifacts = None, []
-            if error is None and scenario in SCENARIOS:
+            # Scan parcial: el tiempo ya se agotó, no queda margen para el escenario de consentimiento.
+            if error is None and partial is None and scenario in SCENARIOS:
                 try:
                     consent, artifacts = await handle_consent(page, context, scenario, monitor)
                 except Exception:  # el escenario es un añadido: si falla, el scan sigue valiendo
@@ -168,7 +217,8 @@ async def _run_scan(url, timeout_s, max_requests, max_body_bytes, idle_s, fp_ins
                     )
 
             # Estado TCF declarado por la página, al final de la visita (tras la decisión, si la hubo).
-            tcf = await tcf_info(page) if error is None else None
+            # Scan parcial: sin página confirmada no hay estado TCF que leer, y el margen para volcar la captura es corto.
+            tcf = await tcf_info(page) if error is None and partial is None else None
 
             result = None
             if error is None:
@@ -177,10 +227,15 @@ async def _run_scan(url, timeout_s, max_requests, max_body_bytes, idle_s, fp_ins
                 except (PlaywrightError, asyncio.TimeoutError):
                     title = ""
                 result = {
-                    "http_status": response.status,
+                    "http_status": response.status if response is not None else monitor.document_status(),
                     "title": clean_text(title, MAX_TITLE_CHARS),
-                    "final_url": clean_text(page.url, MAX_URL_CHARS),
+                    # Parcial sin commit: la pestaña sigue en about:blank; la dirección visitada es la pedida.
+                    "final_url": clean_text(url if page.url == "about:blank" else page.url, MAX_URL_CHARS),
                 }
+                if partial is None:
+                    result["page_meta"] = await page_meta(page)
+                else:
+                    result["partial"] = partial
             if fingerprint is not None and error is None:
                 # Deja salir el último envío periódico de la instrumentación.
                 await asyncio.sleep(PAGE_FLUSH_MS / 1000 + 0.2)

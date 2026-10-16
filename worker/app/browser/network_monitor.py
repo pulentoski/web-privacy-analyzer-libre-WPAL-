@@ -231,6 +231,35 @@ class NetworkMonitor:
         """Requests registradas hasta ahora (sirve de frontera "antes / después" de una acción)."""
         return len(self._records)
 
+    @property
+    def responses(self) -> int:
+        """Requests que ya recibieron respuesta (decide si un goto agotado deja un scan parcial)."""
+        return sum(1 for record in self._records if record["response"] is not None)
+
+    def _main_documents(self):
+        for record in self._records:
+            request = record["request"]
+            try:
+                if request.resource_type == "document" and request.frame.parent_frame is None:
+                    yield record
+            except PlaywrightError:  # request sin frame (p. ej. de un worker)
+                continue
+
+    def document_status(self) -> int | None:
+        """Estado HTTP de la última navegación de la página principal que recibió respuesta. None = ninguna."""
+        status = None
+        for record in self._main_documents():
+            if record["response"] is not None:
+                status = record["response"].status
+        return status
+
+    def navigation_failure(self) -> str | None:
+        """Texto de error de red (net::ERR_*) del primer documento principal que falló. None = ninguno."""
+        for record in self._main_documents():
+            if record["failed"]:
+                return text(record["request"].failure, 200)
+        return None
+
     # --- arranque ---
 
     async def start(self) -> None:

@@ -11,7 +11,7 @@ import logging
 import pathlib
 from urllib.parse import urlsplit
 
-from app import progress
+from app import jobs, progress
 from app.analyzer import ANALYZER_VERSION
 from app.analyzer.config import load_config
 from app.analyzer.engine import analyze
@@ -35,7 +35,7 @@ UPDATE jobs
          ORDER BY updated_at
          FOR UPDATE SKIP LOCKED
          LIMIT 1)
-RETURNING id, url, result, finished_at
+RETURNING id, url, result, finished_at, status, options
 """
 
 REAP_SQL = """
@@ -183,11 +183,15 @@ async def load_capture(conn, job_id, url: str, result, finished_at=None) -> dict
         "consent": result.get("consent"),
         # Señales de bloqueo antibot (point 3).
         "title": result.get("title"),
+        # Meta description y keywords (v1.4.8). None = scan anterior o no se pudo leer.
+        "page_meta": result.get("page_meta") if isinstance(result.get("page_meta"), dict) else None,
         # scan (navegador del worker) | har_import (captura del navegador real del usuario).
         "source": result.get("source") or "scan",
         # Captura interactiva (v1.4.2): hora y tipo de cada interacción del usuario. None = no se registró.
         "interactions": (result.get("interactive") or {}).get("interactions") if isinstance(result.get("interactive"), dict) else None,
         "http_status": result.get("http_status"),
+        # Scan parcial (v1.4.8): goto agotó el tiempo con respuestas ya recibidas. None = navegación completa.
+        "partial_navigation": result.get("partial"),
         "requests": requests,
         # Fin de la visita: referencia para saber cuánto le queda a cada cookie.
         "visit_ts": finished_at.timestamp() if finished_at is not None else None,
@@ -282,6 +286,11 @@ async def run_analysis(pool, job) -> None:
     try:
         async with pool.acquire() as conn:
             capture = await load_capture(conn, job_id, job["url"], job["result"], job["finished_at"])
+        # Navegación fallida (timeout, error de red): lo guardado no es una medición (docs/adr/035).
+        capture["navigation_failed"] = job.get("status") == "failed"
+        if capture["source"] == "scan":
+            # Un job fallido no tiene result: el origen (p. ej. captura interactiva) sale de sus opciones.
+            capture["source"] = jobs.job_source(job)
         analysis = await loop.run_in_executor(_executor, _analyze_in_thread, capture)
         # Etapa "generando resultado": el análisis terminó y se está guardando.
         await progress.set_stage(pool, job_id, "building")

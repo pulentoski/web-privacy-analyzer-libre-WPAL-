@@ -27,7 +27,9 @@ GLOSSARY_TERMS = ["Request", "Tercero", "Tracker", "Pixel", "Beacon", "Cookie", 
                   "Posible", "Desconocido", "CMP / TCF", "Consent Mode",
                   # v1.4.2
                   "Rastreo del lado del servidor", "Registro de interacción", "DMP", "Broker de datos",
-                  "Librería en CDN público", "Propósito de una cookie", "Alias de organización"]
+                  "Librería en CDN público", "Propósito de una cookie", "Alias de organización",
+                  # v1.4.8
+                  "WebRTC", "Candidato ICE"]
 HEDGE = re.compile(r"podría|podrían|es compatible con|son compatibles con|es posible que|no se sabe|no se pudo", re.I)
 CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; "
        "connect-src 'self' https://api.ipify.org; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'")

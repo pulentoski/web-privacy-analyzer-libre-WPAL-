@@ -40,6 +40,8 @@ VALUE_SOURCES_EXCLUDED = frozenset({"cookie", "set_cookie", "referer"})
 # corre ahí es código del navegador, no del sitio.
 ERROR_FRAME_PREFIX = "chrome-error://"
 MAX_THIRD_PARTY_SERVICES = 80
+# v1.4.8: propósitos (cookie_purposes.yaml §by_service_type) que no entran en «Servicios de terceros sin señales de rastreo».
+SERVICE_PURPOSES_NOT_LISTED = ("publicidad", "analitica")
 DATA_CATEGORIES = ("DEVICE", "IDENTIFIERS", "BEHAVIOR", "NETWORK", "LOCATION", "ADVERTISING", "SESSION")
 
 
@@ -51,6 +53,7 @@ def prepare_capture(capture: dict, *, start_url: str, page_url: str | None, resu
     prepared["consent"] = (result or {}).get("consent")
     # Señales de bloqueo antibot (point 3): título y estado HTTP de la navegación.
     prepared["title"] = (result or {}).get("title")
+    prepared["page_meta"] = (result or {}).get("page_meta")
     prepared["http_status"] = (result or {}).get("http_status")
     prepared["page_url"] = page_url or start_url
     # Captura interactiva (v1.4.2): hora y tipo de cada clic, desplazamiento y tecla del usuario. None = no se registró.
@@ -103,6 +106,23 @@ def _page_needles(*urls: str | None) -> list[str]:
             if needle not in needles:
                 needles.append(needle)
     return needles
+
+
+# v1.4.8: después de la URL de la página solo puede venir el fin del valor o un separador. Si sigue un carácter de
+# host o de ruta («.», «-», letras, «/otra-ruta»), es otra dirección que empieza igual: coincidencia parcial.
+URL_BOUNDARY = frozenset("?#&=;,|\"' \t\r\n)]}>")
+
+
+def _contains_page_url(value: str, needles: list[str]) -> bool:
+    """El valor contiene la URL de la página completa (origen y ruta), no solo un trozo de ella."""
+    for needle in needles:
+        start = value.find(needle)
+        while start != -1:
+            rest = value[start + len(needle):]
+            if not rest or rest[0] in URL_BOUNDARY or (rest[0] == "/" and (len(rest) == 1 or rest[1] in URL_BOUNDARY)):
+                return True
+            start = value.find(needle, start + 1)
+    return False
 
 
 def _referer_exposure(request: dict) -> str:
@@ -208,6 +228,16 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
 
     value_params = [p for p in params if p.source not in VALUE_SOURCES_EXCLUDED]
 
+    # v1.4.2/v1.4.8: hosts de nube genéricos inferidos como servidor de Conversions API de Meta. Se detectan aquí
+    # porque no son una organización distinta de Meta: cuentan como su dominio en la sincronización y el índice.
+    server_side = config.server_side.detect(requests, params_by_request, party_by_id)
+    meta_domain = config.server_side.meta_owner_domain
+    capi_domains = {item["domain"] for item in server_side if item["domain"]} if meta_domain else set()
+
+    def index_domain(domain: str | None) -> str | None:
+        """Dominio con el que cuenta en el índice: el de Meta para un servidor CAPI inferido."""
+        return meta_domain if domain in capi_domains else domain
+
     # --- 2. señales observables entre requests ---
     # 2a. mismo valor con forma de identificador enviado a dominios registrables distintos
     # IDs de cuenta del sitio (pixel, contenedor, ID de medición): iguales para todo visitante.
@@ -225,6 +255,7 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
 
     def owner(domain: str) -> str:
         """Organización dueña del dominio; si no se conoce, el dominio cuenta como dueño propio."""
+        domain = index_domain(domain)
         entity = lists.entity(domain)
         return domain if entity == UNKNOWN_ENTITY else f"entidad:{entity}"
 
@@ -293,7 +324,7 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
         target = leak_by_request if party == "third_party" else same_org_leak_by_request if party == "same_org" else None
         if target is None or param.request_id in target:
             continue
-        if any(len(param.value) >= len(needle) and needle in param.value for needle in needles):
+        if _contains_page_url(param.value, needles):
             target[param.request_id] = param
 
     # 2d. cabecera Referer: se mide para todo destino externo (tercero o misma organización).
@@ -442,7 +473,8 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
                 "band": config.band(score),
                 "category": category,
                 "mechanism": mechanism,
-                "entity": library["label"] if library else lists.entity(domain),
+                "entity": library["label"] if library else (config.server_side.meta_organization_label or lists.entity(domain))
+                if domain in capi_domains else lists.entity(domain),
                 "library": library,
                 "registrable_domain": domain,
                 "third_party": third_party,
@@ -571,7 +603,11 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
             {"scripts": telemetry["scripts"], "names": names[:10]},
         )
     # Fuga de búsqueda (v1.3): el texto buscado viaja a un host distinto del de la página.
-    search_leaks = config.har_signals.search_leaks(params_by_request, by_id, source_host, party_by_id)
+    # v1.4.8: un valor igual al título o a la meta description/keywords de la página es texto de la página, no una búsqueda.
+    page_meta = capture.get("page_meta") if isinstance(capture.get("page_meta"), dict) else {}
+    page_texts = [capture.get("title"), page_meta.get("description"), page_meta.get("keywords")]
+    search_leaks, search_page_text = config.har_signals.search_leaks(params_by_request, by_id, source_host, party_by_id,
+                                                                     page_texts=page_texts)
     for leak in search_leaks:
         where = {"first_party": "otro host del propio sitio", "same_org": "dominio de la misma organización"}.get(leak["party"], "tercero")
         finding(
@@ -662,8 +698,7 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
             {"domain": domain},
         )
 
-    # --- 4a. v1.4.2: rastreo del lado del servidor y registro de interacción (docs/adr/030) ---
-    server_side = config.server_side.detect(requests, params_by_request, party_by_id)
+    # --- 4a. v1.4.2: rastreo del lado del servidor (detectado en el paso 1) y registro de interacción (docs/adr/030) ---
     for item in server_side:
         finding(
             "server_side_meta",
@@ -764,16 +799,17 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
     third_party_domains = {item["registrable_domain"] for item in analyzed if item["party"] == "third_party" and item["registrable_domain"]}
     same_org_domains = {item["registrable_domain"] for item in analyzed if item["party"] == "same_org" and item["registrable_domain"]}
     counts = {
-        "tracker_domains": len({t["registrable_domain"] for t in trackers if t["party"] == "third_party" and t["registrable_domain"]}),
+        # v1.4.8: un servidor CAPI inferido cuenta como el dominio de Meta, no como un tercero más.
+        "tracker_domains": len({index_domain(t["registrable_domain"]) for t in trackers if t["party"] == "third_party" and t["registrable_domain"]}),
         "id_sync": len(synced),
-        "url_leak_recipients": len({domain for domain, _ in leak_groups} | set(referer_groups)),
+        "url_leak_recipients": len({index_domain(domain) for domain, _ in leak_groups} | {index_domain(d) for d in referer_groups}),
         # v1.4.6: las cookies funcionales (por su nombre, data/cookie_purposes.yaml) no suman al índice.
         "stored_items": len(capture.get("cookies") or []) - cookie_purposes["by_purpose"].get("funcional", 0)
                         + len(capture.get("storage") or []),
         "fp_scripts": len(fp_scripts),
         "fp_exfiltration": len({f["details"]["api"] for f in fingerprint["findings"] if f["heuristic"] == "exfiltration"}),
-        "persistent_id_recipients": len({domain for _, domain in persistent_groups}),
-        "third_party_domains": len(third_party_domains),
+        "persistent_id_recipients": len({index_domain(domain) for _, domain in persistent_groups}),
+        "third_party_domains": len({index_domain(domain) for domain in third_party_domains}),
         # Telemetría propia (v1.3.4): endpoints de eventos distintos + scripts de analítica propia.
         "first_party_telemetry": telemetry["endpoints"] + telemetry["scripts"],
     }
@@ -809,6 +845,9 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
     # Servicios de terceros SIN señales de rastreo (v1.4.5): requests a otra organización por debajo de la banda
     # de rastreador, por organización y giro. Se informa siempre: que no haya rastreadores no es «sin terceros».
     services: dict[tuple[str, str], dict] = {}
+    # v1.4.8: una organización de publicidad o analítica no es un «servicio sin señales de rastreo» aunque esa
+    # request no llegue a la banda de rastreador; se cuenta aparte (tipos de cookie_purposes.yaml §by_service_type).
+    excluded_services: dict[str, int] = Counter()
     tracker_domains_unknown = set((entities.get(UNKNOWN_ENTITY) or {}).get("domains") or ())
     for item in analyzed:
         if item["party"] != "third_party" or item["band"] in tracker_bands:
@@ -816,6 +855,13 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
         request = by_id[item["request_id"]]
         domain = item["registrable_domain"] or request.get("host") or ""
         service = service_of(request)
+        if service is None and item["registrable_domain"] in capi_domains:
+            # Servidor CAPI inferido: es Meta (publicidad), no un servicio sin señales de rastreo.
+            service = {"type": "server_side_meta", "label": config.server_side.meta_label}
+        purpose = config.cookie_purposes.of_service(service["type"] if service else None)
+        if purpose in SERVICE_PURPOSES_NOT_LISTED:
+            excluded_services[purpose] += 1
+            continue
         known = item["entity"] != UNKNOWN_ENTITY
         key = (item["entity"] if known else f"dominio:{domain}", service["type"] if service else "")
         library = item.get("library")
@@ -907,6 +953,8 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
                 # v1.3: ola de sincronización y términos de búsqueda enviados fuera del host de la página.
                 "sync_wave": {key: value for key, value in sync_wave.items() if key != "request_ids"},
                 "search_leaks": [{key: leak[key] for key in ("host", "domain", "term", "parameter", "party")} for leak in search_leaks[:20]],
+                # v1.4.8: valores descartados por coincidir con el título o la meta description/keywords de la página.
+                "search_leaks_page_text": search_page_text,
                 # Requests que el navegador del usuario canceló por una extensión (solo capturas HAR).
                 "blocked_by_client": sum(1 for request in requests if "ERR_BLOCKED_BY_CLIENT" in (request.get("failure_text") or "")),
                 "source": capture.get("source") or "scan",
@@ -944,6 +992,8 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
                     "requests": sum(entry["requests"] for entry in third_party_services),
                     "items": third_party_services[:MAX_THIRD_PARTY_SERVICES],
                     "truncated": len(third_party_services) > MAX_THIRD_PARTY_SERVICES,
+                    # v1.4.8: requests a organizaciones de publicidad o analítica bajo la banda de rastreador, fuera de la lista.
+                    "excluded_requests": dict(excluded_services),
                 },
                 "error_frames": error_frames,
                 # v1.4.6: propósito de las cookies por su nombre (INFERENCIA), propias y de terceros.
@@ -991,56 +1041,80 @@ def _error_frames(capture: dict, requests: list) -> dict:
     }
 
 
+# v1.4.8 (docs/adr/035): sin señal dura, pocas requests o rastreo anómalo solo dejan esta nota (nivel POSIBLE).
+POSSIBLE_VARIANT_TEXT = ("La página podría haber mostrado una versión distinta al navegador automatizado; "
+                         "compare con un HAR propio.")
+
+
 def _blocking(capture: dict, requests: list, config: dict, *, trackers: int | None = None,
               telemetry: dict | None = None, telemetry_min: int = 3) -> dict:
-    """Señales de que el sitio detectó el navegador automatizado (point 3). Sin esto, blocked=False."""
+    """Señales de que el sitio detectó el navegador automatizado (point 3).
+
+    v1.4.8: solo una señal dura (estado 403/429/503, título de desafío o firma antibot en la URL) marca la
+    visita (`blocked`) y la saca del ranking. Pocas requests o rastreo anómalo, sin señal dura, quedan como
+    `possible_variant` (POSIBLE), que no marca ni excluye. Nada de esto aplica a un HAR importado, a una
+    captura interactiva ni a una navegación fallida (timeout o error de red: no hubo medición).
+    """
     min_requests = config.get("min_requests", 20)
+    http_status = capture.get("http_status")
+    base = {"requests": len(requests), "http_status": http_status, "min_requests": min_requests}
+    source = capture.get("source") or "scan"
+    if source in ("har_import", "interactive") or capture.get("navigation_failed"):
+        # HAR: navegador real del usuario. Interactiva: navegación humana. Fallida: no hay página que juzgar.
+        reason = "navigation_failed" if capture.get("navigation_failed") else source
+        return {"blocked": False, "partial": False, "signals": [], "note": None, "possible_variant": None,
+                "not_applicable": reason, **base}
     bad_statuses = set(config.get("bad_statuses") or [])
     keywords = [_strip_accents(str(k).lower()) for k in config.get("title_keywords") or []]
     title = _strip_accents(str(capture.get("title") or "").lower())
-    http_status = capture.get("http_status")
-    signals = []
-    if capture.get("source") == "har_import":
-        # Captura del navegador real del usuario: la alerta de navegador automatizado no aplica.
-        return {"blocked": False, "signals": [], "requests": len(requests), "http_status": http_status, "min_requests": min_requests}
-    if len(requests) < min_requests:
-        signals.append({"signal": "few_requests",
-                        "detail": f"Se capturaron {len(requests)} request(s), menos del umbral de {min_requests}."})
+    # Scan parcial (goto agotó el tiempo): pocas requests o poco rastreo se explican por el corte, no por el sitio.
+    timed_out = capture.get("partial_navigation") is not None
+    hard, soft = [], []
+    if len(requests) < min_requests and not timed_out:
+        soft.append({"signal": "few_requests",
+                     "detail": f"Se capturaron {len(requests)} request(s), menos del umbral de {min_requests}."})
     matched = next((k for k in keywords if k and k in title), None)
     if matched:
-        signals.append({"signal": "challenge_text", "detail": f"El título de la página contiene «{matched}»."})
+        hard.append({"signal": "challenge_text", "detail": f"El título de la página contiene «{matched}»."})
     statuses = {http_status} | {r.get("response_status") for r in requests if r.get("is_navigation")}
     bad_seen = sorted(s for s in statuses if isinstance(s, int) and s in bad_statuses)
     if bad_seen:
-        signals.append({"signal": "http_status", "detail": f"La navegación respondió con estado {', '.join(map(str, bad_seen))}."})
-    anomaly = _tracker_anomaly(len(requests), trackers, capture.get("history"), config.get("tracker_anomaly") or {})
+        hard.append({"signal": "http_status", "detail": f"La navegación respondió con estado {', '.join(map(str, bad_seen))}."})
+    anomaly = None if timed_out else _tracker_anomaly(len(requests), trackers, capture.get("history"), config.get("tracker_anomaly") or {})
     signature = _challenge_signature(requests, config)
     note = None
     own = (telemetry or {}).get("requests") or 0
     # v1.3.4: poco rastreo de terceros no basta si el sitio mide con infraestructura propia. Con título
-    # normal, sin firma antibot y sin otra señal, queda una nota informativa en vez de la marca.
-    if anomaly and not signals and not signature and title.strip() and own >= telemetry_min:
+    # normal, sin firma antibot y sin otra señal, queda una nota informativa en vez de la nota de versión distinta.
+    if anomaly and not hard and not soft and not signature and title.strip() and own >= telemetry_min:
         note = {"signal": "low_third_party_tracking",
                 "detail": f"Rastreo de terceros bajo; telemetría propia detectada ({own} requests de eventos al propio sitio o a su "
                           f"misma organización, y {trackers} de rastreo de terceros en {len(requests)} requests)."}
     elif anomaly:
-        signals.append(anomaly)
+        soft.append(anomaly)
     partial = None
     if signature:
         detail = (f"Se cargó un documento o frame cuya dirección contiene «{signature[0]}», "
                   f"firma habitual de una pantalla de verificación antibot ({signature[1]}).")
         # v1.3.2: la firma sola no basta. Si la página principal cargó y el rastreo es normal, el
         # desafío afectó a un componente (p. ej. un bloque de recomendaciones): aviso informativo.
-        if not signals and _normal_tracking(len(requests), trackers, config.get("challenge_partial") or {}) \
+        if not hard and not soft and _normal_tracking(len(requests), trackers, config.get("challenge_partial") or {}) \
                 and not _is_challenge_page(capture, signature[0], config):
             partial = {"signal": "challenge_component",
                        "detail": f"{detail} El resto de la página cargó: {trackers} de {len(requests)} requests fueron de rastreo."}
         else:
-            signals.append({"signal": "challenge_url", "detail": detail})
-    return {"blocked": bool(signals), "partial": partial is not None, "signals": signals or ([partial] if partial else []),
+            hard.append({"signal": "challenge_url", "detail": detail})
+    possible_variant = None
+    if soft and not hard:
+        navigations = [r["request_id"] for r in requests if r.get("is_navigation") and r.get("request_id") is not None]
+        possible_variant = {"level": "POSIBLE", "text": POSSIBLE_VARIANT_TEXT, "signals": soft, "evidence_refs": navigations[:5]}
+    return {"blocked": bool(hard), "partial": partial is not None,
+            # Con señal dura, las blandas acompañan como detalle.
+            "signals": hard + soft if hard else ([partial] if partial else []),
             # Nota informativa (no marca ni excluye del ranking); None si no aplica o si la visita quedó marcada.
-            "note": note if not signals else None,
-            "requests": len(requests), "http_status": http_status, "min_requests": min_requests}
+            "note": note if not hard else None,
+            "possible_variant": possible_variant,
+            **base}
 
 
 def _normal_tracking(total: int, trackers: int | None, rule: dict) -> bool:
@@ -1139,7 +1213,7 @@ def _cookie_purpose_findings(capture, requests, params, purposes, finding, *, li
     for cookie in cookies:
         name = str(cookie.get("name") or "")[:120]
         domain = _cookie_domain(cookie, registrable)[:120]
-        purpose, basis, organization, service = purposes.of(name), "nombre", None, None
+        purpose, basis, organization, service = purposes.of(name, domain), "nombre", None, None
         if purpose == purposes.UNCLASSIFIED and lists is not None and service_types is not None:
             entity = lists.entity(domain)
             found = service_types.of(entity=entity, domain=domain)
@@ -1196,7 +1270,7 @@ def _cookie_purpose_findings(capture, requests, params, purposes, finding, *, li
 
 def _purpose_of(purposes, name, domain, lists, service_types) -> str:
     """Propósito de una cookie con los dos pasos (nombre; si no, tipo de servicio de la organización)."""
-    purpose = purposes.of(name)
+    purpose = purposes.of(name, domain)
     if purpose == purposes.UNCLASSIFIED and service_types is not None:
         found = service_types.of(entity=lists.entity(domain), domain=domain)
         purpose = purposes.of_service((found or {}).get("type")) or purpose

@@ -90,7 +90,8 @@ def test_mixed_group_is_named_after_the_organization_not_a_library(config, lists
     ("la", "sin_clasificar"), ("tuuid_lu", "sin_clasificar"),
 ])
 def test_new_known_names(name, purpose):
-    assert CookiePurposes(read("cookie_purposes.yaml")).of(name) == purpose
+    # v1.4.8: «l» y «cna» solo se clasifican por el nombre en dominios de Alibaba (test_v148_rules).
+    assert CookiePurposes(read("cookie_purposes.yaml")).of(name, "aliexpress.com") == purpose
 
 
 def test_service_type_of_the_organization_maps_to_a_purpose():

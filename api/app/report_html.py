@@ -363,12 +363,20 @@ def executive_summary(report: dict) -> dict:
     tcf = consent.get("tcf") or {}
     consent_mode = consent.get("consent_mode")
 
+    scan = report.get("scan") or {}
+    if scan.get("failure"):
+        # v1.4.8 (docs/adr/035): sin medición no hay índice ni «no se observó»: solo el motivo del fallo.
+        return {"found": [no_measurement_text(scan["failure"])], "why": [], "recommendations": []}
     blocking = (site.get("summary") or {}).get("blocking") or {}
     found = []
+    if scan.get("partial_navigation"):
+        found.append(f"{PARTIAL_SCAN_LABEL}: {scan['partial_navigation'].get('message')}")
     if blocking.get("blocked"):
         found.append(BLOCKING_BANNER)
     elif blocking.get("partial"):
         found.append(PARTIAL_BLOCK_BANNER + " El resto de la página cargó; el resultado se considera representativo.")
+    elif blocking.get("possible_variant"):
+        found.append(f"Posible: {blocking['possible_variant'].get('text')}")
     imported = _import_info(report) or _interactive_info(report)
     scan_source = (report.get("scan") or {}).get("source")
     if imported:
@@ -537,9 +545,36 @@ BLOCKING_BANNER = ("Resultado posiblemente no representativo: el sitio pudo dete
 PARTIAL_BLOCK_BANNER = "Bloqueo parcial: un componente mostró verificación antibot."
 
 
+NO_MEASUREMENT_LABEL = "Sin medición"
+PARTIAL_SCAN_LABEL = "Scan parcial"
+
+
+def no_measurement_text(failure: dict) -> str:
+    """Frase de un scan fallido (v1.4.8): el motivo y el código net::ERR_* real, si el navegador dio uno."""
+    net = failure.get("net_error") or "el navegador no informó un código net::ERR_*"
+    return (f"{NO_MEASUREMENT_LABEL}: la navegación falló ({failure.get('error_code')}; {net}). Lo capturado no "
+            "permite calcular el índice de exposición ni afirmar que no se observó nada.")
+
+
 def _blocking_banner(report: dict) -> str:
-    """Aviso de visita posiblemente bloqueada (point 3) o de bloqueo parcial. Vacío si no hay señales."""
+    """Aviso de visita posiblemente bloqueada (point 3), de bloqueo parcial, de versión distinta (v1.4.8) o de
+    scan fallido o parcial. Vacío si no hay nada que avisar."""
+    scan = report.get("scan") or {}
+    if scan.get("failure"):
+        return f'<div class="legal"><strong>{e(no_measurement_text(scan["failure"]))}</strong></div>'
+    out = ""
+    if scan.get("partial_navigation"):
+        out = f'<div class="legal"><strong>{e(PARTIAL_SCAN_LABEL)}:</strong> {e(scan["partial_navigation"].get("message"))}</div>'
+    return out + _blocking_notice(report)
+
+
+def _blocking_notice(report: dict) -> str:
     blocking = ((report.get("site") or {}).get("summary") or {}).get("blocking") or {}
+    variant = blocking.get("possible_variant")
+    if not blocking.get("blocked") and not blocking.get("partial") and variant:
+        reasons = items([e(signal.get("detail")) for signal in variant.get("signals") or []])
+        return (f'<div class="legal">{level(variant.get("level"))} {e(variant.get("text"))} '
+                f"El scan sigue en el ranking del Panel.{reasons}</div>")
     if not blocking.get("blocked") and blocking.get("partial"):
         reasons = items([e(signal.get("detail")) for signal in blocking.get("signals") or []])
         return f'<div class="legal"><strong>{e(PARTIAL_BLOCK_BANNER)}</strong> Aviso informativo.{reasons}</div>'

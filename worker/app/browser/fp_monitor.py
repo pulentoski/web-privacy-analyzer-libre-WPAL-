@@ -28,6 +28,8 @@ KNOWN_APIS = frozenset(
         "audio.OfflineAudioContext", "audio.createOscillator", "audio.createDynamicsCompressor",
         "audio.startRendering", "audio.getChannelData", "audio.getFloatFrequencyData",
         "webrtc.RTCPeerConnection", "webrtc.createDataChannel", "webrtc.createOffer", "webrtc.onicecandidate",
+        # v1.4.8: candidatos ICE leídos por la página, por tipo de dirección (nunca la dirección).
+        "webrtc.icecandidate.local_ip", "webrtc.icecandidate.public_ip", "webrtc.icecandidate.mdns",
         "navigator.userAgent", "navigator.platform", "navigator.hardwareConcurrency", "navigator.deviceMemory",
         "navigator.languages", "navigator.plugins", "navigator.mimeTypes", "navigator.webdriver",
         "navigator.maxTouchPoints", "navigator.userAgentData.getHighEntropyValues",

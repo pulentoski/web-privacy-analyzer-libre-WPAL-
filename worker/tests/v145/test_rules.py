@@ -141,7 +141,8 @@ def test_two_unknown_owners_are_not_treated_as_the_same_organization(config, cat
 def test_no_third_parties_gives_an_empty_list_not_a_missing_one(config, catalog):
     result = analyze(capture([req(1, "https://www.airbnb.cl/app.js", third_party=False, resource_type="script")]), CatalogLists({}, catalog), config)
     assert result["site"]["summary"]["third_party_services"] == {
-        "level": "EVIDENCIA", "service_level": "INFERENCIA", "organizations": 0, "requests": 0, "items": [], "truncated": False}
+        "level": "EVIDENCIA", "service_level": "INFERENCIA", "organizations": 0, "requests": 0, "items": [], "truncated": False,
+        "excluded_requests": {}}
 
 
 # --- 2. «Su interacción se envió a X»: solo envíos con datos ---

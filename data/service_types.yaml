@@ -51,6 +51,11 @@ types:
     entities: []
     domains: []
     urls: [facebook.com/tr, fbevents.js, facebook.net/signals/]
+  # v1.4.8: atribución de campañas (qué anuncio produjo la visita, la descarga o la compra).
+  ad_attribution:
+    label: "publicidad (atribución de campañas: mide qué anuncio produjo la visita o la compra)"
+    entities: [Podscribe]
+    domains: [pdscrb.com]
   dmp:
     label: "plataforma de datos de audiencia (DMP: reúne y segmenta perfiles de audiencia)"
     entities: []
@@ -146,6 +151,11 @@ types:
     label: "identificación de dispositivo (huella del navegador)"
     entities: [FingerprintJS]
     domains: [fingerprint.com, fpjs.io, fpjs.pro]
+  # v1.4.8: CMS con analítica integrada (Liferay DXP y Liferay Analytics Cloud en lfr.cloud).
+  cms_analytics:
+    label: "plataforma CMS/analítica (gestor de contenidos con medición de visitas integrada)"
+    entities: [Liferay]
+    domains: [lfr.cloud, liferay.com]
   # v1.4.6: widget que ajusta contraste, tamaño de texto y lectura en voz alta.
   accessibility_widget:
     label: "widget de accesibilidad"

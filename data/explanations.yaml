@@ -85,6 +85,9 @@ api_attributes:
   webrtc.createDataChannel: webrtc
   webrtc.createOffer: webrtc
   webrtc.onicecandidate: webrtc
+  webrtc.icecandidate.local_ip: webrtc
+  webrtc.icecandidate.public_ip: webrtc
+  webrtc.icecandidate.mdns: webrtc
   navigator.userAgent: user_agent
   navigator.userAgentData.getHighEntropyValues: user_agent_client_hints
   navigator.platform: platform
@@ -221,6 +224,13 @@ findings:
   property_sweep:
     step: equipo
     INFERENCIA: "Barrido de propiedades (inferencia): un script de {empresa} leyó {n|propiedad|propiedades} del navegador y de la pantalla; el patrón es compatible con la construcción de una huella del dispositivo."
+  # v1.4.8 (grupo 2): hechos observados por la instrumentación de RTCPeerConnection.
+  webrtc_connection:
+    step: equipo
+    EVIDENCIA: "Conexión WebRTC: un script de {empresa} creó una RTCPeerConnection, el mecanismo del navegador para conexiones directas entre equipos."
+  webrtc_ice_exposed:
+    step: equipo
+    EVIDENCIA: "Candidatos ICE con dirección IP: un script de {empresa} recibió candidatos de WebRTC que incluyen una dirección IP local o pública del equipo."
   webrtc_ip_discovery:
     step: equipo
     INFERENCIA: "Descubrimiento de IP por WebRTC (inferencia): un script de {empresa} creó una RTCPeerConnection y esperó candidatos ICE; el patrón es compatible con un intento de obtener la dirección IP. En esta visita no se obtuvo."

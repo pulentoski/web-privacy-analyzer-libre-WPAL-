@@ -3,6 +3,38 @@
 Formato: una sección por versión, la más reciente arriba. Las decisiones de diseño de cada versión están en
 [docs/adr/](docs/adr/README.md); las versiones anteriores a 1.4.6, en la sección «Fases» de [docs/SPEC.md](docs/SPEC.md).
 
+## 1.4.8 — 2026-10-15
+
+Analizador 1.15.0 · schema de reporte 1.8.0 · [ADR 035](docs/adr/035-accept-ch-scans-fallidos-y-parciales.md).
+Actualizar los scans guardados con `./scripts/reanalyze.sh --all`.
+
+### Corregido
+- music.youtube.com, www.youtube.com y www.google.com fallaban con `NAVIGATION_TIMEOUT` y una request (también en
+  la captura interactiva): el frame ACCEPT_CH de Google reiniciaba la navegación y Chromium abortaba el reinicio.
+  El worker arranca Chromium con `--disable-features=AcceptCHFrame`.
+- Un scan fallido mostraba índice 0, «Nada observado» y la alerta de navegador automatizado. Ahora es «Sin
+  medición», con el código `net::ERR_*` real del navegador y las requests capturadas antes del fallo.
+- La banda 21–40 se llamaba «Posible», como el nivel de evidencia (ome.tv, índice 37). Ahora es «Bajo-moderado» y la
+  api toma las bandas solo de `data/scoring.yaml`.
+- «Servicios de terceros sin señales de rastreo» ya no lista organizaciones de publicidad ni de analítica.
+- Fuga de búsqueda: no se informa si el valor es el título, la meta description o una meta keyword de la página.
+- Fuga de URL: solo si el valor contiene la URL de la página entera, no una coincidencia parcial.
+- Un servidor de Conversions API de Meta inferido (host on.aws u otra nube) ya no cuenta como una organización
+  distinta de Meta en la sincronización ni en el índice; se muestra «Meta (vía servidor CAPI, inferencia)».
+- Cookies `l` y `cna`: se clasifican por el nombre solo si son de un dominio de Alibaba.
+- Test e2e de consentimiento intermitente: espera a que cargue la imagen del banner.
+
+### Cambiado
+- La alerta «el sitio pudo detectar el navegador automatizado» exige una señal dura (403/429/503, título de desafío,
+  firma antibot en la URL). Pocas requests o rastreo anómalo solos dejan una nota Posible y el scan sigue en el
+  ranking. Nunca en scans fallidos ni en capturas interactivas.
+
+### Agregado
+- Scan parcial: si la navegación agota el tiempo con respuestas ya recibidas, se analiza lo capturado con aviso.
+- WebRTC (grupo 2, Evidencia): la página creó conexiones RTCPeerConnection o recibió candidatos ICE con IP local o
+  pública (solo se registra el tipo de dirección). Glosario: WebRTC y Candidato ICE.
+- Catálogo: Liferay (plataforma CMS/analítica), Podscribe (publicidad/atribución) y el alias INACAP (inacapmovil.cl).
+
 ## 1.4.7 — 2026-10-15
 
 Analizador 1.14.0 · [ADR 034](docs/adr/034-fugas-a-cdn-y-cookies-por-organizacion.md). Actualizar los scans guardados con

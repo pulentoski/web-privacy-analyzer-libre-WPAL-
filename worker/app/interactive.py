@@ -24,7 +24,7 @@ from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 from playwright.async_api import async_playwright
 
 from app import jobs
-from app.browser.capture import MAX_TITLE_CHARS, MAX_URL_CHARS, ScanOutcome, _error, clean_text
+from app.browser.capture import MAX_TITLE_CHARS, MAX_URL_CHARS, ScanOutcome, _error, clean_text, net_error_code, page_meta, partial_navigation
 from app.browser.consent import tcf_info
 from app.browser.fp_monitor import PAGE_FLUSH_MS, FingerprintMonitor
 from app.browser.launcher import base_session_setup, context_kwargs, launch_kwargs
@@ -150,6 +150,8 @@ class InteractiveSession:
         self._tabs: list = []
         self._active = None
         self._response = None
+        # La URL inicial no terminó de abrir a tiempo, pero ya había respuestas (docs/adr/035). None = abrió bien.
+        self.partial: dict | None = None
         self._started = self._loop.time()
         self._tasks: set[asyncio.Task] = set()
         self.password_fields: set[str] = set()
@@ -268,12 +270,17 @@ class InteractiveSession:
         try:
             self._response = await page.goto(self.url, timeout=START_NAVIGATION_TIMEOUT_S * 1000, wait_until="commit")
         except PlaywrightTimeoutError:
-            return _error("NAVIGATION_TIMEOUT", "La navegación superó el tiempo límite.")
+            if not self.monitor.responses:
+                return _error("NAVIGATION_TIMEOUT", "La navegación superó el tiempo límite.",
+                              net_error_code(self.monitor.navigation_failure()))
+            # Ya hay respuestas: la sesión sigue y el usuario puede seguir navegando (captura parcial al inicio).
+            self.partial = partial_navigation(self.monitor, START_NAVIGATION_TIMEOUT_S)
         except PlaywrightError as exc:
-            return _error("NAVIGATION_FAILED", clean_text(exc.message.splitlines()[0] if exc.message else "", 300))
-        if self._response is None:
-            return _error("NAVIGATION_FAILED", "La navegación no produjo respuesta.")
-        proxy_error = self._response.headers.get(PROXY_ERROR_HEADER)
+            message = exc.message.splitlines()[0] if exc.message else ""
+            return _error("NAVIGATION_FAILED", clean_text(message, 300), net_error_code(message, self.monitor.navigation_failure()))
+        if self._response is None and self.partial is None:
+            return _error("NAVIGATION_FAILED", "La navegación no produjo respuesta.", net_error_code(self.monitor.navigation_failure()))
+        proxy_error = self._response.headers.get(PROXY_ERROR_HEADER) if self._response is not None else None
         if proxy_error:
             code = "EGRESS_BLOCKED" if self._response.status == 403 else "EGRESS_ERROR"
             return _error(code, f"El egress-proxy no entregó el destino ({clean_text(proxy_error, 64)}).")
@@ -310,13 +317,15 @@ class InteractiveSession:
                 tcf = await tcf_info(page)
             except (PlaywrightError, asyncio.TimeoutError):
                 pass
+            meta = await page_meta(page)
             if self.fingerprint is not None:
                 await asyncio.sleep(PAGE_FLUSH_MS / 1000 + 0.2)  # último envío periódico de la instrumentación
             result = {
-                "http_status": self._response.status,
+                "http_status": self._response.status if self._response is not None else self.monitor.document_status(),
                 "title": clean_text(title, MAX_TITLE_CHARS),
                 "final_url": clean_text(page.url, MAX_URL_CHARS),
                 "tcf": tcf,
+                "page_meta": meta,
                 "source": SOURCE,
                 "interactive": {
                     "timeline": self.timeline,
@@ -327,6 +336,8 @@ class InteractiveSession:
                     "max_duration_s": settings.interactive_max_s,
                 },
             }
+            if self.partial is not None:
+                result["partial"] = self.partial
         if self._watcher is not None:
             self._watcher.cancel()
             await asyncio.gather(self._watcher, return_exceptions=True)

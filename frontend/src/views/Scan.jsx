@@ -4,7 +4,7 @@ import { DeletedNotice, DeleteScanButton } from "../components/HistoryControls.j
 import { Icon } from "../components/Icons.jsx";
 import ReportDownloads from "../components/ReportDownloads.jsx";
 import StageProgress from "../components/StageProgress.jsx";
-import { Captured, ErrorNotice, Link, Loading, Panel } from "../components/ui.jsx";
+import { Captured, ErrorNotice, Link, Loading, NoMeasurement, Panel, PartialScanNotice } from "../components/ui.jsx";
 import { api } from "../lib/api.js";
 import { errorMessage, formatDate, isFinished, scanStage, stageLabel } from "../lib/format.js";
 import Compare from "./Compare.jsx";
@@ -89,8 +89,11 @@ export default function Scan({ jobId, tab, requestId, query }) {
   if (error) return <ErrorNotice error={error} />;
   if (!scan) return <Loading what="el scan" />;
   const stage = scanStage(scan);
-  const hasAnalysis = scan.analysis_status === "completed";
   const failure = stage === "failed" ? scan.error || {} : null;
+  // v1.4.8 (docs/adr/035): un scan fallido no es una medición. Lo capturado antes del fallo se ve como tráfico,
+  // pero sin índice, resumen ni pestañas que digan «no se observó».
+  const unmeasured = scan.status === "failed";
+  const hasAnalysis = scan.analysis_status === "completed" && !unmeasured;
   // v1.3: captura importada (HAR) y exportación a HAR.
   const imported = scan.source === "har_import";
   const importMeta = imported && scan.result ? scan.result.import : null;
@@ -152,19 +155,21 @@ export default function Scan({ jobId, tab, requestId, query }) {
             )}
           </p>
         )}
+        <PartialScanNotice partial={scan.partial_navigation} />
         {hasAnalysis && <div className="mt-3"><ReportDownloads subject="scan" subjectId={jobId} /></div>}
         {hasAnalysis && comparing && <div className="mt-3 border-t border-slate-300 pt-3"><Compare jobId={jobId} source={scan.source} /></div>}
       </Panel>
 
       {(stage !== "done" || !hasAnalysis) && (
         <StageProgress progress={scan.progress}>
-          {failure && (
-            <div className="mt-2" role="alert" data-testid="scan-failed">
-              <strong>El scan no se completó.</strong> {errorMessage(failure)}{" "}
-              {failure.error_code && <span className="captured text-xs">({String(failure.error_code)})</span>}
-            </div>
-          )}
+          {failure && <NoMeasurement failure={scan.failure || failure} message={errorMessage(failure)} />}
         </StageProgress>
+      )}
+
+      {unmeasured && scan.analysis_status === "completed" && (
+        <Panel title="Requests capturadas antes del fallo" subtitle="Tráfico registrado hasta que la navegación falló; no es una medición del sitio." testId="failed-capture">
+          {requestId ? <RequestDetail jobId={jobId} requestId={requestId} /> : <RequestsTable jobId={jobId} query={query} />}
+        </Panel>
       )}
 
       {hasAnalysis && (

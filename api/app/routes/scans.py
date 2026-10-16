@@ -8,10 +8,12 @@ from pydantic import BaseModel, Field, StrictBool
 from sqlalchemy import and_, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.bands import BANDS
 from app.config import get_settings
 from app.db import get_session
 from app.errors import AppError
 from app.explain import explanations
+from app.failures import failure, net_error, partial_navigation
 from app.models import Job, RequestAnalysis, ScanRedirect, ScanRequest
 from app.ratelimit import client_ip, scan_limiter
 from app.security.url_validator import MAX_URL_LENGTH, UrlValidationError, validate_url
@@ -24,8 +26,7 @@ BLOCKED_BY_CLIENT = "ERR_BLOCKED_BY_CLIENT"
 router = APIRouter(prefix="/api/scans")
 
 MAX_PAGE_SIZE = 200
-# Bandas del tracking_score, de menor a mayor (los límites están en data/scoring.yaml).
-BANDS = ("Bajo", "Posible", "Moderado", "Alto", "Muy alto")
+# Bandas del tracking_score, de menor a mayor: nombres y límites en data/scoring.yaml (app/bands.py).
 
 
 class ScanOptions(BaseModel):
@@ -108,6 +109,10 @@ def _serialize(job: Job) -> dict:
         "url": job.url,
         **describe(job.url, job.original_url),
         "status": job.status,
+        # v1.4.8: un scan fallido no es una medición; su código net::ERR_* real, si el navegador dio uno.
+        "measured": job.status != "failed",
+        "failure": failure(job.status, job.error),
+        "partial_navigation": partial_navigation(job.result),
         "attempts": job.attempts,
         "result": job.result,
         "error": job.error,
@@ -382,7 +387,7 @@ async def list_scans(
             text(
                 "SELECT j.id, j.url, j.original_url, j.status, j.analysis_status, j.created_at, j.finished_at, j.result->>'title' AS title, COALESCE(j.options->>'source', 'scan') AS source, "
                 "j.progress, j.result, j.group_id, "
-                "j.error->>'error_code' AS error_code, s.score, s.band, (s.summary->>'trackers')::int AS trackers, "
+                "j.error->>'error_code' AS error_code, j.error, s.score, s.band, (s.summary->>'trackers')::int AS trackers, "
                 "coalesce((s.summary->'blocking'->>'blocked')::boolean, false) AS blocked, "
                 "coalesce((s.summary->'blocking'->>'partial')::boolean, false) AS partial_block "
                 f"FROM jobs j LEFT JOIN site_analysis s ON s.job_id = j.id WHERE {condition} ORDER BY j.created_at DESC LIMIT :limit"
@@ -398,10 +403,15 @@ async def list_scans(
                 **describe(row["url"], row["original_url"]),
                 "analysis_status": row["analysis_status"], "created_at": row["created_at"],
                 "finished_at": row["finished_at"], "title": row["title"], "error_code": row["error_code"],
+                "net_error": net_error(row["error"]), "measured": row["status"] != "failed",
+                "partial_navigation": partial_navigation(row["result"]) is not None,
                 # scan | har_import (captura importada: navegador real del usuario).
                 "source": row["source"],
-                "site_exposure_score": row["score"], "band": row["band"], "trackers": row["trackers"],
-                "blocked": bool(row["blocked"]),
+                # Scan fallido: sin índice (lo guardado no es una medición, docs/adr/035).
+                "site_exposure_score": row["score"] if row["status"] != "failed" else None,
+                "band": row["band"] if row["status"] != "failed" else None,
+                "trackers": row["trackers"] if row["status"] != "failed" else None,
+                "blocked": bool(row["blocked"]) and row["status"] != "failed",
                 # Bloqueo parcial (v1.3.2): informativo, el scan sigue en el ranking.
                 "partial_block": bool(row["partial_block"]),
                 "stage": scan_progress(SimpleNamespace(**row))["stage"], "group_id": str(row["group_id"]) if row["group_id"] else None,
@@ -456,7 +466,7 @@ async def list_requests(
     resource_type: str | None = Query(None, max_length=32),
     third_party: bool | None = None,
     blocked: bool | None = None,
-    band: Literal["Bajo", "Posible", "Moderado", "Alto", "Muy alto"] | None = None,
+    band: Literal[BANDS] | None = None,
     category: str | None = Query(None, max_length=32),
     mechanism: str | None = Query(None, max_length=32),
     domain: str | None = Query(None, max_length=255),

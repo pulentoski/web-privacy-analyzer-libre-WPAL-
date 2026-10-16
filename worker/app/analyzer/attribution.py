@@ -87,13 +87,21 @@ class CookiePurposes:
         self._by_service = {str(service): str(purpose) for purpose, services in (raw.get("by_service_type") or {}).items()
                             for service in services or [] if service}
         self.basis_labels = {str(key): str(value) for key, value in (raw.get("basis_labels") or {}).items()}
+        # v1.4.8: nombre → dominios (sufijo) en los que ese nombre se clasifica por el nombre.
+        self._name_domains = {str(name).lower(): tuple(str(d).lower().lstrip(".") for d in domains or [] if d)
+                              for name, domains in (raw.get("name_domains") or {}).items()}
 
     def of_service(self, service_type: str | None) -> str | None:
         """Propósito según el tipo de servicio de la organización, o None."""
         return self._by_service.get(service_type or "")
 
-    def of(self, name: str | None) -> str:
+    def of(self, name: str | None, domain: str | None = None) -> str:
         lowered = str(name or "").lower()
+        allowed = self._name_domains.get(lowered)
+        if allowed is not None:
+            host = str(domain or "").lower().lstrip(".")
+            if not any(host == item or host.endswith("." + item) for item in allowed):
+                return self.UNCLASSIFIED
         for pattern, purpose in self._rules:
             if (fnmatch.fnmatchcase(lowered, pattern) if "*" in pattern else lowered == pattern):
                 return purpose

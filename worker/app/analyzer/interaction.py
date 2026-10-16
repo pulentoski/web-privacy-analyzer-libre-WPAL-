@@ -59,6 +59,8 @@ class ServerSideTracking:
         self._identifiers = frozenset(str(item).lower() for item in meta.get("identifiers") or [])
         self._payload = frozenset(str(item).lower() for item in meta.get("payload") or [])
         self._min_payload = int(meta.get("min_payload") or 2)
+        self.meta_owner_domain = str(meta.get("owner_domain") or "") or None
+        self.meta_organization_label = str(meta.get("organization_label") or "") or None
 
     def is_cloud_host(self, host: str | None) -> bool:
         host = (host or "").lower()
