@@ -57,6 +57,13 @@ def join_names(names: list[str], limit: int = MAX_COMPANIES) -> str:
     return Joined(shown[0] if len(shown) == 1 else ", ".join(shown[:-1]) + " y " + shown[-1])
 
 
+def of_stored(label) -> str | None:
+    """«la cookie «X»» → «de la cookie «X»»; «el ítem «k» de localStorage» → «del ítem «k» de localStorage» (v1.4.10)."""
+    if not isinstance(label, str) or not label:
+        return None
+    return "del " + label[3:] if label.startswith("el ") else "de " + label
+
+
 def company(entity: str | None, domain: str | None) -> str:
     """Cómo se nombra a quien recibió algo: la organización si se conoce; si no, el dominio."""
     if entity and entity != UNKNOWN:
@@ -175,14 +182,15 @@ class Explanations:
             "dato": self.data_name(data.get("api")) if data.get("api") else None,
             "otras": join_names(others),
             "guardado": data.get("stored_in"),
+            "de_guardado": of_stored(data.get("stored_in")),
             "lista": self.list_names.get(data.get("list") or reason["signal"].removeprefix("list_")),
             # Lista cerrada de nombres de cabecera (data/client_hints.yaml): se acota cada uno, no el conjunto.
             "hints": Joined(", ".join(str(hint)[:40] for hint in (data.get("hints") or [])[:6])) if data.get("hints") else None,
-            "cookie": data.get("copied_cookie"),
         })
         spec = self.signals[reason["signal"]]
-        if data.get("copied_cookie") and spec.get("copied"):
-            # v1.4.9: el valor de la cookie viajó en la URL o el cuerpo de una request que no envió cookies.
+        if data.get("copied_by_script") and spec.get("copied"):
+            # v1.4.10: solo si se registró que el script que inició la request leyó ese dato guardado. El `copied_cookie`
+            # de los análisis 1.16.0 no basta (no había lectura registrada): esos dicen que el valor coincide.
             spec = {**spec, "EVIDENCIA": spec["copied"]}
         return {**self.phrase(spec, reason.get("level"), variables), "signal": reason["signal"]}
 
@@ -214,7 +222,7 @@ class Explanations:
             variables["empresas"], companies = join_names(owners), owners
         elif kind == "persistent_id":
             variables["guardado"] = details.get("stored_in")
-            variables["cookie"] = details.get("copied_cookie")
+            variables["de_guardado"] = of_stored(details.get("stored_in"))
         elif kind == "redirect_sync":
             owners = list(dict.fromkeys(company(entities.get(item), item) for item in details.get("domains") or []))
             variables["empresas"], companies = join_names(owners), owners
@@ -223,6 +231,14 @@ class Explanations:
             variables.update({"empresa": name, "hints": Joined(", ".join(str(hint)[:40] for hint in (details.get("hints") or [])[:6]))
                               if details.get("hints") else None})
             companies = [name] if name else []
+        elif kind in ("gl_linker", "gl_linker_info"):
+            # v1.4.10: el analizador clasificó el destino y dice con qué criterio.
+            name = company(details.get("organization"), details.get("destination_host"))
+            status = details.get("status_label")
+            variables.update({"empresa": name, "destino": details.get("destination_host"), "criterio": details.get("basis_label"),
+                              "via": {"navigation": "navegación", "redirect": "redirección"}.get(details.get("source")),
+                              "estado": status if status == "Organización no disponible" else (status or "").lower() or None})
+            companies = [name] if name and details.get("status") == "third_party" else []
         elif kind == "persistent_cookie":
             variables.update({
                 "quien": f"{name}, organización distinta del sitio," if details.get("third_party") else f"el propio sitio ({name})",
@@ -278,7 +294,8 @@ class Explanations:
             # v1.4.6: la organización la resolvió el analizador (o el dominio, si no se conoce).
             name = company(details.get("organization"), domain)
             variables["empresa"], companies = name, [name] if name else []
-            variables["cookie"] = details.get("copied_cookie")
+            variables["guardado"] = details.get("stored_in")
+            variables["de_guardado"] = of_stored(details.get("stored_in"))
         elif kind in ("cookie_purpose", "cookie_purpose_functional"):
             names = [str(value)[:60] for value in (details.get("names") or [])[:6] if isinstance(value, str)]
             # v1.4.7: dos bases de la inferencia: el nombre conocido o el tipo de servicio de la organización.
@@ -302,8 +319,10 @@ class Explanations:
         variables, companies = self.finding_variables(finding, entities or {}, scripts or {})
         spec = self.findings.get(finding.get("type"))
         details = finding.get("details") if isinstance(finding.get("details"), dict) else {}
-        if spec and details.get("copied_cookie") and spec.get("copied"):
+        if spec and details.get("copied_by_script") and spec.get("copied"):
             spec = {**spec, "EVIDENCIA": spec["copied"]}
+        elif spec and details.get("stored_in") and spec.get("matched"):
+            spec = {**spec, "EVIDENCIA": spec["matched"]}
         if spec and in_request and spec.get("in_request"):
             spec = {**spec, "EVIDENCIA": spec["in_request"]}
         return {**self.phrase(spec, finding.get("level"), variables), "step": (spec or {}).get("step"), "companies": companies}

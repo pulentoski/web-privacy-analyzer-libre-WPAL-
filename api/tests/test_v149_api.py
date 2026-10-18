@@ -30,11 +30,12 @@ def test_list_match_count_in_request_detail_includes_this_request():
     assert "(7 requests en esta visita)" in explanations().finding_phrase(finding, {"appier.net": "Appier"})["text"]
 
 
-def test_copied_cookie_phrase():
+def test_copied_cookie_of_an_analysis_1_16_is_only_a_match():
+    # v1.4.10: el `copied_cookie` de los análisis 1.16.0 no registraba la lectura del script: se dice que el valor coincide.
     reasons = [{"signal": "persistent_id", "level": "EVIDENCIA", "weight": 20,
                 "data": {"parameter": "siteuid", "stored_in": "la cookie «_atrk_siteuid»", "copied_cookie": "_atrk_siteuid"}}]
     text = explanations().request_phrase(reasons=reasons, entity="Appier", domain="appier.net", third_party=True)["text"]
-    assert "un script copió el valor de la cookie «_atrk_siteuid» en la URL o el cuerpo de la request a Appier" in text
+    assert text == "Identificador persistente: el valor enviado a Appier coincide con la cookie «_atrk_siteuid»."
 
 
 def test_client_hints_request_is_never_presented_as_reception():

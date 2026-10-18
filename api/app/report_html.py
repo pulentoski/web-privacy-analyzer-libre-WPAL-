@@ -735,7 +735,9 @@ def _consent_section(consent: dict) -> str:
         rows = [[e(signal), "; ".join(f"{e(state)}: {e(count)}" for state, count in (states or {}).items())] for signal, states in (mode.get("by_signal") or {}).items()]
         out += table(["Señal", "Estados decodificados (requests)"], rows)
         out += '<p class="small">Fuente del dato: ' + "; ".join(f"{e(key)} ({e(value)})" for key, value in (mode.get("sources") or {}).items()) + ". <span class=\"mono\">gcd</span> se decodifica con una tabla no oficial.</p>"
-    out += f"<p class=\"small\">Interacción con el banner durante el scan: {'sí' if consent.get('user_interaction') else 'no'}. Lo anterior describe lo declarado y lo enviado; no evalúa si es correcto.</p>"
+    # v1.4.10: `banner_interaction`; un reporte anterior trae `user_interaction`.
+    pressed = consent.get("banner_interaction", consent.get("user_interaction"))
+    out += f"<p class=\"small\">Interacción con el aviso de consentimiento durante el scan: {'sí' if pressed else 'no'}. Lo anterior describe lo declarado y lo enviado; no evalúa si es correcto.</p>"
     return out
 
 

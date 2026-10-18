@@ -167,7 +167,7 @@ def test_report_validates_against_schema(client, analyzed_scan):
     schema = json.loads(SCHEMA_PATH.read_text())
     Draft202012Validator.check_schema(schema)
     assert list(Draft202012Validator(schema).iter_errors(report)) == []
-    assert report["schema_version"] == schema["properties"]["schema_version"]["const"] == "1.9.0"
+    assert report["schema_version"] == schema["properties"]["schema_version"]["const"] == "1.10.0"
     assert report["analysis"]["analyzer_version"] == VERSION
     assert report["analysis"]["lists"][0]["noncommercial"] is True
     assert report["site"]["exposure_score"] == 34 and report["capture"]["total_requests"] == 4
@@ -343,6 +343,6 @@ def test_report_includes_fingerprinting_section(client, fp_scan):
     assert response.status_code == 200, response.text
     report = response.json()
     assert list(report_validator().iter_errors(report)) == []
-    assert report["schema_version"] == "1.9.0"
+    assert report["schema_version"] == "1.10.0"
     assert report["fingerprinting"]["scripts"][0]["fingerprinting_inferred"] is True
     assert report["fingerprinting"]["exfiltrations"][0]["evidence_refs"]["requests"]

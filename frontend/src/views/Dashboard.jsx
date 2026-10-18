@@ -168,6 +168,59 @@ function SiteClientHints({ info }) {
   );
 }
 
+export function ConsentPanel({ consent }) {
+  const info = consent || {};
+  const conclusions = info.conclusions || [];
+  if (conclusions.length === 0 && !info.tcf && !info.consent_mode) return null;
+  // v1.4.10: banner_interaction (un reporte anterior trae user_interaction). No son los clics de la captura interactiva.
+  const pressed = info.banner_interaction ?? info.user_interaction;
+  return (
+    <Panel title="Consentimiento" testId="consent-conclusions">
+      {conclusions.map((item, index) => <Plain key={index} text={item.text} level={item.level} />)}
+      <p className="text-sm" data-testid="banner-interaction">Interacción con el aviso de consentimiento: {pressed ? "sí" : "no"}{" "}
+        <Info label="Interacción con el aviso de consentimiento"><strong>Interacción con el aviso de consentimiento</strong>: si el escenario pulsó un botón del aviso (aceptar o rechazar). No incluye los clics ni los desplazamientos de una captura interactiva.</Info>
+      </p>
+    </Panel>
+  );
+}
+
+// v1.4.10: _gl en URLs de navegación y redirección. Presencia, campos decodificados y conclusión se muestran por separado.
+const GL_VIA = { referer: "Referer", redirect: "cadena de redirección", pagina_anterior: "página anterior", url_de_entrada: "URL de entrada del scan" };
+const GL_DUPLICATE = { redirect_sync: "Sincronización por redirección", id_sync: "Sincronización de identificadores", persistent_id: "Identificador persistente", persistent_id_org: "Identificador persistente" };
+
+export function SiteLinker({ info }) {
+  const items = (info || {}).items || [];
+  if (items.length === 0) return null;
+  return (
+    <Panel title={<Term id="google_linker">Linker de Google (_gl)</Term>} subtitle="Presencia del parámetro, campos decodificados y clasificación del destino." testId="site-linker">
+      <ul className="space-y-2 text-sm">
+        {items.map((item, index) => {
+          const cls = item.classification || {};
+          const gl = item.gl || {};
+          const origin = item.origin || {};
+          return (
+            <li key={index} data-testid="site-linker-item" data-status={cls.status}>
+              <div data-testid="linker-presence"><EvidenceBadge level="EVIDENCIA" /> <strong>Presencia</strong>: la URL de {item.source_label} a <span className="captured">{(item.destination || {}).host}</span> llevó _gl{" "}
+                ({origin.host ? <>desde <span className="captured">{origin.host}</span>, {GL_VIA[origin.via] || "origen"}</> : origin.via === "url_de_entrada" ? GL_VIA.url_de_entrada : "origen no registrado"}).
+                {(item.redirect_chain || []).length > 0 && <> Cadena: {item.redirect_chain.map((hop) => hop.url).join(" → ")}.</>}
+              </div>
+              <div data-testid="linker-fields"><strong>Campos decodificados</strong>:{" "}
+                {gl.format !== "linker_v1" ? "formato no reconocido; solo se registra la presencia."
+                  : (gl.fields || []).length === 0 ? "ninguno se pudo decodificar; solo se registra la presencia."
+                    : <>{gl.fields.map((field) => <span key={field.name} className="captured mr-2">{field.name} = {field.value}</span>)}<span className="muted">(enmascarados)</span></>}
+              </div>
+              <div data-testid="linker-destination"><strong>Destino</strong>: {cls.label} (<span className="captured">{cls.organization}</span>), según {cls.basis_label}.{" "}
+                {item.duplicate_of ? `Ya informado como «${GL_DUPLICATE[item.duplicate_of] || item.duplicate_of}»: no se repite.` : item.counts_in_index ? "Suma al puntaje de la request." : "No suma al índice."}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="muted text-xs mt-1" data-testid="linker-conclusion">Lo observado es la presencia del parámetro y su transferencia en una URL capturada. No muestra que el destino haya reconocido al visitante ni que se haya completado una atribución.</p>
+    </Panel>
+  );
+}
+
 export default function Dashboard({ jobId }) {
   const report = useApi(() => api.report(jobId), `report-${jobId}`);
   const domains = useApi(() => api.domains(jobId), `domains-${jobId}`);
@@ -189,7 +242,6 @@ export default function Dashboard({ jobId }) {
   }));
   const grouped = DATA_ORDER.map((category) => [category, site.data_categories.filter((item) => item.category === category)]);
   const sameOrg = (site.summary.parties || {}).same_org_domains || [];
-  const conclusions = (data.consent || {}).conclusions || [];
 
   return (
     <div className="space-y-4" data-testid="dashboard">
@@ -199,11 +251,7 @@ export default function Dashboard({ jobId }) {
       <div className="flex flex-wrap items-center gap-4">
         <div className="flex-1 min-w-[16rem]"><Plain text={headline(data.capture, site.summary, data.scan.source)} level="EVIDENCIA" testId="summary-plain" /></div>
       </div>
-      {conclusions.length > 0 && (
-        <Panel title="Consentimiento" testId="consent-conclusions">
-          {conclusions.map((item, index) => <Plain key={index} text={item.text} level={item.level} />)}
-        </Panel>
-      )}
+      <ConsentPanel consent={data.consent} />
       <LimitsNotice limitations={data.limitations} />
 
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
@@ -260,6 +308,7 @@ export default function Dashboard({ jobId }) {
       </div>
       <ThirdPartyServices services={site.summary.third_party_services} compact />
       <SiteClientHints info={site.summary.client_hints} />
+      <SiteLinker info={site.summary.linker} />
       <CookiePurposes purposes={site.summary.cookie_purposes} />
       {sameOrg.length > 0 && (
         <Panel title="Recursos de la misma organización (no son terceros)" testId="same-org">

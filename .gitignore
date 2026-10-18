@@ -30,3 +30,6 @@ backups/
 /data/ipdb/MANIFEST.json
 /data/iab/cmp-list.json
 /data/iab/MANIFEST.json
+
+# Configuración local de Claude Code (sin atribución en commits). No se versiona.
+.claude/

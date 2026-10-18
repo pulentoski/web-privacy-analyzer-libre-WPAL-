@@ -51,11 +51,19 @@ class OrganizationCatalog:
 
     def lookup(self, host: str | None) -> tuple[bool, str | None]:
         """(está en el catálogo, organización o None si se declaró desconocida)."""
+        known, name, _ = self.lookup_basis(host)
+        return known, name
+
+    def lookup_basis(self, host: str | None) -> tuple[bool, str | None, str | None]:
+        """Como lookup(), más la fuente que resolvió la organización (v1.4.10): «alias» | «catalogo» | None."""
         host = (host or "").lower()
-        for suffix, name in self._aliases + self._suffixes:
+        for suffix, name in self._aliases:
             if host == suffix or host.endswith("." + suffix):
-                return True, name
-        return False, None
+                return True, name, "alias"
+        for suffix, name in self._suffixes:
+            if host == suffix or host.endswith("." + suffix):
+                return True, name, "catalogo"
+        return False, None, None
 
     def is_person(self, name: str, domains=(), legal_name: str | None = None) -> bool:
         """¿El nombre de esta entidad parece el de una persona natural? Ver el orden en organizations.yaml."""
@@ -230,6 +238,14 @@ class FilterLists:
             return name or UNKNOWN_ENTITY
         name = self._entities.get(domain, UNKNOWN_ENTITY)
         return UNKNOWN_ENTITY if name in self.persons else name
+
+    def entity_basis(self, registrable_domain: str | None) -> str | None:
+        """Qué resolvió la organización de entity() (v1.4.10): «alias» (org_aliases.yaml), «catalogo» (organizations.yaml),
+        «mapa_entidades» (lista de entidades) o None si no hay organización."""
+        if self.entity(registrable_domain) == UNKNOWN_ENTITY:
+            return None
+        known, _, basis = self.catalog.lookup_basis((registrable_domain or "").lower())
+        return basis if known else "mapa_entidades"
 
     def match(self, request: dict, source_host: str | None) -> list[dict]:
         """Listas cuya política bloquearía esta request: [{list, rule}]."""

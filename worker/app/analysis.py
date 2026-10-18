@@ -192,6 +192,8 @@ async def load_capture(conn, job_id, url: str, result, finished_at=None) -> dict
         "source": result.get("source") or "scan",
         # Captura interactiva (v1.4.2): hora y tipo de cada interacción del usuario. None = no se registró.
         "interactions": (result.get("interactive") or {}).get("interactions") if isinstance(result.get("interactive"), dict) else None,
+        # v1.4.10: páginas visitadas de la captura interactiva (URL de navegaciones sin request propia; linker _gl).
+        "timeline": (result.get("interactive") or {}).get("timeline") if isinstance(result.get("interactive"), dict) else None,
         "http_status": result.get("http_status"),
         # Scan parcial (v1.4.8): goto agotó el tiempo con respuestas ya recibidas. None = navegación completa.
         "partial_navigation": result.get("partial"),

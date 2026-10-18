@@ -3,6 +3,33 @@
 Formato: una sección por versión, la más reciente arriba. Las decisiones de diseño de cada versión están en
 [docs/adr/](docs/adr/README.md); las versiones anteriores a 1.4.6, en la sección «Fases» de [docs/SPEC.md](docs/SPEC.md).
 
+## 1.4.10 — 2026-10-17
+
+Analizador 1.17.0 · schema de reporte 1.10.0 · [ADR 037](docs/adr/037-linker-de-google-cookie-que-coincide-y-aviso-de-consentimiento.md).
+Actualizar los scans guardados con `./scripts/reanalyze.sh --all`.
+
+### Corregido
+- Cookie en la URL o el cuerpo de una request: el texto dice «el valor enviado coincide con la cookie «X»». «Un script
+  copió el valor…» solo aparece si se registró que el mismo script que inició la request leyó esa cookie o ese ítem de
+  storage; la captura actual no registra esas lecturas.
+- `docs/SPEC.md`: la tabla del índice coincide con `data/scoring.yaml` (`tracker_domains` 26 y `first_party_telemetry` 4).
+  Un test del frontend falla si vuelven a diferir.
+
+### Agregado
+- Linker de Google (`_gl`) en las URL de navegación y redirección, también en las páginas de la captura interactiva que
+  no quedaron como request (pestaña nueva). Registra origen, destino, dominios y cadena de redirección. Decodifica solo el
+  formato reconocido y muestra los campos extraídos enmascarados; si no puede decodificarlo, registra solo la presencia.
+  El destino se clasifica como el resto del análisis (propio, misma organización, tercero u «Organización no disponible»)
+  y el hallazgo dice con qué criterio (dominio registrable, mapa de entidades o alias). Solo un tercero suma (señal
+  `linker_transfer` de la request, peso 15). No duplica una transferencia ya informada como sincronización o identificador
+  persistente. Panel «Linker de Google (_gl)» en el Resumen.
+- Glosario: Linker de Google (_gl).
+
+### Cambiado
+- `consent.user_interaction` → `consent.banner_interaction`; en la interfaz y en el HTML, «Interacción con el aviso de
+  consentimiento». Los reportes y análisis anteriores se leen con el nombre anterior.
+- `scripts/test.sh` monta `docs/` en el contenedor de tests del frontend.
+
 ## 1.4.9 — 2026-10-15
 
 Analizador 1.16.0 · schema de reporte 1.9.0 · [ADR 036](docs/adr/036-client-hints-redirecciones-y-puntaje-por-nivel.md).

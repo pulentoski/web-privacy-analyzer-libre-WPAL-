@@ -189,7 +189,7 @@ def test_attributions_follow_the_license_profile():
 def test_report_states_its_license_profile(client, analyzed_scan):  # noqa: F811
     job_id = analyzed_scan[0]
     report = client.get(f"/api/scans/{job_id}/report").json()
-    assert report["schema_version"] == "1.9.0" and report["license_profile"] in ("no_comercial", "comercial")
+    assert report["schema_version"] == "1.10.0" and report["license_profile"] in ("no_comercial", "comercial")
     assert list(report_validator().iter_errors(report)) == []
     assert list(report_validator().iter_errors({**report, "license_profile": "libre"}))
     assert list(report_validator().iter_errors({key: value for key, value in report.items() if key != "license_profile"}))
@@ -207,7 +207,7 @@ def test_report_states_its_license_profile(client, analyzed_scan):  # noqa: F811
 
 def test_openapi_is_served_on_the_api_port(client):
     schema = client.get("/openapi.json")
-    assert schema.status_code == 200 and schema.json()["info"]["version"] == "1.4.9"
+    assert schema.status_code == 200 and schema.json()["info"]["version"] == "1.4.10"
     paths = schema.json()["paths"]
     for path in ("/health", "/api/scans", "/api/scans/{job_id}/report", "/api/scans/{job_id}/export", "/api/privacy/test"):
         assert path in paths, path

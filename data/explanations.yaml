@@ -131,9 +131,13 @@ signals:
     EVIDENCIA: "Sincronización de identificadores (cookie syncing): {empresa} recibió un identificador que también recibió {otras}; el valor común permite correlacionar los registros del mismo navegador."
   persistent_id:
     priority: 90
-    EVIDENCIA: "Identificador persistente: la request transmitió a {empresa} el valor almacenado en {guardado}."
-    # v1.4.9: la request no envió cookies; el valor viajó en la URL o el cuerpo porque un script lo copió.
-    copied: "Identificador persistente: un script copió el valor de la cookie «{cookie}» en la URL o el cuerpo de la request a {empresa}."
+    EVIDENCIA: "Identificador persistente: el valor enviado a {empresa} coincide con {guardado}."
+    # v1.4.10: solo si se registró que el script que inició la request leyó ese dato guardado (si no, la frase de arriba).
+    copied: "Identificador persistente: un script copió el valor {de_guardado} en la URL o el cuerpo de la request a {empresa}; ese mismo script inició la request y leyó el valor."
+  # v1.4.10: {empresa} el tercero de destino. Lo observado es la transferencia del parámetro en la URL.
+  linker_transfer:
+    priority: 87
+    EVIDENCIA: "Linker de Google (_gl): la URL de la request llevó el parámetro _gl a {empresa}, organización distinta del sitio; lo observado es la transferencia del parámetro en la URL, no que el destino reconociera al visitante."
   url_leak:
     priority: 85
     EVIDENCIA: "Fuga de URL: la URL de la página se envió a {empresa} en un parámetro de la request."
@@ -285,8 +289,8 @@ findings:
     EVIDENCIA: "Sincronización de identificadores (cookie syncing): {empresas} recibieron el mismo identificador; el valor común permite correlacionar sus registros del mismo navegador."
   persistent_id:
     step: identificador
-    EVIDENCIA: "Identificador persistente: se transmitió a {empresa} el valor almacenado en {guardado}."
-    copied: "Identificador persistente: un script copió el valor de la cookie «{cookie}» en la URL o el cuerpo de la request a {empresa}."
+    EVIDENCIA: "Identificador persistente: el valor enviado a {empresa} coincide con {guardado}."
+    copied: "Identificador persistente: un script copió el valor {de_guardado} en la URL o el cuerpo de la request a {empresa}; ese mismo script inició la request y leyó el valor."
   # v1.4.9: el mismo identificador viajó en un salto 3xx entre dos organizaciones (cadena de redirección observada).
   redirect_sync:
     step: identificador
@@ -330,12 +334,22 @@ findings:
     step: interaccion
     INFERENCIA: "Grabación de sesión (inferencia): se contactó a {empresa}, servicio que registra clics, movimiento del mouse y desplazamiento; la sesión podría estar siendo grabada."
 
+  # --- v1.4.10 (docs/adr/037): linker de Google (_gl) en URLs de navegación y redirección ---
+  # {via} navegación | redirección · {destino} host de destino · {estado} clasificación del destino · {criterio} qué la
+  # resolvió (dominio registrable, mapa de entidades o alias) · {campos} nombres de los campos decodificados.
+  gl_linker:
+    step: etiquetado
+    EVIDENCIA: "Linker de Google (_gl): la URL de {via} a {destino} llevó el parámetro _gl hacia {empresa}, un tercero según {criterio}. Lo observado es la presencia y la transferencia del parámetro en la URL; no muestra que el destino reconociera al visitante ni que se completara una atribución."
+  gl_linker_info:
+    EVIDENCIA: "Linker de Google (_gl): la URL de {via} a {destino} llevó el parámetro _gl; destino {estado} según {criterio}, por lo que no suma al índice. Lo observado es la presencia y la transferencia del parámetro en la URL; no muestra que el destino reconociera al visitante."
   # --- v1.4.6 (docs/adr/033) ---
   # Un identificador que llegó a UNA sola organización no es sincronización: va al grupo 1.
   persistent_id_org:
     step: etiquetado
     EVIDENCIA: "Identificador persistente enviado a {empresa}: el valor llegó a una sola organización, por lo que no es sincronización entre organizaciones."
-    copied: "Identificador persistente enviado a {empresa}: un script copió el valor de la cookie «{cookie}» en la URL o el cuerpo de la request; llegó a una sola organización, por lo que no es sincronización entre organizaciones."
+    # v1.4.10: {guardado} sale de details.stored_in; sin él (identificador visto en el sitio y en un tercero) se usa la de arriba.
+    matched: "Identificador persistente enviado a {empresa}: el valor enviado coincide con {guardado}; llegó a una sola organización, por lo que no es sincronización entre organizaciones."
+    copied: "Identificador persistente enviado a {empresa}: un script copió el valor {de_guardado} en la URL o el cuerpo de la request; ese mismo script inició la request y leyó el valor. Llegó a una sola organización, por lo que no es sincronización entre organizaciones."
   # Propósito de la cookie (v1.4.7: dos bases). {base} «por el nombre» | «por la organización»;
   # {criterio} «nombre de cookie de analítica» | «origen en una organización de publicidad»; {nombres} los nombres.
   cookie_purpose:

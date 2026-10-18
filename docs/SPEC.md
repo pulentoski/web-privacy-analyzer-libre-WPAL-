@@ -66,7 +66,7 @@ alcanza ~63 % de su tope.
 
 | Componente | n | cap | k |
 |---|---|---|---|
-| tracker_domains | dominios registrables de terceros con ≥ 1 request tracker | 30 | 8 |
+| tracker_domains | dominios registrables de terceros con ≥ 1 request tracker (30 hasta v1.3.3) | 26 | 8 |
 | id_sync | valores distintos enviados a dominios de 2 o más organizaciones distintas del sitio | 15 | 3 |
 | url_leak_recipients | terceros que recibieron la URL de la página (parámetro o Referer completo) | 12 | 4 |
 | persistent_id_recipients | terceros que recibieron un valor igual a una cookie/storage | 13 | 4 |
@@ -74,6 +74,10 @@ alcanza ~63 % de su tope.
 | stored_items | cookies no funcionales (v1.4.6) + ítems de storage que deja el sitio | 5 | 10 |
 | fp_scripts | scripts con patrón compatible con fingerprinting | 10 | 2 |
 | fp_exfiltration | APIs cuyos valores leídos aparecen en requests | 10 | 2 |
+| first_party_telemetry | endpoints de eventos propios + scripts de analítica propia (v1.3.4) | 4 | 6 |
+
+La tabla es la de `data/scoring.yaml §site_exposure` (componente, tope y k); un test del frontend
+(`frontend/src/lib/spec.test.js`) falla si no coinciden.
 
 El desglose (n y puntos de cada componente) se guarda y se entrega en el reporte.
 
@@ -202,7 +206,7 @@ El worker solo sale a internet a través del egress-proxy.
 - El sha256 del JSON del reporte va impreso en el documento.
 - Marca opcional (`REPORT_BRAND_NAME`, `REPORT_BRAND_DIR` fuera del repo); sin ella,
   encabezado neutro. También para grupos de Privacy Test.
-- Schemas: `report-1.6.0` (scan; añade `scan.interactive`, v1.4), `report-1.5.0`, `report-1.4.0` (scan; añade `story` y la frase técnica de hallazgos y requests; F10),
+- Schemas: `report-1.10.0` (scan; `consent.banner_interaction`, v1.4.10), `report-1.6.0` (scan; añade `scan.interactive`, v1.4), `report-1.5.0`, `report-1.4.0` (scan; añade `story` y la frase técnica de hallazgos y requests; F10),
   `report-1.3.0` (añadió `license_profile`) y `group-report-1.0.0` (grupo); se conservan los
   anteriores.
 
@@ -551,10 +555,28 @@ hacia quién la envían.
   una organización externa a otra.
 - Índice: cada componente con sus puntos de evidencia e inferencia; `summary.score_by_level`. Schema `report-1.9.0`.
 - Identificador igual a una cookie en una request que no envió cookies: «un script copió el valor de la cookie «X» en
-  la URL o el cuerpo de la request».
+  la URL o el cuerpo de la request» (v1.4.10: solo con la lectura registrada, ver más abajo).
 - Appier → publicidad. Bandas: el frontend las lee de `GET /api/bands`. Límites de la medición: aviso de STUN/UDP si la
   página creó conexiones WebRTC. Glosario: Client Hints, Accept-CH, Delegación de Client Hints, Cadena de redirección.
   Analizador 1.16.0.
+
+## Linker de Google, cookie que coincide y aviso de consentimiento (v1.4.10, docs/adr/037)
+- Índice: la tabla de §site_exposure_score copia `data/scoring.yaml §site_exposure` (incluida `first_party_telemetry`);
+  `frontend/src/lib/spec.test.js` falla si no coinciden.
+- Cookie: «el valor enviado coincide con la cookie «X»» (o con el ítem de storage). «Un script copió el valor…» solo si se
+  registró que el mismo script que inició la request leyó esa cookie o ese ítem (`capture.storage_reads`); la captura actual
+  no registra esas lecturas. Detalle: `matched_cookie` y, si hubo lectura, `copied_by_script`.
+- `consent.banner_interaction` (antes `user_interaction`; los análisis anteriores se leen con el nombre viejo): el escenario
+  pulsó un botón del aviso. En la interfaz, «Interacción con el aviso de consentimiento». No son los clics ni desplazamientos de
+  la captura interactiva. Schema `report-1.10.0`.
+- Linker de Google (`_gl`, `site.summary.linker`): en URLs de navegación, saltos 3xx, línea de tiempo de la captura interactiva
+  y URL final; con origen, destino, dominios y cadena de redirección. Se decodifica solo el formato `1*hash*nombre*valor…` y se
+  informan solo los campos extraídos, enmascarados; sin formato reconocido, solo la presencia. EVIDENCIA de presencia y
+  transferencia; nunca que el destino reconoció al visitante o completó una atribución. Destino clasificado como el resto del
+  análisis (propio · misma organización · tercero · «Organización no disponible»), con el criterio (dominio registrable, mapa
+  de entidades o alias). Solo un tercero suma: señal `linker_transfer` de la request de navegación (sin componente nuevo).
+  Hallazgos `gl_linker` (grupo 1) y `gl_linker_info` (lista técnica); no se duplica una transferencia ya informada. Glosario:
+  Linker de Google. Analizador 1.17.0.
 
 ## Fases
 F0 spec · F1 infra+aislamiento · F2 captura · F3 análisis+scoring ·
@@ -572,4 +594,5 @@ v1.4.5 servicios de terceros, es-CL y correcciones (versión 1.4.5) ·
 v1.4.6 atribución a librerías de CDN, sincronización entre organizaciones, alias y cookies por propósito (versión 1.4.6) ·
 v1.4.7 fugas hacia un CDN con su receptor real y cookies por la organización (versión 1.4.7) ·
 v1.4.8 navegación con ACCEPT_CH, scans fallidos y parciales, alerta antibot con señal dura, bandas y reglas corregidas, WebRTC (versión 1.4.8) ·
-v1.4.9 Client Hints (solicitud, envío y delegación), cadena de redirección y puntaje por nivel (versión 1.4.9)
+v1.4.9 Client Hints (solicitud, envío y delegación), cadena de redirección y puntaje por nivel (versión 1.4.9) ·
+v1.4.10 linker de Google (_gl), cookie que coincide, aviso de consentimiento y tabla del índice verificada (versión 1.4.10)

@@ -150,13 +150,18 @@ terms:
     term: "Cadena de redirección"
     plain: "saltos 3xx de una dirección a otra"
     definition: "Secuencia de respuestas 3xx en la que cada una indica, en la cabecera Location, la dirección siguiente. Si un salto lleva el mismo identificador de una organización a otra, es una sincronización de identificadores observada."
+  # v1.4.10
+  - id: google_linker
+    term: "Linker de Google (_gl)"
+    plain: "parámetro _gl que pasa datos de medición entre dominios"
+    definition: "Parámetro _gl que las etiquetas de Google (gtag.js, Google Tag Manager) añaden a un enlace o a una redirección para pasar datos de medición de un dominio a otro. Su formato habitual es 1*hash*nombre*valor, con los valores en base64; los campos varían (pueden incluir el valor de cookies como _ga o _gcl_au, o no). Que una URL lo lleve demuestra la transferencia del parámetro; no demuestra que el destino lo haya usado para reconocer al visitante ni que se haya completado una atribución."
 
 panels:
   summary:
     title: "¿Qué es esto?"
     definition: "Vista general de la visita: número de requests, organizaciones de terceros contactadas e índice de exposición de 0 a 99."
     method: "El índice se calcula con señales observables ponderadas (data/scoring.yaml). Es una estimación para comparar visitas, no una calificación oficial."
-    terms: [request, tercero, tracker, evidencia, inferencia, proposito_cookie]
+    terms: [request, tercero, tracker, evidencia, inferencia, proposito_cookie, google_linker]
   story:
     title: "¿Qué es esto?"
     definition: "Hallazgos de la visita clasificados en ocho grupos técnicos. Cada grupo indica qué se observó, con su nivel de evidencia; debajo figuran el detalle y las requests que lo respaldan."

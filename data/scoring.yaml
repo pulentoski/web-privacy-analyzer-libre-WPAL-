@@ -31,6 +31,9 @@ signals:
   # la request) pesa más. Suman al tracking_score de la request: el índice no tiene un componente nuevo.
   client_hints_request:    {weight: 3,  level: EVIDENCIA}    # la respuesta pidió hints de alta entropía (no prueba recepción)
   client_hints_sent:       {weight: 10, level: EVIDENCIA}    # la request llevó hints de alta entropía
+  # v1.4.10: la URL de navegación o redirección llevó _gl (linker de Google) a un tercero. Solo si el destino es de otra
+  # organización conocida y la transferencia no estaba ya puntuada como sincronización o identificador persistente.
+  linker_transfer:         {weight: 15, level: EVIDENCIA}
   # --- inferencias ---
   fp_script:               {weight: 20, level: INFERENCIA}   # el recurso es un script con patrón de fingerprinting
   fp_script_initiator:     {weight: 15, level: INFERENCIA}   # la request la inició un script así

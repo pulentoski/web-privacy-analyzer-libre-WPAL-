@@ -32,7 +32,7 @@ from app.routes.scans import _get_job, _summary
 
 router = APIRouter(prefix="/api/scans")
 
-REPORT_SCHEMA_VERSION = "1.9.0"
+REPORT_SCHEMA_VERSION = "1.10.0"
 INTERACTIVE_END_REASONS = ("user_stop", "idle_timeout", "max_duration", "max_requests", "window_closed", "browser_closed")
 
 
@@ -123,6 +123,18 @@ LICENSE_PROFILES = {
     "comercial": "Comercial: sin fuentes NC ni sin licencia explícita. Organizaciones según AdGuard companiesdb (CC BY-SA 4.0); las CMP se identifican solo por número.",
 }
 CMP_EXCLUDED = "excluida (perfil comercial)"
+
+
+def consent_section(consent: dict | None) -> dict:
+    """Consentimiento del reporte. v1.4.10: `banner_interaction` (antes `user_interaction`, que traen los análisis
+    anteriores y se lee con su nombre anterior): si el escenario pulsó un botón del aviso de consentimiento. No son los
+    clics ni desplazamientos de la captura interactiva."""
+    out = dict(consent) if isinstance(consent, dict) else {"tcf": None, "consent_mode": None}
+    legacy = out.pop("user_interaction", None)
+    out["banner_interaction"] = bool(out.get("banner_interaction", legacy))
+    out.setdefault("tcf", None)
+    out.setdefault("consent_mode", None)
+    return out
 
 
 def license_profile_of(summary: dict | None) -> str:
@@ -671,7 +683,8 @@ async def build_report(session: AsyncSession, job_id: uuid.UUID) -> dict:
             "breakdown": site["breakdown"],
             "data_categories": site["data_categories"],
             "mechanisms": site["mechanisms"],
-            "summary": site["summary"],
+            "summary": {**(site["summary"] or {}), **({"consent": consent_section(site["summary"]["consent"])}
+                                                      if isinstance((site["summary"] or {}).get("consent"), dict) else {})},
         },
         "capture": {
             key: summary[key]
@@ -683,7 +696,7 @@ async def build_report(session: AsyncSession, job_id: uuid.UUID) -> dict:
         "story": await build_story(session, job_id, fingerprinting, destinations,
                                    result.get("source") if result.get("source") in ("har_import", "interactive") else "scan"),
         "fingerprinting": fingerprinting,
-        "consent": (site["summary"] or {}).get("consent") or {"tcf": None, "consent_mode": None, "user_interaction": False},
+        "consent": consent_section((site["summary"] or {}).get("consent")),
         "destinations": destinations,
         "versions": {
             "analyzer": site["analyzer_version"], "lists": site["lists_version"],

@@ -18,11 +18,12 @@ from collections import Counter, defaultdict
 from urllib.parse import urlsplit
 
 from app.analyzer import ANALYZER_VERSION
-from app.analyzer import consent_mode
+from app.analyzer import consent_mode, linker
 from app.analyzer.config import AnalyzerConfig
 from app.analyzer.fingerprinting import analyze_fingerprinting
 from app.analyzer.lists import UNKNOWN_ENTITY
 from app.analyzer.parameters import Param, extract, is_identifier_like, shannon_entropy, value_shapes
+from app.browser.parties import registrable_domain
 
 DEFAULT_DEADLINE_S = 25.0
 MIN_SHARED_VALUE_CHARS = 12
@@ -58,6 +59,8 @@ def prepare_capture(capture: dict, *, start_url: str, page_url: str | None, resu
     prepared["page_url"] = page_url or start_url
     # Captura interactiva (v1.4.2): hora y tipo de cada clic, desplazamiento y tecla del usuario. None = no se registró.
     prepared["interactions"] = ((result or {}).get("interactive") or {}).get("interactions")
+    # v1.4.10: páginas visitadas (URL de cada navegación, también las que no quedaron como request; linker _gl).
+    prepared["timeline"] = ((result or {}).get("interactive") or {}).get("timeline")
     stamps = [request["ts"].timestamp() for request in capture["requests"] if hasattr(request.get("ts"), "timestamp")]
     prepared["visit_ts"] = max(stamps) if stamps else None
     prepared["requests"] = [{**request, "request_id": request.get("request_id", request["seq"])} for request in capture["requests"]]
@@ -320,13 +323,17 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
 
     # 2b. valor igual al de una cookie o un ítem de storage del snapshot
     stored: dict[str, str] = {}
-    stored_cookie: dict[str, str] = {}  # v1.4.9: valor → nombre de la cookie (para «un script copió el valor…»)
+    # v1.4.10: valor → (tipo, nombre) del dato guardado: cookie | local | session. Sirve para saber si el script que inició
+    # la request leyó ESE dato (y solo entonces decir que lo copió).
+    stored_item: dict[str, tuple[str, str]] = {}
     for cookie in capture.get("cookies") or []:
         stored.setdefault(cookie.get("value") or "", f"la cookie «{cookie.get('name')}»")
-        stored_cookie.setdefault(cookie.get("value") or "", str(cookie.get("name") or "")[:120])
+        stored_item.setdefault(cookie.get("value") or "", ("cookie", str(cookie.get("name") or "")[:120]))
     for item in capture.get("storage") or []:
         kind = "localStorage" if item.get("storage_type") == "local" else "sessionStorage"
         stored.setdefault(item.get("value") or "", f"el ítem «{item.get('key')}» de {kind}")
+        stored_item.setdefault(item.get("value") or "", ("local" if item.get("storage_type") == "local" else "session",
+                                                         str(item.get("key") or "")[:120]))
     stored = {
         value: label
         for value, label in stored.items()
@@ -337,13 +344,37 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
     # Un valor igual a una cookie/storage enviado a la MISMA organización no es persistencia hacia
     # un tercero (point 2): solo cuenta cuando el destino es de otra organización.
     persistent_by_request: dict[int, Param] = {}
-    # v1.4.9: requests que enviaron cookies (cabecera Cookie). Si el valor de una cookie viaja en la URL o el cuerpo
-    # de una request que NO envió cookies, lo puso ahí un script: se dice así.
-    cookie_sent = {param.request_id for param in params if param.source == "cookie"}
+    # v1.4.10: «un script copió el valor de la cookie X» solo si se registró que el MISMO script que inició la request leyó
+    # esa cookie o ese ítem de storage (`storage_reads`: [{script_url, kind: cookie|local|session, name}]). La captura actual
+    # no registra esas lecturas: sin ellas el texto dice que el valor enviado coincide con la cookie, nunca que se copió.
+    storage_reads = {
+        (str(read["script_url"]), str(read.get("kind") or "cookie"), str(read["name"])[:120])
+        for read in capture.get("storage_reads") or []
+        if isinstance(read, dict) and isinstance(read.get("script_url"), str) and read.get("name") is not None
+    }
 
-    def copied_cookie(request_ids, value: str) -> str | None:
-        name = stored_cookie.get(value)
-        return name if name and not any(request_id in cookie_sent for request_id in request_ids) else None
+    def copying_script(request_ids, value: str) -> str | None:
+        """Script que inició TODAS esas requests y leyó el dato guardado con ese valor; None si no se registró."""
+        item = stored_item.get(value)
+        scripts = {by_id[request_id].get("initiator_script") or (by_id[request_id].get("initiator") or {}).get("script_url")
+                   for request_id in request_ids}
+        if not item or len(scripts) != 1 or None in scripts:
+            return None
+        script = next(iter(scripts))
+        return script if (script, *item) in storage_reads else None
+
+    def stored_details(request_ids, value: str) -> dict:
+        """Datos del valor guardado para las frases: la cookie que coincide y, si se registró la lectura, quién la copió."""
+        item, script = stored_item.get(value), copying_script(request_ids, value)
+        return {**({"matched_cookie": item[1]} if item and item[0] == "cookie" else {}),
+                **({"copied_by_script": script[:300]} if script else {})}
+
+    def copy_sentence(request_ids, value: str) -> str:
+        script = copying_script(request_ids, value)
+        label = stored[value]
+        of_label = "del " + label[3:] if label.startswith("el ") else "de " + label
+        return (f" El script que inició la request ({script[:200]}) leyó {label}: un script copió el valor {of_label} en la URL "
+                "o el cuerpo de la request.") if script else ""
     for param in value_params:
         if param.value in stored and param.request_id in external_ids:
             persistent_by_request.setdefault(param.request_id, param)
@@ -386,6 +417,23 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
     # Una sola vez por organización la solicitud (primera respuesta con Accept-CH); el envío, en cada request que lo llevó.
     ch_request_by_id = {item["first_request_id"]: item for item in client_hints["requests"]}
     ch_sent_by_id = {item["request_id"]: item for item in client_hints["sends"]}
+
+    # --- 2f. v1.4.10: linker de Google (_gl) en URLs de navegación y redirección (app/analyzer/linker.py) ---
+    # Transferencias de identificadores ya informadas por otra regla (valor → tipo de hallazgo), por request: un _gl que
+    # ya cuenta como sincronización o identificador persistente no se informa ni se puntúa otra vez.
+    transfers: dict[int, dict[str, str]] = defaultdict(dict)
+    for item in redirect_syncs:
+        for request_id in (item["from"], item["to"]):
+            transfers[request_id].setdefault(item["value"], "redirect_sync")
+    for value, domains in synced.items():
+        for request_ids in domains.values():
+            for request_id in request_ids:
+                transfers[request_id].setdefault(value, "id_sync")
+    for request_id, param in persistent_by_request.items():
+        transfers[request_id].setdefault(param.value, "persistent_id" if param.value in synced else "persistent_id_org")
+    linker_items = _linker_items(capture, requests, by_id, party_by_id, first_party_domains, site_orgs, lists, transfers,
+                                 page_url)
+    linker_by_request = {item["request_id"]: item for item in linker_items if item["counts_in_index"]}
 
     # --- 3. clasificación y score por request ---
     analyzed = []
@@ -445,11 +493,9 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
                    other_domains=others[:5], other_entities=sorted({lists.entity(other) for other in others} - {UNKNOWN_ENTITY})[:5])
         if request_id in persistent_by_request:
             param = persistent_by_request[request_id]
-            copied = copied_cookie([request_id], param.value)
-            reason("persistent_id", f"El parámetro «{param.name}» lleva el mismo valor que {stored[param.value]} del navegador."
-                   + (f" La request no envió cookies: un script copió el valor de la cookie «{copied}» en la URL o el cuerpo de la request."
-                      if copied else ""),
-                   parameter=param.name, stored_in=stored[param.value], **({"copied_cookie": copied} if copied else {}))
+            reason("persistent_id", f"El parámetro «{param.name}»: el valor enviado coincide con {stored[param.value]} del navegador."
+                   + copy_sentence([request_id], param.value),
+                   parameter=param.name, stored_in=stored[param.value], **stored_details([request_id], param.value))
         if request_id in leak_by_request:
             reason("url_leak", f"El parámetro «{leak_by_request[request_id].name}» contiene la URL de la página.",
                    parameter=leak_by_request[request_id].name, **({"recipient": recipient} if recipient else {}))
@@ -467,6 +513,11 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
         if request_id in ch_sent_by_id:
             sent = ch_sent_by_id[request_id]["hints"]
             reason("client_hints_sent", f"La request llevó las cabeceras {', '.join(sent)} (Client Hints de alta entropía).", hints=sent)
+        if request_id in linker_by_request:
+            item = linker_by_request[request_id]["classification"]
+            reason("linker_transfer", f"La URL de la request llevó el parámetro _gl (linker de Google) a {item['organization']}, "
+                   f"tercero según {item['basis_label']}. Lo observado es la transferencia del parámetro, no que el destino "
+                   "reconociera al visitante.", organization=item["organization"], basis=item["basis"])
         initiator_script = request.get("initiator_script") or (request.get("initiator") or {}).get("script_url")
         if request.get("url") in fp_scripts:
             reason("fp_script", "Este recurso es un script con un patrón de uso compatible con fingerprinting.")
@@ -589,24 +640,19 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
             finding(
                 "persistent_id",
                 "EVIDENCIA",
-                f"Un valor enviado a {domain} ({_preview(value)}) coincide con el valor de {stored[value]} del navegador."
-                + (f" Las requests no enviaron cookies: un script copió el valor de la cookie «{copied_cookie(refs, value)}» en la URL o "
-                   "el cuerpo de la request." if copied_cookie(refs, value) else ""),
+                f"El valor enviado a {domain} ({_preview(value)}) coincide con {stored[value]} del navegador." + copy_sentence(refs, value),
                 refs,
-                {"domain": domain, "stored_in": stored[value], **({"copied_cookie": copied_cookie(refs, value)} if copied_cookie(refs, value) else {})},
+                {"domain": domain, "stored_in": stored[value], **stored_details(refs, value)},
             )
             continue
         # v1.4.6: el valor no llegó a una segunda organización: no es sincronización (grupo 1, no grupo 5).
         finding(
             "persistent_id_org",
             "EVIDENCIA",
-            f"Identificador persistente enviado a {organization_name(domain)}: un valor enviado a {domain} ({_preview(value)}) "
-            f"coincide con el valor de {stored[value]} del navegador y no llegó a otra organización."
-            + (f" Las requests no enviaron cookies: un script copió el valor de la cookie «{copied_cookie(refs, value)}» en la URL o "
-               "el cuerpo de la request." if copied_cookie(refs, value) else ""),
+            f"Identificador persistente enviado a {organization_name(domain)}: el valor enviado a {domain} ({_preview(value)}) "
+            f"coincide con {stored[value]} del navegador y no llegó a otra organización." + copy_sentence(refs, value),
             refs,
-            {"domain": domain, "organization": organization_name(domain), "stored_in": stored[value],
-             **({"copied_cookie": copied_cookie(refs, value)} if copied_cookie(refs, value) else {})},
+            {"domain": domain, "organization": organization_name(domain), "stored_in": stored[value], **stored_details(refs, value)},
         )
     persistent_pairs = set(persistent_groups)
     for value, domains in single_org.items():
@@ -680,6 +726,17 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
             {"organization": organization, "hints": hints, "hosts": sorted({item["host"] or "" for item in items})[:10],
              "after_request": any(item["after_request"] for item in items)},
         )
+    # v1.4.10: linker de Google (_gl). Tercero → gl_linker (grupo 1); propio, misma organización u «Organización no
+    # disponible» → gl_linker_info (lista técnica, no suma). Si otra regla ya informó esa transferencia, no se duplica.
+    for item in linker_items:
+        if item["duplicate_of"] is None:
+            finding("gl_linker" if item["classification"]["status"] == "third_party" else "gl_linker_info", "EVIDENCIA",
+                    _linker_claim(item), item["evidence_refs"],
+                    {"domain": item["destination"]["domain"], "destination_host": item["destination"]["host"],
+                     "origin_host": item["origin"]["host"], "source": item["source"], "status": item["classification"]["status"],
+                     "status_label": item["classification"]["label"], "organization": item["classification"]["organization"],
+                     "basis": item["classification"]["basis"], "basis_label": item["classification"]["basis_label"],
+                     "format": item["gl"]["format"], "fields": item["gl"]["fields"], "counts_in_index": item["counts_in_index"]})
     # Telemetría propia (v1.3.4): eventos enviados al propio sitio o a su misma organización.
     telemetry = config.first_party_telemetry.detect(requests, party_by_id)
     if telemetry["requests"]:
@@ -1076,6 +1133,8 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
                 "search_leaks_page_text": search_page_text,
                 # v1.4.9: Client Hints (solicitud ≠ envío; delegación como contexto) y puntos del índice por nivel.
                 "client_hints": client_hints,
+                # v1.4.10: _gl en URLs de navegación y redirección (presencia, campos decodificados y clasificación del destino).
+                "linker": {"items": linker_items, "total": len(linker_items)},
                 "score_by_level": score_by_level,
                 "redirect_syncs": len(redirect_syncs),
                 # Requests que el navegador del usuario canceló por una extensión (solo capturas HAR).
@@ -1445,11 +1504,102 @@ def _persistent_cookie_findings(capture, requests, params, lists, finding, purpo
         )
 
 
+LINKER_STATUS_LABELS = {"first_party": "Propio", "same_org": "Misma organización", "third_party": "Tercero",
+                        "unknown_org": "Organización no disponible"}
+LINKER_BASIS_LABELS = {"dominio_registrable": "dominio registrable", "mapa_entidades": "mapa de entidades",
+                       "catalogo": "mapa de entidades (catálogo propio)", "alias": "alias de organización (org_aliases)"}
+LINKER_SOURCE_LABELS = {"navigation": "navegación", "redirect": "redirección"}
+LINKER_VIA_LABELS = {"referer": "Referer", "redirect": "cadena de redirección", "pagina_anterior": "página anterior"}
+
+
+def _linker_items(capture, requests, by_id, party_by_id, first_party_domains, site_orgs, lists, transfers, page_url) -> list[dict]:
+    """_gl en URLs de navegación y redirección, con el destino clasificado por el mismo criterio que el resto del análisis
+    (propio · misma organización · tercero · «Organización no disponible») y el criterio que lo resolvió."""
+    basis_of = getattr(lists, "entity_basis", None)
+    items = []
+    for candidate in linker.candidates(requests, timeline=capture.get("timeline"), page_url=page_url,
+                                       start_url=capture.get("start_url")):
+        request_id = candidate["request_id"]
+        host = linker.host_of(candidate["url"])
+        if request_id is not None:
+            domain, party = by_id[request_id].get("registrable_domain"), party_by_id[request_id]
+        else:
+            # Página sin request de navegación: mismo criterio que party_of() con su dominio registrable.
+            domain = registrable_domain(host)
+            entity = lists.entity(domain)
+            party = ("first_party" if domain in first_party_domains
+                     else "same_org" if entity != UNKNOWN_ENTITY and entity in site_orgs else "third_party")
+        entity = lists.entity(domain)
+        if party == "first_party":
+            status, basis = "first_party", "dominio_registrable"
+        elif party == "third_party" and entity == UNKNOWN_ENTITY:
+            status, basis = "unknown_org", "dominio_registrable"
+        else:
+            status, basis = party, (basis_of(domain) if basis_of else None) or "mapa_entidades"
+        duplicate_of = next((kind for value, kind in sorted((transfers.get(request_id) or {}).items())
+                             if value in candidate["values"]), None) if request_id is not None else None
+        origin_host = linker.host_of(candidate["origin"]["url"])
+        items.append({
+            "source": candidate["source"],
+            "source_label": LINKER_SOURCE_LABELS[candidate["source"]],
+            "request_id": request_id,
+            "seq": by_id[request_id].get("seq") if request_id is not None else None,
+            "tab": candidate.get("tab"),
+            "destination": {"url": linker.strip_url(candidate["url"]), "host": host, "domain": domain},
+            "origin": {**candidate["origin"], "host": origin_host, "domain": registrable_domain(origin_host)},
+            "redirect_chain": candidate["chain"],
+            "gl": candidate["gl"],
+            "classification": {"status": status, "label": LINKER_STATUS_LABELS[status],
+                               "organization": entity if entity != UNKNOWN_ENTITY else (domain or host or UNKNOWN_ENTITY),
+                               "basis": basis, "basis_label": LINKER_BASIS_LABELS[basis]},
+            # Solo un tercero suma (señal linker_transfer de la request), y solo si hay request de navegación a la que
+            # atribuirla y la transferencia no estaba ya informada por otra regla.
+            "counts_in_index": status == "third_party" and request_id is not None and duplicate_of is None,
+            "duplicate_of": duplicate_of,
+            "evidence_refs": [ref for ref in candidate["evidence"] if ref is not None],
+        })
+    return items
+
+
+def _linker_claim(item: dict) -> str:
+    gl, cls, origin = item["gl"], item["classification"], item["origin"]
+    if origin.get("via") == "url_de_entrada":
+        where = " en la URL de entrada del scan"
+    elif origin.get("host"):
+        where = f" desde {origin['host']} ({LINKER_VIA_LABELS.get(origin.get('via'), 'origen')})"
+    else:
+        where = " (origen no registrado)"
+    label = cls["label"] if cls["status"] == "unknown_org" else cls["label"].lower()
+    text = (f"La URL de {item['source_label']} a {item['destination']['host']} llevó el parámetro _gl (linker de Google){where}. "
+            f"Destino: {label} ({cls['organization']}), según {cls['basis_label']}.")
+    if item["redirect_chain"]:
+        text += f" Cadena de redirección: {len(item['redirect_chain'])} saltos."
+    if gl["format"] != linker.FORMAT_V1:
+        text += " El valor no tiene un formato reconocido: se registra solo su presencia, sin inferir su contenido."
+    elif gl["fields"]:
+        text += (" Campos decodificados (valores enmascarados): "
+                 + ", ".join(f"{field['name']} = {field['value']}" for field in gl["fields"]) + ".")
+        if gl["undecoded_fields"]:
+            text += f" {gl['undecoded_fields']} campo(s) no se pudieron decodificar y no se informan."
+    else:
+        text += " Ningún campo se pudo decodificar: se registra solo su presencia, sin inferir su contenido."
+    if item["counts_in_index"]:
+        text += " Suma al puntaje de la request por ser un tercero."
+    elif cls["status"] == "third_party":
+        text += " No suma: no hay request de navegación a la que atribuirlo."
+    else:
+        text += " No suma al índice."
+    return text + (" Es evidencia de la presencia y la transferencia del parámetro en la URL capturada; no muestra que el destino "
+                   "reconociera al visitante ni que se completara una atribución.")
+
+
 def _consent_findings(capture, requests, value_params, by_id, config, finding) -> dict:
     """TCF (lo que declara la página) y Consent Mode (lo que viaja a Google). Sin juicio legal."""
     first_ref = [requests[0]["request_id"]] if requests else []
     interaction = (capture.get("consent") or {}).get("interaction_seq")
-    summary = {"tcf": None, "consent_mode": None, "user_interaction": interaction is not None}
+    # v1.4.10: `banner_interaction` (antes `user_interaction`): si el escenario pulsó un botón del aviso de consentimiento.
+    # No son los clics ni desplazamientos de la captura interactiva (`summary.interaction`).
+    summary = {"tcf": None, "consent_mode": None, "banner_interaction": interaction is not None}
     # Conclusiones por plantilla, con su nivel (point 6): se muestran en Resumen, Hallazgos y reportes.
     conclusions: list[dict] = []
     templates = config.consent_conclusions

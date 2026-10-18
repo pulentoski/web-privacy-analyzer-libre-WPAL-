@@ -207,7 +207,7 @@ def test_scan_groups_repeated_findings_and_reports_interaction_listeners(session
     page = session.page
     report = get_json(page, f"/api/scans/{job_id}/report")
     findings = get_json(page, f"/api/scans/{job_id}/findings")
-    assert report["schema_version"] == "1.9.0" and len(report["story"]["steps"]) == 8
+    assert report["schema_version"] == "1.10.0" and len(report["story"]["steps"]) == 8
     # Scan automático: se registra quién escucha, pero no hubo interacción del usuario.
     assert report["site"]["summary"]["interaction"]["available"] is False
     assert "La visita fue automatizada" in report["story"]["steps"][-1]["sentences"][1]["text"]
@@ -346,7 +346,7 @@ def test_interactive_capture_correlates_user_interaction_with_sends(session):
         # 7. HAR exportado: una página por página visitada y la versión real.
         har = get_json(page, f"/api/scans/{job_id}/har")["log"]
         timeline = report["scan"]["interactive"]["timeline"]
-        assert har["creator"]["version"] == "1.4.9" and len(har["pages"]) == len(timeline) == 1
+        assert har["creator"]["version"] == "1.4.10" and len(har["pages"]) == len(timeline) == 1
         assert {entry["pageref"] for entry in har["entries"]} == {"page_1"}
         # Reporte exportado: grupo y sección de interacción.
         exported = page.request.post(f"{BASE_URL}/api/scans/{job_id}/export")

@@ -48,7 +48,7 @@ def test_tcf_state_is_read_from_the_api_without_any_banner(scans, f8):
         assert tcf["cmp_id"] == f8["tcf"]["cmp_id"] and tcf["cmp_name"] == f8["tcf"]["cmp_name"] and tcf["cmp_version"] == f8["tcf"]["cmp_version"]
         assert tcf["cmp_status"] == "loaded" and tcf["display_status"] == case["display_status"]
         assert tcf["has_tc_string"] is case["has_tc_string"]
-        assert analysis["site"]["summary"]["consent"]["user_interaction"] is False
+        assert analysis["site"]["summary"]["consent"]["banner_interaction"] is False
 
 
 def test_tcf_finding_is_evidence_with_references_and_no_legal_judgment(scans, f8):

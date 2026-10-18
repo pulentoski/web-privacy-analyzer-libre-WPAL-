@@ -142,18 +142,19 @@ def test_redirect_inside_one_org_is_not_sync(config):
 COOKIES = [{"name": "_atrk_siteuid", "value": VISITOR, "domain": "www.airbnb.cl", "expires": None, "third_party": False}]
 
 
-def test_cookie_value_without_cookie_header_was_copied_by_a_script(config):
+def test_cookie_value_without_cookie_header_matches_the_cookie(config):
+    # v1.4.10: sin una lectura registrada del script que inició la request, no se dice que la copió (ver tests/v1410).
     cap = capture([req(1, "https://anylist.c.appier.net/r2", params={"siteuid": VISITOR})], cookies=COOKIES)
     reason = reasons_of(run(cap, config), 1)["persistent_id"]
-    assert "un script copió el valor de la cookie «_atrk_siteuid» en la URL o el cuerpo de la request" in reason["detail"]
-    assert reason["data"]["copied_cookie"] == "_atrk_siteuid"
+    assert "el valor enviado coincide con la cookie «_atrk_siteuid»" in reason["detail"] and "copió" not in reason["detail"]
+    assert reason["data"]["matched_cookie"] == "_atrk_siteuid" and "copied_by_script" not in reason["data"]
 
 
 def test_request_that_sent_cookies_is_not_called_a_copy(config):
     cap = capture([req(1, "https://anylist.c.appier.net/r2", params={"siteuid": VISITOR},
                        headers=[{"name": "Cookie", "value": "x=1"}])], cookies=COOKIES)
     reason = reasons_of(run(cap, config), 1)["persistent_id"]
-    assert "copió" not in reason["detail"] and "copied_cookie" not in reason["data"]
+    assert "copió" not in reason["detail"] and "copied_by_script" not in reason["data"]
 
 
 # --- 2. Evidencia + Inferencia en el índice ---

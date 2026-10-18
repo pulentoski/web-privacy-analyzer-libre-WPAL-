@@ -41,8 +41,9 @@ for suite in $suites; do
         api) run api docker compose exec -T api pytest -q ;;
         worker) run worker docker compose exec -T worker pytest -q -p no:cacheprovider ;;
         ssrf) run ssrf docker compose exec -T worker pytest -q -p no:cacheprovider tests/ssrf ;;
-        # data/ va montado (solo lectura): el test de textos revisa también las frases técnicas y el glosario.
-        frontend) run frontend docker run --rm -e WPA_DATA_REQUIRED=1 -v "$PWD/frontend":/src -v "$PWD/data":/data:ro -w /src node:22-alpine sh -c "npm ci --ignore-scripts >/dev/null 2>&1 && npm test" ;;
+        # data/ y docs/ van montados (solo lectura): el test de textos revisa también las frases técnicas y el glosario, y
+        # el de spec.test.js compara la tabla del índice de docs/SPEC.md con data/scoring.yaml (v1.4.10).
+        frontend) run frontend docker run --rm -e WPA_DATA_REQUIRED=1 -v "$PWD/frontend":/src -v "$PWD/data":/data:ro -v "$PWD/docs":/docs:ro -w /src node:22-alpine sh -c "npm ci --ignore-scripts >/dev/null 2>&1 && npm test" ;;
         e2e) run e2e docker compose exec -T e2e pytest -q ;;
         demo)
             DEMO_MODE=exposure ./scripts/demo.sh >/dev/null 2>&1
