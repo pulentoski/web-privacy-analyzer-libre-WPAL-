@@ -10,7 +10,7 @@ con qué métodos y hacia quién la envían.
 </p>
 
 <p align="center">
-  <em>Versión 1.4.10 · beta · herramienta de investigación · se ejecuta solo en <code>127.0.0.1</code></em>
+  <em>Versión 1.5.0 · beta · herramienta de investigación · se ejecuta solo en <code>127.0.0.1</code></em>
 </p>
 
 <p align="center">
@@ -94,6 +94,16 @@ Cuatro formas de capturar:
 | **Opciones avanzadas** | Repite la visita cambiando la respuesta al banner de cookies y el perfil del navegador; agrega (mediana, rango, «k de N»). |
 | **Captura interactiva** | Usted navega dentro del Chromium del analizador (vía noVNC) y al detener se analiza toda la sesión. |
 | **Importar HAR** | Analiza un `.har` exportado desde su propio navegador (DevTools → Red → Exportar HAR). |
+
+Desde v1.5.0 cada visita automatizada sigue un **protocolo fijo** (`data/visit_protocol.yaml`, versión 1):
+**carga** (hasta load y red en calma) → **espera** de 3 s → **scroll** hasta el final del documento (máximo
+8 s) → **espera** de 3 s → **cierre de la pestaña** con 3 s de observación. La captura sigue activa durante
+el cierre y de esa etapa solo se registran los envíos que el navegador informó; el cierre no garantiza
+capturar todos los beacons de salida. El reporte registra si cada etapa se completó, con su hora y sus
+requests, y las **condiciones de la medición**: versión de Chromium, modo (con ventana o headless), fecha
+y hora, versiones del analizador y de las listas, y el **país de la IP de salida** (§12). Cambiar una
+etapa o un tiempo es otro protocolo (`protocol_version`); el Panel avisa si su ranking mezcla scans con
+distinto protocolo ([docs/adr/038](docs/adr/038-protocolo-de-visita-condiciones-y-cobertura.md)).
 
 ## 4. Arquitectura
 
@@ -274,9 +284,12 @@ explica cada afirmación con su evidencia y su peso; captura el contenido real a
 reproducibles con su `sha256`; endurecimiento verificable; en español, con glosario y modo
 presentación.
 
-**Limitaciones declaradas:** Playwright no ve todo el tráfico interno del navegador; los Service
-Workers (bloqueados por defecto) pueden alterar lo observado; el modo *headless* puede cambiar el
-comportamiento del sitio; la geolocalización por IP es aproximada; no hay GPS sin permiso. Ver
+**Limitaciones declaradas:** Playwright no ve todo el tráfico interno del navegador; cobertura por
+contexto auditada con tests (`data/coverage.yaml`): el frame principal y los iframes, del mismo origen o
+de terceros, tienen instrumentación, APIs observadas y tráfico capturado; los dedicated workers solo
+tráfico (sin instrumentación); los service workers se bloquean (ni instrumentación ni tráfico); del
+cierre de la pestaña se capturan los beacons de `beforeunload`, los de `visibilitychange` solo a veces
+y los de `pagehide` no; el modo *headless* puede cambiar el comportamiento del sitio; la geolocalización por IP es aproximada; no hay GPS sin permiso. Ver
 [docs/SPEC.md](docs/SPEC.md) §Limitaciones y cada ADR.
 
 **Roadmap (ideas):** más fuentes de listas y entidades; mejores heurísticas de fingerprinting;
@@ -323,6 +336,16 @@ lista de CMP), levanta el stack con `docker compose up -d --build` y espera a qu
 - Ambas escuchan **solo en loopback**.
 - El navegador que visita los sitios se presenta en **español de Chile** (`es-CL`, zona
   `America/Santiago`); se cambia con `WORKER_LOCALE` y `WORKER_TIMEZONE` en `.env`.
+- **País de la IP de salida (v1.5.0).** Una vez por scan, el worker pide su IP pública a
+  `EGRESS_IP_SERVICE_URL` (por defecto `https://api.ipify.org`) **a través del mismo egress-proxy** que
+  usan los scans, fuera del navegador y con un usuario de proxy propio: esa consulta no forma parte del
+  tráfico analizado. La IP se geolocaliza con DB-IP Lite (`data/ipdb`) y se descarta: no se guarda ni se
+  escribe en los logs; el reporte solo lleva el país. Si la consulta o la geolocalización fallan, el país
+  es «desconocido». **Nunca** se deduce del idioma ni de la zona horaria. Con `EGRESS_IP_SERVICE_URL=`
+  (definida y vacía) no se consulta ningún servicio y el país queda «desconocido». El servicio ve la IP de
+  salida y la hora de cada scan (no la URL analizada); si eso no es aceptable, déjela vacía.
+- `SCAN_TIMEOUT_S` es 90 s desde v1.5.0 (carga + protocolo de visita); si su `.env` es anterior y dice
+  60, actualícelo.
 - ¿Prefiere revisar la configuración antes de arrancar? Copie `.env.example` a `.env` a mano y edítelo;
   si `.env` ya existe, `start.sh` lo respeta. El resto de variables están documentadas en `.env.example`.
 

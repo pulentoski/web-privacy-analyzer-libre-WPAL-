@@ -377,7 +377,7 @@ export function ServiceTag({ label }) {
   );
 }
 
-export function LimitsNotice({ limitations }) {
+export function LimitsNotice({ limitations, children }) {
   return (
     <details className="panel hazard p-3 border-amber-600 bg-amber-50 text-sm" data-testid="limits-notice" aria-label="Límites de la medición">
       <summary className="cursor-pointer font-bold" data-testid="limits-toggle">Límites de la medición</summary>
@@ -394,6 +394,7 @@ export function LimitsNotice({ limitations }) {
             ))}
           </ul>
         )}
+        {children}
       </div>
     </details>
   );

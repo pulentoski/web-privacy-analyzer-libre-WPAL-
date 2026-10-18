@@ -18,6 +18,7 @@ from app import har_import
 from app.config import get_settings
 from app.db import get_session
 from app.errors import AppError
+from app.measurement import protocol_version
 from app.models import HarImport, Job, ScanRequest
 from app.ratelimit import client_ip, scan_limiter
 from app.routes.scans import BLOCKED_BY_CLIENT, _get_job, _serialize
@@ -233,6 +234,8 @@ async def _side(session: AsyncSession, job: Job) -> dict:
     return {
         "job_id": str(job.id), "url": job.url, "source": job_source(job), "analyzer_version": site["analyzer_version"],
         "finished_at": job.finished_at, "requests": total,
+        # v1.5.0: protocolo de visita del scan; None = sin protocolo (HAR, captura interactiva o scan anterior a v1.5.0).
+        "protocol_version": protocol_version(job.result),
         "import": (job.result or {}).get("import") if job_source(job) == SOURCE_HAR else None,
         # None = análisis anterior a v1.3 (sin la medición): hay que reanalizar, no se inventa «sin ola».
         "sync_wave": summary.get("sync_wave"),
@@ -284,7 +287,8 @@ def compare_sides(scan: dict, har: dict) -> dict:
     if conclusion and scan.get("possibly_blocked"):
         conclusion += " " + (templates.get("scan_blocked_suffix") or "")
     return {
-        "scan": {key: scan[key] for key in ("job_id", "url", "source", "analyzer_version", "finished_at", "requests")},
+        "scan": {**{key: scan[key] for key in ("job_id", "url", "source", "analyzer_version", "finished_at", "requests")},
+                 "protocol_version": scan.get("protocol_version")},
         "har": {key: har[key] for key in ("job_id", "url", "source", "analyzer_version", "finished_at", "requests", "import")},
         "organizations": {
             "only_scan": listing(scan_orgs - har_orgs, scan), "only_har": listing(har_orgs - scan_orgs, har),
@@ -301,6 +305,21 @@ def compare_sides(scan: dict, har: dict) -> dict:
         # Todo lo comparado se observó en cada captura; la diferencia no prueba su causa.
         "conclusion": {"text": conclusion.strip() if conclusion else UNKNOWN, "level": "EVIDENCIA" if conclusion and known else "DESCONOCIDO"},
         "note": templates.get("note") or "",
+        # v1.5.0: el HAR no sigue el protocolo de visita; si el scan sí, la comparación junta dos formas de visitar.
+        "protocol": compare_protocol(scan.get("protocol_version")),
+    }
+
+
+def compare_protocol(scan_version: int | None) -> dict:
+    """Aviso de protocolo de una comparación scan ↔ HAR (el HAR nunca tiene protocolo de visita)."""
+    if scan_version is None:
+        scan_text = "El scan es anterior a v1.5.0 (sin protocolo de visita fijo)"
+    else:
+        scan_text = f"El scan siguió el protocolo de visita {scan_version} (carga, espera, scroll, espera y cierre)"
+    return {
+        "scan": scan_version, "har": None, "mixed": True,
+        "note": f"{scan_text}; el HAR importado es una navegación libre del usuario, sin protocolo de visita. "
+                "Parte de las diferencias puede deberse a cómo se visitó el sitio en cada captura.",
     }
 
 

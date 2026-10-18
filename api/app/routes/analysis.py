@@ -26,13 +26,14 @@ from app.destinations import build_destinations
 from app.errors import AppError
 from app.explain import explanations, glossary
 from app.failures import failure, partial_navigation
+from app import measurement
 from app.models import RequestAnalysis, ScanRequest
 from app.bands import BANDS, TRACKER_BANDS
 from app.routes.scans import _get_job, _summary
 
 router = APIRouter(prefix="/api/scans")
 
-REPORT_SCHEMA_VERSION = "1.10.0"
+REPORT_SCHEMA_VERSION = "1.11.0"
 INTERACTIVE_END_REASONS = ("user_stop", "idle_timeout", "max_duration", "max_requests", "window_closed", "browser_closed")
 
 
@@ -75,7 +76,8 @@ LIMITATIONS = [
     "El scan lo hace un Chromium automatizado, en una sola visita y normalmente sin interacción: un navegador real puede recibir más o menos tráfico.",
     "La entidad de un dominio viene de un mapa offline y puede faltar (\"no_disponible\") o estar desactualizada.",
     "\"Fingerprinting\" es siempre una inferencia a partir de un patrón de uso de APIs; solo son evidencia la llamada y el valor que aparece en una request.",
-    "La instrumentación no cubre Web Workers ni OffscreenCanvas, y un sitio puede detectarla o falsear su propia atribución.",
+    # v1.5.0: lo que no cubre por contexto (workers, service workers, cierre de pestaña) sale de data/coverage.yaml.
+    "La instrumentación no cubre OffscreenCanvas, y un sitio puede detectarla o falsear su propia atribución.",
     "El país y la red de un servidor se estiman a partir de su IP (DB-IP Lite): es una ubicación aproximada y no indica dónde se almacenan o procesan los datos.",
     "El estado TCF es lo que la propia plataforma de consentimiento declara; no se verifica que el sitio lo respete. gdprApplies depende de desde dónde se visita (aquí, la red del analizador).",
     "Consent Mode: `gcs` está documentado por Google; `gcd` se decodifica con una tabla no oficial que puede cambiar.",
@@ -95,7 +97,7 @@ def limitations_for(fingerprinting: dict | None) -> list[str]:
     heuristics = {item.get("heuristic") for item in fingerprinting.get("findings") or [] if isinstance(item, dict)}
     for script in fingerprinting.get("scripts") or []:
         heuristics |= {item.get("heuristic") for item in script.get("heuristics") or [] if isinstance(item, dict)}
-    return LIMITATIONS + ([WEBRTC_LIMITATION] if "webrtc_connection" in heuristics else [])
+    return LIMITATIONS + measurement.coverage_limitations() + ([WEBRTC_LIMITATION] if "webrtc_connection" in heuristics else [])
 
 
 EVIDENCE_LEVELS = {
@@ -625,6 +627,24 @@ async def get_report(job_id: uuid.UUID, session: AsyncSession = Depends(get_sess
     return await build_report(session, job_id)
 
 
+async def _measurement(session: AsyncSession, job, result: dict, source: str, site: dict) -> dict:
+    """Sección measurement. Los envíos del cierre se describen con lo mínimo (seq, método, host, ruta, tipo)."""
+    seqs = [seq for stage in measurement.visit_protocol(result, source)["stages"] if stage["name"] == "cierre"
+            for seq in stage["request_seqs"]]
+    requests = {}
+    if seqs:
+        rows = (
+            await session.execute(
+                text("SELECT seq, method, host, path, resource_type FROM scan_requests WHERE job_id = :job_id AND seq = ANY(:seqs) ORDER BY seq"),
+                {"job_id": job.id, "seqs": seqs},
+            )
+        ).mappings().all()
+        requests = {row["seq"]: {"seq": row["seq"], "method": row["method"], "host": row["host"], "path": row["path"],
+                                 "resource_type": row["resource_type"]} for row in rows}
+    return measurement.section(result, source, started_at=job.started_at.isoformat() if job.started_at else None,
+                               analysis=site, requests=requests)
+
+
 async def build_report(session: AsyncSession, job_id: uuid.UUID) -> dict:
     job = await _get_job(session, job_id)
     site = await _site_analysis(session, job_id)
@@ -648,6 +668,7 @@ async def build_report(session: AsyncSession, job_id: uuid.UUID) -> dict:
     entities, scripts = await _entity_maps(session, job_id)
     fingerprinting = await _fingerprinting(session, job)
     destinations = await build_destinations(session, job)
+    source = result.get("source") if result.get("source") in ("har_import", "interactive") else "scan"
     report = {
         "schema_version": REPORT_SCHEMA_VERSION,
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -703,6 +724,8 @@ async def build_report(session: AsyncSession, job_id: uuid.UUID) -> dict:
             "ip_database": f"DB-IP Lite {_manifest_version('ipdb', 'edition')}",
             "cmp_list": CMP_EXCLUDED if profile == "comercial" else _manifest_version("iab", "version"),
         },
+        # v1.5.0 (docs/adr/038): condiciones de la medición, protocolo de visita y cobertura por contexto.
+        "measurement": await _measurement(session, job, result, source, site),
         "license_profile": profile,
         "attributions": attributions(site["lists"], profile),
         "evidence_levels": EVIDENCE_LEVELS,

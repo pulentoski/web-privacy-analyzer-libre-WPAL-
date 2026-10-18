@@ -65,6 +65,7 @@ línea de configuración que `scripts/hardening-check.sh` o el propio compose ve
 | T | Engañar al análisis para que el scan de otro cliente reciba sus conexiones | Cada scan usa su usuario de proxy; el log se filtra por usuario exacto | `worker/tests/f8/test_proxy_attribution.py` |
 | I | Convertir el resolutor de CNAME en un SSRF por DNS | Solo hostnames ya presentes en la captura, sintaxis estricta, solo consulta de nombres, nunca una conexión | `test_resolver_rejects_hostnames_outside_the_capture` y siguientes |
 | R | Afirmar más de lo observado | Todo hallazgo lleva nivel y referencias; sin ellas el schema lo rechaza | Regla 1 de CLAUDE.md; tests de schema |
+| I | La consulta del país de la IP de salida (v1.5.0) expone o guarda la IP del analizador | Va por el egress-proxy con un usuario propio y fuera del navegador; respuesta acotada a 64 bytes y validada como IP pública; la IP se descarta tras geolocalizarla (ni en la base ni en los logs); `EGRESS_IP_SERVICE_URL` vacía = sin consulta. El servicio externo sí ve la IP de salida y la hora (no la URL analizada) | `worker/tests/v150/test_visit_protocol.py` (variable vacía, respuestas inválidas, usuario de proxy propio); `worker/tests/v150/test_visit_stack.py::test_scan_records_country_without_the_ip`; ADR 038 |
 
 ### 2 bis. Captura interactiva e indicador de recursos (v1.4, docs/adr/029)
 

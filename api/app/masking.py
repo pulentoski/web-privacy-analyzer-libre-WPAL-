@@ -156,6 +156,9 @@ def mask_report(report: dict) -> dict:
             item["plain"] = mask_text(item.get("plain"))
     for attribute in fingerprinting.get("attributes", []):
         attribute["scripts"] = [mask_text(mask_url(script)) for script in attribute.get("scripts", [])]
+    # Envíos observados en el cierre de la pestaña (v1.5.0): la ruta puede llevar un ID.
+    for send in ((masked.get("measurement") or {}).get("visit_protocol") or {}).get("closing_sends", []):
+        send["path"] = mask_path(send["path"]) if isinstance(send.get("path"), str) else send.get("path")
     masked["masked"] = True
     return masked
 

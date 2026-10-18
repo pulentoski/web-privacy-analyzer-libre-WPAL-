@@ -179,7 +179,7 @@ def _header(brand: Brand, title: str, lines: list[str]) -> str:
         logo = f'<img src="{brand.logo_data_uri}" alt="">' if brand.logo_data_uri else ""
         out += f'<div class="brand">{logo}<span class="name">{e(brand.name) if brand.name else ""}</span></div>'
     out += f"<h1>{e(title)}</h1>"
-    out += "".join(f'<p class="meta">{line}</p>' for line in lines)
+    out += "".join(f'<p class="meta">{line}</p>' for line in lines if line)
     return out
 
 
@@ -201,6 +201,89 @@ def _versions(versions: dict) -> str:
               "license_profile": "Perfil de licencias"}
     rows = [[e(labels.get(key, key)), f'<span class="mono">{e(value)}</span>'] for key, value in (versions or {}).items()]
     return "<h3>Versiones</h3>" + table(["Componente", "Versión"], rows)
+
+
+MODE_LABELS = {"headful": "con ventana (headful, sobre display virtual)", "headless": "headless", "no_aplica": "no aplica"}
+STAGE_LABELS = {"carga": "Carga", "espera": "Espera", "scroll": "Scroll hasta el final", "cierre": "Cierre de la pestaña"}
+
+
+def _planned(planned: dict) -> str:
+    parts = []
+    if "duration_s" in planned:
+        parts.append(f"{planned['duration_s']:g} s")
+    if "max_s" in planned:
+        parts.append(f"máx. {planned['max_s']:g} s, un paso cada {planned.get('step_interval_ms', 0):g} ms")
+    if "observe_s" in planned:
+        parts.append(f"{planned['observe_s']:g} s de observación tras cerrar")
+    return ", ".join(parts) or "hasta load + red en calma"
+
+
+def _conditions_line(measurement: dict) -> str:
+    """Una línea del encabezado: navegador, modo, protocolo y país de la IP de salida."""
+    if not measurement:
+        return ""
+    conditions = measurement.get("conditions") or {}
+    browser = conditions.get("browser") or {}
+    browser_text = " ".join(str(part) for part in (browser.get("name"), browser.get("version")) if part) or None
+    country = conditions.get("egress_country") or {}
+    protocol = measurement.get("protocol_version")
+    return (f'Navegador {e(browser_text)} ({e(MODE_LABELS.get(conditions.get("browser_mode"), conditions.get("browser_mode")))}) · '
+            f'protocolo de visita {e(protocol) if protocol is not None else "no aplica"} · '
+            f'país de la IP de salida: {e(country.get("country_code")) if country.get("status") == "ok" else "desconocido"}')
+
+
+def _measurement(measurement: dict) -> str:
+    """Condiciones de la medición, protocolo de visita y cobertura por contexto (v1.5.0)."""
+    if not measurement:
+        return ""
+    conditions = measurement.get("conditions") or {}
+    browser = conditions.get("browser") or {}
+    country = conditions.get("egress_country") or {}
+    country_text = (f'{e(country.get("country"))} ({e(country.get("country_code"))}) · {e(country.get("source"))}'
+                    if country.get("status") == "ok" else f'desconocido — {e(country.get("reason"))}')
+    lists = ", ".join(f'{e(item.get("id"))} {e(item.get("version"))}' for item in conditions.get("lists") or [])
+    out = '<h3 id="condiciones">Condiciones de la medición</h3>' + table(["Condición", "Valor"], [
+        ["Navegador", e(" ".join(str(part) for part in (browser.get("name"), browser.get("version")) if part) or None)],
+        ["Modo", e(MODE_LABELS.get(conditions.get("browser_mode"), conditions.get("browser_mode")))],
+        ["Fecha y hora de la visita", when(conditions.get("measured_at"))],
+        ["Analizador", f'<span class="mono">{e(conditions.get("analyzer_version"))}</span>'],
+        ["Listas", f'<span class="mono">{e(conditions.get("lists_version"))}</span>' + (f" ({lists})" if lists else "")],
+        ["País de la IP de salida", country_text],
+    ])
+    out += ('<p class="small">El país sale de la IP de salida del analizador, consultada una vez por scan a través del '
+            "egress-proxy y geolocalizada con DB-IP Lite; la IP no se guarda. Nunca se deduce del idioma ni de la zona "
+            "horaria del navegador.</p>")
+    protocol = measurement.get("visit_protocol") or {}
+    out += '<h3 id="protocolo">Protocolo de visita</h3>'
+    if not protocol.get("applies"):
+        out += f'<p>{e(protocol.get("note"))}</p>'
+    else:
+        out += f'<p>Protocolo de visita {e(protocol.get("protocol_version"))}: carga → espera → scroll hasta el final → espera → cierre de la pestaña.</p>'
+        rows = []
+        for stage in protocol.get("stages") or []:
+            detail = e(stage.get("reason_text"))
+            if stage.get("includes"):
+                detail += " (" + e("; ".join(stage["includes"])) + ")"
+            rows.append([e(stage.get("order")), e(STAGE_LABELS.get(stage.get("name"), stage.get("name"))), e(_planned(stage.get("planned") or {})),
+                         "sí" if stage.get("completed") else "<strong>no</strong>", when(stage.get("started_at")) if stage.get("started_at") else "—",
+                         when(stage.get("ended_at")) if stage.get("ended_at") else "—", detail, e(stage.get("requests"))])
+        out += table(["#", "Etapa", "Previsto", "Completada", "Inicio", "Fin", "Motivo", "Requests"], rows)
+        sends = protocol.get("closing_sends") or []
+        out += "<p>Envíos observados durante el cierre de la pestaña:</p>" + table(["Request", "Método", "Host", "Ruta", "Tipo"], [
+            [e(item.get("seq")), e(item.get("method")), f'<span class="mono">{e(item.get("host"))}</span>',
+             f'<span class="mono">{e(item.get("path"))}</span>', e(item.get("resource_type"))] for item in sends
+        ])
+    out += f'<p class="small">{e(protocol.get("closing_notice"))}</p>'
+    coverage = measurement.get("coverage") or {}
+    out += '<h3 id="cobertura">Cobertura por contexto</h3>'
+    out += table(["Contexto", "Instrumentación instalada", "APIs observadas", "Tráfico capturado"], [
+        [e(row.get("label")), "sí" if row.get("instrumentation") else "no",
+         e(", ".join(row.get("apis_observed") or []) or "ninguna"), "sí" if row.get("traffic_captured") else "no"]
+        for row in coverage.get("contexts") or []
+    ])
+    out += (f'<p class="small">Resultado de la auditoría reproducible <span class="mono">{e(coverage.get("audited_with"))}</span> '
+            f'(APIs de prueba: {e(", ".join(coverage.get("probe_apis") or []))}). Lo no cubierto figura en «Limitaciones».</p>')
+    return out
 
 
 def _attributions(attributions: list) -> str:
@@ -753,6 +836,7 @@ def render_scan_report(report: dict, sha256: str, brand: Brand | None = None) ->
         f'Sitio analizado: <span class="mono">{e(scan.get("url"))}</span>',
         f'Fecha del análisis: {when(scan.get("finished_at") or scan.get("started_at"))} · Reporte generado: {when(report.get("generated_at"))}',
         f'Analizador {e(analysis.get("analyzer_version"))} · listas {e((report.get("versions") or {}).get("lists"))} · {e((report.get("versions") or {}).get("ip_database"))}',
+        _conditions_line(report.get("measurement") or {}),
         f'Perfil de licencias de las fuentes: <strong>{e(PROFILE_LABELS.get(report.get("license_profile"), report.get("license_profile")))}</strong>',
     ])
     body += f'<div class="legal">{e(report.get("legal_notice"))}</div>'
@@ -870,6 +954,7 @@ def render_scan_report(report: dict, sha256: str, brand: Brand | None = None) ->
         ])
 
     body += _consent_section(report.get("consent") or {})
+    body += _measurement(report.get("measurement") or {})
     body += "<h3>Limitaciones</h3>" + items([e(text) for text in report.get("limitations") or []])
     body += _versions({**(report.get("versions") or {}), "license_profile": PROFILE_LABELS.get(report.get("license_profile"), report.get("license_profile"))})
     body += _attributions(report.get("attributions"))

@@ -24,13 +24,14 @@ from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 from playwright.async_api import async_playwright
 
 from app import jobs
-from app.browser.capture import MAX_TITLE_CHARS, MAX_URL_CHARS, ScanOutcome, _error, clean_text, net_error_code, page_meta, partial_navigation
+from app.browser.capture import MAX_TITLE_CHARS, MAX_URL_CHARS, ScanOutcome, _error, clean_text, measurement, net_error_code, page_meta, partial_navigation
 from app.browser.consent import tcf_info
 from app.browser.fp_monitor import PAGE_FLUSH_MS, FingerprintMonitor
 from app.browser.launcher import base_session_setup, context_kwargs, launch_kwargs
 from app.browser.network_monitor import PROXY_ERROR_HEADER, NetworkMonitor
 from app.browser.proxy_log import read_destinations_when_flushed
 from app.browser.redact import MAX_NAME_CHARS, redact_body
+from app.egress import lookup_country_async
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -153,6 +154,7 @@ class InteractiveSession:
         # La URL inicial no terminó de abrir a tiempo, pero ya había respuestas (docs/adr/035). None = abrió bien.
         self.partial: dict | None = None
         self._started = self._loop.time()
+        self.started_at = datetime.now(timezone.utc).isoformat(timespec="milliseconds")
         self._tasks: set[asyncio.Task] = set()
         self.password_fields: set[str] = set()
         self._watcher: asyncio.Task | None = None
@@ -265,6 +267,7 @@ class InteractiveSession:
         # Pestañas nuevas (enlaces con target, Ctrl+T): mismo contexto, misma captura.
         self.context.on("page", lambda new_page: self._spawn(self._attach(new_page)))
         self._started = self._loop.time()
+        self.started_at = datetime.now(timezone.utc).isoformat(timespec="milliseconds")
         if self._progress is not None:
             self._progress.navigating(lambda: self.monitor.count)
         try:
@@ -338,6 +341,11 @@ class InteractiveSession:
             }
             if self.partial is not None:
                 result["partial"] = self.partial
+            # v1.5.0: condiciones de la medición. Sin protocolo de visita: la visita la conduce el usuario.
+            result["measurement"] = measurement(
+                self.browser.version if self.browser is not None else None, self.started_at,
+                {"protocol_version": None, "applies": False, "stages": []}, headless=False,
+            )
         if self._watcher is not None:
             self._watcher.cancel()
             await asyncio.gather(self._watcher, return_exceptions=True)
@@ -432,6 +440,8 @@ async def run(pool, job, worker_id: str, progress=None) -> ScanOutcome:
         return ScanOutcome(result=None, error={"error_code": "INTERACTIVE_INVALID", "message": "La sesión interactiva no existe o ya terminó.", "stage": "interactive"}, capture=None)
     session = InteractiveSession(job["url"], proxy_user=f"scan-{job['id']}", password=password, progress=progress)
     reason = "error"
+    # País de la IP de salida (v1.5.0): una consulta por captura, fuera del navegador y con otro usuario de proxy.
+    egress = asyncio.ensure_future(lookup_country_async())
     try:
         error = await session.open()
         if error is not None:
@@ -469,12 +479,19 @@ async def run(pool, job, worker_id: str, progress=None) -> ScanOutcome:
             if outcome.result is not None:
                 # Hora y tipo de cada clic, desplazamiento y tecla (los anota el relé de la api; nunca qué se tecleó).
                 outcome.result["interactive"]["interactions"] = await load_interactions(pool, job["id"])
+    except BaseException:
+        egress.cancel()
+        raise
     finally:
         await asyncio.shield(session.destroy())
         try:
             await asyncio.shield(end_session(pool, job["id"], reason))
         except Exception as exc:
             logger.error("interactive_end_failed", extra={"error_type": type(exc).__name__})
+    if outcome.result is not None and "measurement" in outcome.result:
+        outcome.result["measurement"]["egress_country"] = await egress
+    else:
+        egress.cancel()
     # Con el navegador ya cerrado, el proxy terminó de registrar sus conexiones.
     outcome.capture["destinations"] = await read_destinations_when_flushed(session.proxy_user, bool(outcome.capture["requests"]))
     logger.info("interactive_finished", extra={"job_id": str(job["id"]), "end_reason": reason, "pages": len(session.timeline)})

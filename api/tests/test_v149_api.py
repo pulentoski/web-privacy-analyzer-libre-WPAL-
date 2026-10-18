@@ -5,6 +5,7 @@ from app.bands import BANDS
 from app.explain import explanations, glossary
 from app.report_html import client_hints_sentences, score_levels_text
 from app.routes.analysis import LIMITATIONS, WEBRTC_LIMITATION, limitations_for
+from app.measurement import coverage_limitations
 from app.routes.scans import score_by_level
 
 
@@ -63,9 +64,11 @@ def test_score_levels_text():
 
 
 def test_webrtc_limitation_only_when_the_page_created_connections():
-    assert limitations_for({"findings": [{"heuristic": "webrtc_connection"}]}) == LIMITATIONS + [WEBRTC_LIMITATION]
-    assert limitations_for({"findings": [{"heuristic": "canvas_fingerprinting"}]}) == LIMITATIONS
-    assert limitations_for(None) == LIMITATIONS
+    # v1.5.0: después de los fijos van los de la cobertura por contexto (data/coverage.yaml).
+    fixed = LIMITATIONS + coverage_limitations()
+    assert limitations_for({"findings": [{"heuristic": "webrtc_connection"}]}) == fixed + [WEBRTC_LIMITATION]
+    assert limitations_for({"findings": [{"heuristic": "canvas_fingerprinting"}]}) == fixed
+    assert limitations_for(None) == fixed
     assert "no tiene salida UDP" in WEBRTC_LIMITATION and "Un visitante real podría exponerlos" in WEBRTC_LIMITATION
 
 

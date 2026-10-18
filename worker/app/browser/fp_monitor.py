@@ -60,6 +60,7 @@ MAX_URL_CHARS = 2048
 MAX_VALUE_CHARS = 256
 RATE_BURST = 40
 RATE_PER_SECOND = 10.0
+MAX_REPORTING_FRAMES = 100
 ERROR_FRAME_PREFIX = "chrome-error://"
 HEX = frozenset("0123456789abcdef")
 
@@ -159,6 +160,8 @@ class FingerprintMonitor:
         self._truncated = False
         # Lotes que llegaron desde la página de error de Chromium (un iframe que no cargó): no son del sitio.
         self._error_frame_messages = 0
+        # v1.5.0: frames desde los que la instrumentación informó al menos una vez (= estaba instalada y corrió).
+        self._frames: set[str] = set()
         self._tokens = float(RATE_BURST)
         self._last = time.monotonic()
 
@@ -224,6 +227,8 @@ class FingerprintMonitor:
             self._error_frame_messages += 1
             return
         self._truncated = self._truncated or event["truncated"]
+        if len(self._frames) < MAX_REPORTING_FRAMES:
+            self._frames.add(frame_url)
         if event["available"] is not None:
             self._available.update(event["available"])
         for api, script_url, count in event["counts"]:
@@ -253,4 +258,5 @@ class FingerprintMonitor:
             "messages": self._messages,
             "rejected": self._rejected,
             "error_frame_messages": self._error_frame_messages,
+            "frames_reporting": sorted(self._frames),
         }

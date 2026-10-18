@@ -3,6 +3,45 @@
 Formato: una sección por versión, la más reciente arriba. Las decisiones de diseño de cada versión están en
 [docs/adr/](docs/adr/README.md); las versiones anteriores a 1.4.6, en la sección «Fases» de [docs/SPEC.md](docs/SPEC.md).
 
+## 1.5.0 — 2026-10-18
+
+Analizador 1.17.0 (sin cambios) · schema de reporte 1.11.0 · protocolo de visita 1 ·
+[ADR 038](docs/adr/038-protocolo-de-visita-condiciones-y-cobertura.md). No hace falta reanalizar: el protocolo se aplica a
+los scans nuevos; los guardados se presentan «sin protocolo».
+
+### Agregado
+- Protocolo de visita fijo (`data/visit_protocol.yaml`): carga → espera 3 s → scroll hasta el final (máx. 8 s) → espera 3 s →
+  cierre de la pestaña con 3 s de observación. El reporte registra si cada etapa se completó, su hora de inicio y de fin, el
+  motivo si no se completó y sus requests. La captura sigue activa durante el cierre y de esa etapa se registran solo los
+  envíos efectivamente observados; el reporte aclara que el cierre no garantiza capturar todos los beacons de salida.
+- `protocol_version` en el reporte. El Panel avisa si su ranking mezcla scans con distinto protocolo (o sin protocolo); la
+  comparación scan ↔ HAR indica el protocolo del scan.
+- Condiciones de la medición en cada reporte (Resumen, JSON, HTML y PDF): Chromium y su versión, headful/headless, fecha y
+  hora de la visita, versiones del analizador y de las listas y país de la IP de salida.
+- País de la IP de salida: una consulta por scan a `EGRESS_IP_SERVICE_URL` (por defecto ipify) por el egress-proxy, fuera
+  del tráfico analizado; la IP se geolocaliza con DB-IP Lite y se descarta. Si falla, o con la variable vacía (no se
+  consulta nada), «desconocido». Nunca se deduce del idioma ni de la zona horaria. Documentado en el README.
+- Auditoría de cobertura reproducible (`worker/tests/v150/test_coverage_audit.py`, `data/coverage.yaml`): instrumentación,
+  APIs observadas y tráfico por frame principal, iframe del mismo origen, iframe de tercero, dedicated worker y service
+  worker, y beacons del cierre. La tabla va en «Límites de la medición»; lo no cubierto (workers sin instrumentación, service
+  workers bloqueados, beacons de `visibilitychange`/`pagehide`) se declara, no se corrige.
+
+### Cambiado
+- `SCAN_TIMEOUT_S` por defecto 90 s (antes 60): el protocolo añade hasta 17 s tras la carga. Actualice su `.env`.
+- Cabeceras, storage y service workers se vuelcan antes de cerrar la pestaña (con la pestaña cerrada Chromium ya no los
+  entrega).
+- Con scroll y cierre se capturan más requests: el índice de un sitio puede diferir del de un scan anterior aunque el puntaje
+  y la clasificación no cambien.
+- «Límites de la medición»: el texto fijo sobre Web Workers se reemplaza por lo medido en la auditoría.
+- `scripts/test.sh` apunta `EGRESS_IP_SERVICE_URL` al sitio de fixtures: los tests no consultan servicios externos.
+- El worker incluye `maxminddb` (misma versión que la api).
+
+### Corregido (tests)
+- `test_reanalyze_queues_without_touching_the_capture` usa un scan propio: si el worker real alcanzaba a reanalizar el scan
+  compartido del módulo (lo toma en menos de 1 s), reemplazaba su análisis con las listas reales y
+  `test_fingerprinting_endpoint` fallaba de forma intermitente (`no_disponible` en vez de la organización).
+- `test_flow`: el máximo de la barra de progreso es el nuevo `SCAN_TIMEOUT_S` (90).
+
 ## 1.4.10 — 2026-10-17
 
 Analizador 1.17.0 · schema de reporte 1.10.0 · [ADR 037](docs/adr/037-linker-de-google-cookie-que-coincide-y-aviso-de-consentimiento.md).

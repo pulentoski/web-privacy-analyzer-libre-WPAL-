@@ -82,6 +82,9 @@ export default function Compare({ jobId, source }) {
             <EvidenceBadge level={result.conclusion.level} /> {result.conclusion.text}
           </p>
           <p className="muted text-sm">{result.note}</p>
+          {result.protocol && result.protocol.mixed && (
+            <p role="status" className="text-sm font-medium" data-testid="compare-protocol">{result.protocol.note}</p>
+          )}
           <div className="grid gap-4 md:grid-cols-2">
             <Organizations title="Organizaciones solo en el HAR importado" items={result.organizations.only_har} testId="compare-only-har" />
             <Organizations title="Organizaciones solo en el scan" items={result.organizations.only_scan} testId="compare-only-scan" />

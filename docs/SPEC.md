@@ -31,6 +31,8 @@ nivel de confianza. EVIDENCIA > SUPOSICIÓN.
 5. Inteligencia: IP/ASN/organización/país con bases offline (DB-IP Lite). No se
    consulta ningún servicio externo (el respaldo por RDAP previsto en F0 no se
    implementó: todo es offline). Dato faltante = "no_disponible", con su motivo.
+   Única excepción (v1.5.0, docs/adr/038): la IP de salida del propio analizador se pide a
+   `EGRESS_IP_SERVICE_URL` una vez por scan, por el egress-proxy; vacía = no se consulta.
 6. Reporte: JSON validado por schema; exportación a HTML autocontenido y PDF (F8).
 
 ## Scores
@@ -206,7 +208,7 @@ El worker solo sale a internet a través del egress-proxy.
 - El sha256 del JSON del reporte va impreso en el documento.
 - Marca opcional (`REPORT_BRAND_NAME`, `REPORT_BRAND_DIR` fuera del repo); sin ella,
   encabezado neutro. También para grupos de Privacy Test.
-- Schemas: `report-1.10.0` (scan; `consent.banner_interaction`, v1.4.10), `report-1.6.0` (scan; añade `scan.interactive`, v1.4), `report-1.5.0`, `report-1.4.0` (scan; añade `story` y la frase técnica de hallazgos y requests; F10),
+- Schemas: `report-1.11.0` (scan; `measurement`: condiciones, protocolo de visita y cobertura, v1.5.0), `report-1.10.0` (scan; `consent.banner_interaction`, v1.4.10), `report-1.6.0` (scan; añade `scan.interactive`, v1.4), `report-1.5.0`, `report-1.4.0` (scan; añade `story` y la frase técnica de hallazgos y requests; F10),
   `report-1.3.0` (añadió `license_profile`) y `group-report-1.0.0` (grupo); se conservan los
   anteriores.
 
@@ -246,14 +248,15 @@ Prohibidos: 0.0.0.0/8, 10.0.0.0/8, 100.64.0.0/10, 127.0.0.0/8,
 servicios Docker, localhost, *.local, *.internal. CONNECT solo a 80/443.
 
 ## Límites (configurables por .env)
-MAX_CONCURRENT_SCANS=2, SCAN_TIMEOUT_S=60, MAX_REQUESTS=1500,
+MAX_CONCURRENT_SCANS=2, SCAN_TIMEOUT_S=90 (60 hasta v1.4.10), MAX_REQUESTS=1500,
 MAX_BODY_CAPTURE_BYTES=65536, SCAN_RATE_LIMIT=10 por IP cada 60 s, MAX_QUEUED_JOBS=20,
 MAX_GROUP_JOBS=10, SCAN_RETENTION_DAYS=30,
 INTERACTIVE_IDLE_S=600, INTERACTIVE_MAX_S=1800, INTERACTIVE_MAX_REQUESTS=4000, RESOURCES_MEMORY_ALERT_PERCENT=85.
 
 ## Limitaciones declaradas
 Playwright no ve todo el tráfico interno del navegador. Los Service Workers
-pueden alterar lo observado (se bloquean por defecto). Headless puede cambiar
+pueden alterar lo observado (se bloquean por defecto). Cobertura por contexto medida en
+`data/coverage.yaml` (v1.5.0): sin instrumentación en workers; beacons de cierre no garantizados. Headless puede cambiar
 el comportamiento del sitio. La geolocalización por IP es aproximada.
 No hay GPS sin permiso.
 
@@ -578,6 +581,31 @@ hacia quién la envían.
   Hallazgos `gl_linker` (grupo 1) y `gl_linker_info` (lista técnica); no se duplica una transferencia ya informada. Glosario:
   Linker de Google. Analizador 1.17.0.
 
+## Protocolo de visita, condiciones de la medición y cobertura (v1.5.0, docs/adr/038)
+- Protocolo fijo de cada scan (`data/visit_protocol.yaml`, `protocol_version` 1): carga (load + red en calma) → espera 3 s →
+  scroll hasta el final del documento (rueda del mouse, un viewport cada 400 ms, máx. 8 s) → espera 3 s → cierre de la
+  pestaña (beforeunload/pagehide) con 3 s de observación. Cambiar una etapa o un tiempo = subir `protocol_version`.
+- Por etapa: completada (sí/no, con motivo), hora de inicio y de fin, y las requests que empezaron en ella (`seq`); sin huecos
+  entre etapas. Escenario de consentimiento del Privacy Test: al final de la primera espera. El volcado de la captura (lo
+  que depende de la pestaña: cabeceras, storage) va al final de la segunda espera; con la pestaña cerrada Chromium ya no lo
+  entrega. Etapa cortada (SCAN_TIMEOUT_S, MAX_REQUESTS, página cerrada) → las siguientes «no se ejecutó».
+- Cierre: la captura sigue activa; se registran solo los envíos efectivamente observados (`closing_sends`). El reporte
+  aclara siempre que el cierre no garantiza capturar todos los beacons de salida.
+- Condiciones (sección `measurement` del reporte, schema `report-1.11.0`): Chromium y su versión, headful/headless, fecha y
+  hora de la visita, versiones del analizador y de las listas, país de la IP de salida. País: una consulta por scan a
+  `EGRESS_IP_SERVICE_URL` (ipify por defecto) por el egress-proxy con un usuario de proxy propio, fuera del navegador; la IP
+  se geolocaliza con DB-IP Lite y se descarta (no se guarda ni se registra). Falla o variable vacía → «desconocido». Nunca
+  se infiere del idioma ni de la zona horaria. HAR: no aplica; captura interactiva: condiciones sin protocolo; scans
+  anteriores: «no_disponible» / sin protocolo.
+- Cobertura por contexto (`data/coverage.yaml`, auditada por `worker/tests/v150/test_coverage_audit.py`; el test falla si lo
+  medido cambia): instrumentación instalada · APIs observadas · tráfico capturado, por frame principal, iframe del mismo
+  origen, iframe de tercero, dedicated worker y service worker, más los beacons del cierre. Lo no cubierto va a «Límites de
+  la medición»; no se corrige en esta versión.
+- Panel: aviso si el ranking junta scans con distinto `protocol_version` (o sin protocolo). Comparación scan ↔ HAR: indica
+  el protocolo del scan (el HAR es navegación libre).
+- Puntaje y clasificación sin cambios (analizador 1.17.0). Con el scroll y el cierre se capturan más requests, así que el
+  índice de un sitio puede variar respecto de un scan anterior a v1.5.0 aunque las reglas sean las mismas.
+
 ## Fases
 F0 spec · F1 infra+aislamiento · F2 captura · F3 análisis+scoring ·
 F4 instrumentación · F5 UI · F6 exposición · F7 escenarios ·
@@ -595,4 +623,5 @@ v1.4.6 atribución a librerías de CDN, sincronización entre organizaciones, al
 v1.4.7 fugas hacia un CDN con su receptor real y cookies por la organización (versión 1.4.7) ·
 v1.4.8 navegación con ACCEPT_CH, scans fallidos y parciales, alerta antibot con señal dura, bandas y reglas corregidas, WebRTC (versión 1.4.8) ·
 v1.4.9 Client Hints (solicitud, envío y delegación), cadena de redirección y puntaje por nivel (versión 1.4.9) ·
-v1.4.10 linker de Google (_gl), cookie que coincide, aviso de consentimiento y tabla del índice verificada (versión 1.4.10)
+v1.4.10 linker de Google (_gl), cookie que coincide, aviso de consentimiento y tabla del índice verificada (versión 1.4.10) ·
+v1.5.0 protocolo de visita fijo, condiciones de la medición y cobertura por contexto auditada (versión 1.5.0)

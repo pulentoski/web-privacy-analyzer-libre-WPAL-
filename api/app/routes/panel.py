@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.attribute_usage import UNKNOWN, party, read_rows, sent_rows
 from app.config import get_settings
 from app.db import get_session
+from app.measurement import mixed_protocols, protocol_version
 from app.service_types import service_types
 from app.testscans import is_test_scan
 
@@ -43,7 +44,8 @@ async def get_panel(include_tests: bool = False, session: AsyncSession = Depends
     rows = (
         await session.execute(
             text(
-                "SELECT j.id, j.url, j.created_at, s.score, s.band, s.summary FROM jobs j JOIN site_analysis s ON s.job_id = j.id "
+                "SELECT j.id, j.url, j.created_at, j.result -> 'measurement' AS measurement, s.score, s.band, s.summary "
+                "FROM jobs j JOIN site_analysis s ON s.job_id = j.id "
                 "WHERE j.status = 'completed' ORDER BY j.created_at DESC LIMIT :limit"
             ),
             {"limit": MAX_SCANS},
@@ -121,8 +123,12 @@ async def get_panel(include_tests: bool = False, session: AsyncSession = Depends
          for key, entry in latest.items() if is_partial(entry) and not is_blocked(entry)),
         key=lambda item: item["site"],
     )
+    # v1.5.0: el índice depende de cómo se visitó cada sitio. Si el ranking junta scans con distinto protocolo de
+    # visita (o scans anteriores a v1.5.0, sin protocolo), se avisa.
+    protocols = mixed_protocols([protocol_version({"measurement": entry["measurement"]}) for _, entry in ranking])
     return {
         "basis": BASIS,
+        "ranking_protocols": protocols,
         "level": "EVIDENCIA",
         "totals": {"sites": sites, "scans": scans, "requests": requests, "organizations": len(organizations),
                    "blocked_sites": len(blocked_sites), "partial_sites": len(partial_sites)},
@@ -142,6 +148,7 @@ async def get_panel(include_tests: bool = False, session: AsyncSession = Depends
                 "site": key, "job_id": str(entry["id"]), "url": entry["url"], "site_exposure_score": entry["score"], "band": entry["band"],
                 "trackers": (entry["summary"] or {}).get("trackers"), "third_party_domains": (entry["summary"] or {}).get("third_party_domains"),
                 "created_at": entry["created_at"],
+                "protocol_version": protocol_version({"measurement": entry["measurement"]}),
             }
             for key, entry in ranking
         ],

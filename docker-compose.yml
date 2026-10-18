@@ -140,7 +140,10 @@ services:
       HEADLESS: ${HEADLESS:-false}
       PROXY_SCAN_SECRET: ${PROXY_SCAN_SECRET:?definir en .env}
       MAX_CONCURRENT_SCANS: ${MAX_CONCURRENT_SCANS:-2}
-      SCAN_TIMEOUT_S: ${SCAN_TIMEOUT_S:-60}
+      # v1.5.0: el protocolo de visita (data/visit_protocol.yaml) añade hasta ~17 s tras la carga.
+      SCAN_TIMEOUT_S: ${SCAN_TIMEOUT_S:-90}
+      # País de la IP de salida (v1.5.0, docs/adr/038). Sin «:» a propósito: definida y vacía = no se consulta.
+      EGRESS_IP_SERVICE_URL: ${EGRESS_IP_SERVICE_URL-https://api.ipify.org}
       MAX_REQUESTS: ${MAX_REQUESTS:-1500}
       MAX_BODY_CAPTURE_BYTES: ${MAX_BODY_CAPTURE_BYTES:-65536}
       # Umbral de "muy pocas requests" de la alerta antibot (v1.2.1); vacío = el valor de data/scoring.yaml.

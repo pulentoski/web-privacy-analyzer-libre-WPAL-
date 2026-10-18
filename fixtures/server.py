@@ -201,6 +201,23 @@ async def reset(request: web.Request) -> web.Response:
     return web.json_response({"reset": True})
 
 
+# v1.5.0: IP «pública» que devuelve el servicio de IP de salida de prueba (EGRESS_IP_SERVICE_URL en scripts/test.sh).
+# Ruta de control (/__...): no se registra en /__received, no es tráfico del sitio.
+EGRESS_TEST_IP = "8.8.8.8"
+
+
+async def egress_ip(request: web.Request) -> web.Response:
+    return web.Response(text=EGRESS_TEST_IP + "\n", content_type="text/plain")
+
+
+async def egress_ip_invalid(request: web.Request) -> web.Response:
+    return web.Response(text="no-es-una-ip", content_type="text/plain")
+
+
+async def empty(request: web.Request) -> web.Response:
+    return web.Response(status=204)
+
+
 async def health(request: web.Request) -> web.Response:
     return web.json_response({"status": "ok"})
 
@@ -279,6 +296,25 @@ def build_app() -> web.Application:
             # v1.4.5: servicios de terceros sin señales de rastreo, varias cuentas de analítica, recuadro que no carga
             web.get("/v145/", static("v145/index.html", "text/html")),
             web.get("/static/v145/v145.js", static("v145/v145.js", "application/javascript")),
+            # Protocolo de visita, cobertura de contextos e IP de salida (v1.5.0)
+            web.get("/v150/coverage/", static("v150/coverage.html", "text/html")),
+            web.get("/v150/coverage/frame", static("v150/frame.html", "text/html")),
+            web.get("/static/v150/coverage.js", static("v150/coverage.js", "application/javascript")),
+            web.get("/static/v150/frame.js", static("v150/frame.js", "application/javascript")),
+            web.get("/static/v150/worker.js", static("v150/worker.js", "application/javascript")),
+            web.get("/static/v150/sw.js", static("v150/sw.js", "application/javascript")),
+            web.get("/v150/mark", empty),
+            web.get("/v150/mark-failed", empty),
+            web.get("/v150/sw-registration", empty),
+            web.get("/v150/scroll/", static("v150/scroll.html", "text/html")),
+            web.get("/static/v150/scroll.js", static("v150/scroll.js", "application/javascript")),
+            web.get("/v150/scroll-bottom", empty),
+            web.get("/v150/scroll-more", empty),
+            web.get("/v150/close/", static("v150/close.html", "text/html")),
+            web.get("/static/v150/close.js", static("v150/close.js", "application/javascript")),
+            web.post("/v150/bye", empty),
+            web.get("/__egress-ip", egress_ip),
+            web.get("/__egress-ip-invalid", egress_ip_invalid),
             # fixture XSS (F5)
             web.get("/xss/", static("xss/index.html", "text/html")),
             web.get("/static/xss/payloads.js", static("xss/payloads.js", "application/javascript")),

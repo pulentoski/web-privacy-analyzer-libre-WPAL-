@@ -150,7 +150,7 @@ function ScanData({ includeTests }) {
           info={<><strong>Índice de exposición</strong>: estimación del scan más reciente de cada sitio. No es un veredicto: resume cuántos terceros, rastreadores y lecturas de atributos se observaron.</>}>
           <ol className="text-sm space-y-1">
             {data.ranking.map((item) => (
-              <li key={item.site} className="flex flex-wrap items-center justify-between gap-x-3" data-testid="panel-ranking-item">
+              <li key={item.site} className="flex flex-wrap items-center justify-between gap-x-3" data-testid="panel-ranking-item" data-protocol={item.protocol_version ?? "ninguno"}>
                 <Link to={["scan", item.job_id]} testId="panel-ranking-link"><Captured value={item.site} limit={48} expandable={false} /></Link>
                 <span className="flex items-center gap-2">
                   <span className="muted text-xs">{formatDate(item.created_at)}</span>
@@ -160,6 +160,9 @@ function ScanData({ includeTests }) {
             ))}
           </ol>
           {data.ranking.length === 0 && <Empty>Ningún sitio con índice comparable.</Empty>}
+          {data.ranking_protocols && data.ranking_protocols.mixed && (
+            <p role="status" className="text-xs mt-2 font-medium" data-testid="panel-protocol-mixed">{data.ranking_protocols.note}</p>
+          )}
           {(data.partial_sites || []).length > 0 && (
             <div className="text-xs mt-2" data-testid="panel-partial-sites">
               <p className="muted">Fuera del ranking (índice no comparable con el de una visita automática): capturas HAR importadas y capturas interactivas.</p>

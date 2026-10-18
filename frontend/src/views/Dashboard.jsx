@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import Graph from "../components/Graph.jsx";
+import { CoverageTable, MeasurementPanel } from "../components/Measurement.jsx";
 import { Term, WhatIsThis } from "../components/Term.jsx";
 import { BandBadge, BlockingBanner, Captured, Empty, ErrorNotice, EvidenceBadge, EvidenceLegend, EvidenceRefs, Info, LimitsNotice, Loading, Panel, PARTIAL_INDEX, Plain, StatCard } from "../components/ui.jsx";
 import { api } from "../lib/api.js";
@@ -252,7 +253,10 @@ export default function Dashboard({ jobId }) {
         <div className="flex-1 min-w-[16rem]"><Plain text={headline(data.capture, site.summary, data.scan.source)} level="EVIDENCIA" testId="summary-plain" /></div>
       </div>
       <ConsentPanel consent={data.consent} />
-      <LimitsNotice limitations={data.limitations} />
+      <LimitsNotice limitations={data.limitations}>
+        <CoverageTable coverage={(data.measurement || {}).coverage} />
+      </LimitsNotice>
+      <MeasurementPanel measurement={data.measurement} />
 
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         <div className="panel p-3 col-span-2 lg:row-span-3" data-testid="card-exposure">

@@ -1,0 +1,66 @@
+# Cobertura de la medición por contexto de ejecución (v1.5.0, docs/adr/038).
+#
+# NO es una declaración de intenciones: es el resultado de la auditoría reproducible
+# worker/tests/v150/test_coverage_audit.py, que visita el sitio de fixtures con el mismo Chromium y la misma
+# configuración que un scan y compara lo medido con esta tabla. Si cambia lo medido, el test falla y esta tabla
+# se actualiza (con su entrada en el CHANGELOG); nunca al revés.
+#
+# Tres columnas independientes por contexto:
+#  - instrumentation: el init script de la instrumentación corrió en ese contexto (envió su informe inicial).
+#  - apis_observed:   cuáles de las APIs de prueba (probe_apis) llamadas en ese contexto registró la instrumentación.
+#  - traffic_captured: la request marcadora de ese contexto (/v150/mark?ctx=<id>) aparece en la captura.
+# Cada contexto que no está cubierto del todo lleva `limitation`: el texto de «Límites de la medición».
+audited_with: worker/tests/v150/test_coverage_audit.py
+probe_apis:
+  - canvas.fillText
+  - canvas.toDataURL
+  - navigator.hardwareConcurrency
+  - navigator.userAgent
+contexts:
+  - id: main_frame
+    label: Frame principal
+    instrumentation: true
+    apis_observed: [canvas.fillText, canvas.toDataURL, navigator.hardwareConcurrency, navigator.userAgent]
+    traffic_captured: true
+  - id: same_origin_iframe
+    label: Iframe del mismo origen
+    instrumentation: true
+    apis_observed: [canvas.fillText, canvas.toDataURL, navigator.hardwareConcurrency, navigator.userAgent]
+    traffic_captured: true
+  - id: third_party_iframe
+    label: Iframe de tercero
+    instrumentation: true
+    apis_observed: [canvas.fillText, canvas.toDataURL, navigator.hardwareConcurrency, navigator.userAgent]
+    traffic_captured: true
+  - id: dedicated_worker
+    label: Dedicated worker
+    instrumentation: false
+    # En el worker solo existen navigator.* y OffscreenCanvas (fuera del catálogo); no se registra ninguna.
+    apis_observed: []
+    traffic_captured: true
+    limitation: >-
+      Dedicated workers: la instrumentación no se instala en ellos, así que las APIs que llaman (navigator,
+      OffscreenCanvas) no se observan; su tráfico sí se captura y queda a nombre de la página que los creó.
+  - id: service_worker
+    label: Service worker
+    instrumentation: false
+    apis_observed: []
+    traffic_captured: false
+    limitation: >-
+      Service workers: el analizador bloquea su registro (la página recibe una respuesta sin error, pero no se
+      registra ninguno), así que no hay instrumentación ni tráfico de service workers. Un visitante real sí los
+      tiene: lo que hagan no forma parte de esta medición.
+# Beacons de salida en los eventos del cierre de la pestaña (página /v150/close/). captured = aparece en la captura:
+# true (siempre), false (nunca) o variable (carrera con el cierre: en las corridas de la auditoría llegó al servidor
+# siempre y quedó en la captura solo a veces).
+closing_events:
+  - event: beforeunload
+    captured: true
+  - event: visibilitychange
+    captured: variable
+  - event: pagehide
+    captured: false
+closing_limitation: >-
+  Cierre de la pestaña: la captura sigue activa, pero el cierre no garantiza capturar todos los beacons de
+  salida. Lo enviado en beforeunload se observa; lo enviado en visibilitychange se observa solo a veces y lo
+  enviado en pagehide no se observa, aunque llegue al servidor.

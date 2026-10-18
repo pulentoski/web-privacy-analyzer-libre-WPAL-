@@ -93,9 +93,14 @@ class Settings:
     # Credenciales del proxy: el usuario identifica al scan (docs/adr/016).
     proxy_scan_secret: Secret = field(default_factory=lambda: Secret(os.environ.get("PROXY_SCAN_SECRET", "")))
     scanlog_dir: str = field(default_factory=lambda: os.environ.get("SCANLOG_DIR", "/var/log/scanlog"))
+    # Servicio de IP pública para el país de la IP de salida (v1.5.0, docs/adr/038). Vacío = no se consulta
+    # y el país queda «desconocido». Se consulta por el egress-proxy, una vez por scan, fuera del tráfico analizado.
+    egress_ip_service_url: str = field(
+        default_factory=lambda: os.environ.get("EGRESS_IP_SERVICE_URL", "https://api.ipify.org").strip()
+    )
     chromium_sandbox: bool = field(default_factory=lambda: _bool(os.environ.get("CHROMIUM_SANDBOX", "true")))
     max_concurrent_scans: int = field(default_factory=lambda: int(os.environ.get("MAX_CONCURRENT_SCANS", "2")))
-    scan_timeout_s: int = field(default_factory=lambda: int(os.environ.get("SCAN_TIMEOUT_S", "60")))
+    scan_timeout_s: int = field(default_factory=lambda: int(os.environ.get("SCAN_TIMEOUT_S", "90")))
     max_requests: int = field(default_factory=lambda: int(os.environ.get("MAX_REQUESTS", "1500")))
     # Override del umbral de "pocas requests" de la alerta antibot; None = usar data/scoring.yaml.
     blocking_min_requests: int | None = field(

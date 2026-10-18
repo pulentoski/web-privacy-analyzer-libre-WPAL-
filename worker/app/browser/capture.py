@@ -1,7 +1,8 @@
 """Ejecuta un scan: navega, captura el tráfico y devuelve resultado + captura.
 
-Fin de captura (SPEC F2): evento load + ventana sin requests nuevas, o
-SCAN_TIMEOUT_S, lo que ocurra primero. Al llegar a MAX_REQUESTS se corta.
+Protocolo de visita fijo (v1.5.0, docs/adr/038, data/visit_protocol.yaml): carga → espera → scroll → espera →
+cierre de la pestaña. La carga termina con el evento load + una ventana sin requests nuevas (SPEC F2). Todo el
+scan corta en SCAN_TIMEOUT_S y al llegar a MAX_REQUESTS; las etapas que no llegan a completarse constan así.
 """
 
 import asyncio
@@ -9,6 +10,7 @@ import logging
 import re
 import uuid
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 from playwright.async_api import Error as PlaywrightError
 from playwright.async_api import TimeoutError as PlaywrightTimeoutError
@@ -21,7 +23,9 @@ from app.browser.fp_monitor import PAGE_FLUSH_MS, FingerprintMonitor
 from app.browser.proxy_log import read_destinations_when_flushed
 from app.browser.launcher import base_session_setup, launch_browser, new_context
 from app.browser.network_monitor import PROXY_ERROR_HEADER, NetworkMonitor
+from app.browser.visit import StageLog, close_stage, interrupted, load_protocol, scroll_stage, wait_stage
 from app.config import settings
+from app.egress import lookup_country_async
 
 logger = logging.getLogger(__name__)
 
@@ -136,14 +140,40 @@ async def run_scan(
     loop = asyncio.get_running_loop()
     # Cada scan tiene su usuario de proxy: así se sabe qué conexiones del log son suyas.
     proxy_user = proxy_user or f"scan-{uuid.uuid4()}"
-    outcome = await _run_scan(url, timeout_s, max_requests, max_body_bytes, idle_s, fp_instrumentation, scenario, profile_name, probe, proxy_user, loop, progress)
+    # País de la IP de salida (v1.5.0): una consulta por scan, fuera del navegador y con otro usuario de proxy.
+    egress = asyncio.ensure_future(lookup_country_async())
+    try:
+        outcome = await _run_scan(url, timeout_s, max_requests, max_body_bytes, idle_s, fp_instrumentation, scenario, profile_name, probe, proxy_user, loop, progress)
+    except BaseException:
+        egress.cancel()
+        raise
     # Con el navegador ya cerrado, el proxy terminó de registrar sus conexiones.
     outcome.capture["proxy_user"] = proxy_user
     outcome.capture["destinations"] = await read_destinations_when_flushed(proxy_user, bool(outcome.capture["requests"]))
+    if outcome.result is not None:
+        outcome.result["measurement"]["egress_country"] = await egress
+    else:
+        egress.cancel()
     return outcome
 
 
+def measurement(browser_version: str | None, started_at: str, visit_protocol: dict, *, headless: bool | None = None) -> dict:
+    """Condiciones de la medición (v1.5.0). El país de la IP de salida se añade al final, cuando llega la consulta."""
+    headless = settings.headless if headless is None else headless
+    return {
+        "browser": {"name": "Chromium", "version": clean_text(browser_version, 64) or None},
+        "browser_mode": "headless" if headless else "headful",
+        "started_at": started_at,
+        "visit_protocol": visit_protocol,
+    }
+
+
+LOAD_REASONS = {"network_idle": "network_idle", "timeout": "scan_timeout", "max_requests": "max_requests", "page_closed": "page_closed"}
+
+
 async def _run_scan(url, timeout_s, max_requests, max_body_bytes, idle_s, fp_instrumentation, scenario, profile_name, probe, proxy_user, loop, progress=None) -> ScanOutcome:
+    protocol = load_protocol()
+    idle_s = settings.network_idle_s if idle_s is None else idle_s
     async with async_playwright() as playwright:
         browser = await launch_browser(playwright, proxy_user)
         try:
@@ -173,11 +203,14 @@ async def _run_scan(url, timeout_s, max_requests, max_body_bytes, idle_s, fp_ins
             await monitor.start()
 
             started = loop.time()
+            started_at = datetime.now(timezone.utc).isoformat(timespec="milliseconds")
             deadline = started + timeout_s
+            stages = StageLog(protocol, lambda: monitor.count)
             if progress is not None:
                 # Desde aquí corre el tiempo máximo y el contador de requests es el del monitor.
                 progress.navigating(lambda: monitor.count)
             error, response, end_reason, partial = None, None, "navigation_failed", None
+            load = stages.start()
             try:
                 # "commit": el resto de la carga la vigila _wait_for_end, para poder cortar
                 # por timeout o por MAX_REQUESTS sin perder lo ya capturado.
@@ -202,29 +235,45 @@ async def _run_scan(url, timeout_s, max_requests, max_body_bytes, idle_s, fp_ins
             if error is None and partial is None:
                 if progress is not None:
                     progress.capturing()
-                end_reason = await _wait_for_end(
-                    page, monitor, deadline, settings.network_idle_s if idle_s is None else idle_s
-                )
+                end_reason = await _wait_for_end(page, monitor, deadline, idle_s)
+            stage_reason = "navigation_failed" if error is not None else LOAD_REASONS.get(end_reason, end_reason)
+            stages.end(load, stage_reason == "network_idle", stage_reason)
 
             consent, artifacts = None, []
-            # Scan parcial: el tiempo ya se agotó, no queda margen para el escenario de consentimiento.
-            if error is None and partial is None and scenario in SCENARIOS:
-                try:
-                    consent, artifacts = await handle_consent(page, context, scenario, monitor)
-                except Exception:  # el escenario es un añadido: si falla, el scan sigue valiendo
-                    logger.exception("consent_scenario_failed")
-                    consent = {"scenario": scenario, "status": "no_aplicable", "banner_detected": False,
-                               "reason": "El escenario de consentimiento falló por un error interno."}
-                if consent.get("interaction_seq") is not None:
-                    # Tras la decisión se sigue capturando hasta que la red se calme otra vez.
-                    end_reason = await _wait_for_end(
-                        page, monitor, deadline, settings.network_idle_s if idle_s is None else idle_s
-                    )
+            if load["completed"]:
+                # Etapa 2: espera sin interacción.
+                wait = stages.start()
+                cut = await wait_stage(page, monitor, deadline, protocol.wait_s[0])
+                # Privacy Test: el escenario de consentimiento va al final de la primera espera, antes del scroll; sus
+                # requests cuentan en esta etapa. Si la espera se cortó (tiempo agotado), no hay margen para él.
+                if cut is None and scenario in SCENARIOS:
+                    try:
+                        consent, artifacts = await handle_consent(page, context, scenario, monitor)
+                    except Exception:  # el escenario es un añadido: si falla, el scan sigue valiendo
+                        logger.exception("consent_scenario_failed")
+                        consent = {"scenario": scenario, "status": "no_aplicable", "banner_detected": False,
+                                   "reason": "El escenario de consentimiento falló por un error interno."}
+                    if consent.get("interaction_seq") is not None:
+                        # Tras la decisión se sigue capturando hasta que la red se calme otra vez.
+                        end_reason = await _wait_for_end(page, monitor, deadline, idle_s)
+                    cut = interrupted(page, monitor, deadline)
+                stages.end(wait, cut is None, cut or "duration_elapsed",
+                           **({"includes": ["consent_scenario"]} if consent is not None else {}))
+            if stages.current["completed"]:
+                # Etapa 3: scroll hasta el final del documento.
+                step = stages.start()
+                cut, reached_end = await scroll_stage(page, monitor, deadline, protocol.scroll_max_s, protocol.scroll_step_ms)
+                stages.end(step, cut is None, cut or ("document_end" if reached_end else "max_time"), reached_end=reached_end)
+            last_wait, wait_cut = None, None
+            if stages.current["completed"]:
+                # Etapa 4: segunda espera. Termina después del volcado previo al cierre (ver abajo).
+                last_wait = stages.start()
+                wait_cut = await wait_stage(page, monitor, deadline, protocol.wait_s[1])
 
-            # Estado TCF declarado por la página, al final de la visita (tras la decisión, si la hubo).
+            # Estado de la página al final de la visita, antes del cierre (tras la decisión, si la hubo).
+            open_page = error is None and not page.is_closed()
             # Scan parcial: sin página confirmada no hay estado TCF que leer, y el margen para volcar la captura es corto.
-            tcf = await tcf_info(page) if error is None and partial is None else None
-
+            tcf = await tcf_info(page) if open_page and partial is None else None
             result = None
             if error is None:
                 try:
@@ -241,14 +290,32 @@ async def _run_scan(url, timeout_s, max_requests, max_body_bytes, idle_s, fp_ins
                     result["page_meta"] = await page_meta(page)
                 else:
                     result["partial"] = partial
-            if fingerprint is not None and error is None:
+            if fingerprint is not None and open_page:
                 # Deja salir el último envío periódico de la instrumentación.
                 await asyncio.sleep(PAGE_FLUSH_MS / 1000 + 0.2)
+
+            if last_wait is not None:
+                if wait_cut is None:
+                    # Lo que depende de la pestaña (cabeceras, storage) se vuelca antes de cerrarla; con la pestaña
+                    # cerrada Chromium ya no lo entrega. Las requests de este tramo cuentan en la segunda espera.
+                    await monitor.prepare_close()
+                stages.end(last_wait, wait_cut is None, wait_cut or "duration_elapsed",
+                           **({"includes": ["pre_close_dump"]} if wait_cut is None else {}))
+            if last_wait is not None and last_wait["completed"] and loop.time() < deadline:
+                # Etapa 5: cierre de la pestaña con la captura activa.
+                closing = stages.start()
+                closed = await close_stage(page, protocol.close_observe_s)
+                stages.end(closing, closed, "tab_closed" if closed else "tab_not_closed")
+            else:
+                # El volcado previo al cierre pudo terminar ya pasado SCAN_TIMEOUT_S: el cierre no empieza.
+                stages.skip_rest("scan_timeout" if last_wait is not None and last_wait["completed"] else "previous_stage_incomplete")
+
             capture = await monitor.finalize()
             capture["fingerprinting"] = fingerprint.result() if fingerprint is not None else None
             capture["artifacts"] = artifacts
             if result is not None:
                 result["tcf"] = tcf
+                result["measurement"] = measurement(browser.version, started_at, stages.result())
             if result is not None and consent is not None:
                 result["consent"] = consent
             if result is not None and probe:

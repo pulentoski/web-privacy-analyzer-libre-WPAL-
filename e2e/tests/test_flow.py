@@ -82,7 +82,7 @@ def test_full_flow(session):
             assert state["current"] == f"stage-{stage}"
         if stage == "capturing":
             # Tiempo real frente al máximo configurado (SCAN_TIMEOUT_S), sin porcentajes.
-            assert state["max"] == "60" and "%" not in state["text"], state
+            assert state["max"] == "90" and "%" not in state["text"], state
         page.wait_for_timeout(100)
     order = ["queued", "opening", "capturing", "analyzing", "building", "done"]
     assert "done" in seen and seen <= set(order), seen
@@ -205,7 +205,7 @@ def test_full_flow(session):
         page.get_by_test_id("export").click()
     report = json.loads(pathlib.Path(download.value.path()).read_text())
     assert download.value.suggested_filename == f"reporte-{job_id}.json"
-    assert report["schema_version"] == "1.10.0" and report["scan"]["job_id"] == job_id
+    assert report["schema_version"] == "1.11.0" and report["scan"]["job_id"] == job_id
     assert report["site"]["exposure_score"] == score
     session.assert_clean("flujo completo")
 

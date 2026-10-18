@@ -19,8 +19,7 @@ def _reason(signal, weight, ref, level="EVIDENCIA"):
     return {"signal": signal, "weight": weight, "level": level, "evidence_ref": ref, "detail": "detalle"}
 
 
-@pytest.fixture(scope="module")
-def analyzed_scan(client):
+def _analyzed_job(client):
     """4 requests: 1 first-party Bajo, 2 de la misma entidad (Alto, Moderado) y 1 sin entidad (Muy alto)."""
     job_id = uuid.uuid4()
     ids = {}
@@ -84,6 +83,18 @@ def analyzed_scan(client):
     client.portal.call(insert)
     yield str(job_id), ids
     client.portal.call(cleanup)
+
+
+@pytest.fixture(scope="module")
+def analyzed_scan(client):
+    yield from _analyzed_job(client)
+
+
+@pytest.fixture
+def own_analyzed_scan(client):
+    """Copia propia del scan analizado, para los tests que lo vuelven a encolar: si el worker real alcanza a
+    reanalizarlo (lo toma en menos de 1 s), reemplaza su análisis con las listas reales sin tocar `analyzed_scan`."""
+    yield from _analyzed_job(client)
 
 
 def test_requests_include_analysis(client, analyzed_scan):
@@ -167,7 +178,7 @@ def test_report_validates_against_schema(client, analyzed_scan):
     schema = json.loads(SCHEMA_PATH.read_text())
     Draft202012Validator.check_schema(schema)
     assert list(Draft202012Validator(schema).iter_errors(report)) == []
-    assert report["schema_version"] == schema["properties"]["schema_version"]["const"] == "1.10.0"
+    assert report["schema_version"] == schema["properties"]["schema_version"]["const"] == "1.11.0"
     assert report["analysis"]["analyzer_version"] == VERSION
     assert report["analysis"]["lists"][0]["noncommercial"] is True
     assert report["site"]["exposure_score"] == 34 and report["capture"]["total_requests"] == 4
@@ -219,8 +230,8 @@ def test_report_before_analysis(client, scan):
     assert response.status_code == 409 and response.json()["error_code"] == "ANALYSIS_NOT_READY"
 
 
-def test_reanalyze_queues_without_touching_the_capture(client, analyzed_scan):
-    job_id, _ = analyzed_scan
+def test_reanalyze_queues_without_touching_the_capture(client, own_analyzed_scan):
+    job_id, _ = own_analyzed_scan
 
     async def state():
         async with SessionLocal() as session:
@@ -343,6 +354,6 @@ def test_report_includes_fingerprinting_section(client, fp_scan):
     assert response.status_code == 200, response.text
     report = response.json()
     assert list(report_validator().iter_errors(report)) == []
-    assert report["schema_version"] == "1.10.0"
+    assert report["schema_version"] == "1.11.0"
     assert report["fingerprinting"]["scripts"][0]["fingerprinting_inferred"] is True
     assert report["fingerprinting"]["exfiltrations"][0]["evidence_refs"]["requests"]

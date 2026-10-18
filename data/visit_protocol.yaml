@@ -1,0 +1,23 @@
+# Protocolo de visita de un scan (v1.5.0, docs/adr/038).
+#
+# Etapas fijas y en este orden: carga → espera → scroll → espera → cierre.
+#  - carga: navegación, evento load y red en calma (network_idle_s del worker). No tiene tiempo propio:
+#    termina con la red en calma, con SCAN_TIMEOUT_S o al llegar a MAX_REQUESTS.
+#  - espera: pausa sin interacción, con la captura activa.
+#  - scroll: baja un viewport cada `step_interval_ms` hasta el final del documento, como mucho `max_s`.
+#  - cierre: cierra la pestaña (con beforeunload/pagehide) y sigue observando `observe_s` segundos.
+#
+# protocol_version identifica estos valores. Cambiar una etapa o un tiempo es otro protocolo:
+# subir protocol_version (el test worker/tests/v150/test_visit_protocol.py lo exige) y anotarlo en el CHANGELOG.
+protocol_version: 1
+stages:
+  - name: carga
+  - name: espera
+    duration_s: 3
+  - name: scroll
+    max_s: 8
+    step_interval_ms: 400
+  - name: espera
+    duration_s: 3
+  - name: cierre
+    observe_s: 3

@@ -225,6 +225,9 @@ class NetworkMonitor:
         self.masked_fields: list[dict] = []
         self.truncated = False
         self.last_activity = self._loop.time()
+        # Volcado previo al cierre de la pestaña (v1.5.0): con la pestaña cerrada Chromium ya no entrega cabeceras.
+        self._matched = 0
+        self._pre: dict | None = None
 
     @property
     def count(self) -> int:
@@ -634,39 +637,70 @@ class NetworkMonitor:
             "active_workers": len(self._context.service_workers),
         }
 
-    async def finalize(self, budget_s: float = FINALIZE_BUDGET_S) -> dict:
-        """Vuelca lo capturado. Debe llamarse con la página aún abierta."""
-        deadline = self._loop.time() + budget_s
-        if self._tasks:
-            await asyncio.wait(set(self._tasks), timeout=EXTRA_CALL_TIMEOUT_S)
-
+    def _first_party(self) -> set[str]:
         first_party = set()
         for url in (self._start_url, self._page.url):
             domain = registrable_domain(split_url(url)["host"])
             if domain:
                 first_party.add(domain)
+        return first_party
 
-        records = list(self._records)
-        matches = []
-        for record in records:
+    def _match_cdp(self) -> None:
+        """Empareja con CDP, en orden de llegada, las requests que aún no lo estaban."""
+        for record in self._records[self._matched:]:
             request = record["request"]
             queue = self._cdp.get((request.method, request.url))
-            matches.append(queue.popleft() if queue else None)
+            record["cdp"] = queue.popleft() if queue else None
+        self._matched = len(self._records)
 
+    @staticmethod
+    def _state(record: dict) -> tuple:
+        return (record["response"] is not None, record["finished"], record["failed"])
+
+    async def _build_pending(self, first_party: set[str], deadline: float) -> None:
+        """Construye las requests sin construir o que cambiaron (respuesta, fin o fallo) desde la última vez."""
+        if self._tasks:
+            await asyncio.wait(set(self._tasks), timeout=EXTRA_CALL_TIMEOUT_S)
+        self._match_cdp()
+        pending = [record for record in self._records if record.get("built_state") != self._state(record)]
         semaphore = asyncio.Semaphore(FINALIZE_CONCURRENCY)
 
-        async def build(record, cdp_entry):
+        async def build(record):
             async with semaphore:
-                return await self._build(record, cdp_entry, first_party, deadline)
+                state = self._state(record)
+                record["built"] = await self._build(record, record["cdp"], first_party, deadline)
+                record["built_state"] = state
 
-        built = await asyncio.gather(*(build(record, match) for record, match in zip(records, matches)))
+        await asyncio.gather(*(build(record) for record in pending))
+
+    async def prepare_close(self, budget_s: float = FINALIZE_BUDGET_S) -> None:
+        """Vuelca lo que depende de la pestaña antes de cerrarla (v1.5.0): cabeceras, storage y Service Workers.
+
+        Tras el cierre, finalize() solo construye las requests nuevas o que cambiaron, con lo que aún se pueda leer.
+        """
+        deadline = self._loop.time() + budget_s
+        first_party = self._first_party()
+        await self._build_pending(first_party, deadline)
+        self._pre = {
+            "first_party": first_party,
+            "storage": await self._snapshot_storage(),
+            "service_workers": await self._service_workers(),
+        }
+
+    async def finalize(self, budget_s: float = FINALIZE_BUDGET_S) -> dict:
+        """Vuelca lo capturado. Debe llamarse con la página aún abierta, o tras prepare_close()."""
+        deadline = self._loop.time() + budget_s
+        pre = self._pre
+        first_party = pre["first_party"] if pre is not None else self._first_party()
+        await self._build_pending(first_party, deadline)
+        built = [record["built"] for record in self._records]
         return {
             "requests": built,
             "redirects": self._redirect_chains(built),
             "websockets": self._build_websockets(first_party),
             "cookies": await self._snapshot_cookies(first_party),
-            "storage": await self._snapshot_storage(),
-            "service_workers": await self._service_workers(),
+            "storage": pre["storage"] if pre is not None else await self._snapshot_storage(),
+            "service_workers": pre["service_workers"] if pre is not None else await self._service_workers(),
             "truncated": self.truncated,
             "first_party_domains": sorted(first_party),
         }
