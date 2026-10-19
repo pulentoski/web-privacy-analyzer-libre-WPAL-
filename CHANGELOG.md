@@ -3,6 +3,30 @@
 Formato: una sección por versión, la más reciente arriba. Las decisiones de diseño de cada versión están en
 [docs/adr/](docs/adr/README.md); las versiones anteriores a 1.4.6, en la sección «Fases» de [docs/SPEC.md](docs/SPEC.md).
 
+## 1.6.0 — 2026-10-19
+
+Rediseño del Resumen. Analizador 1.18.0 · schema de reporte 1.11.0 (sin cambios) ·
+[ADR 042](docs/adr/042-resumen-en-bento.md). Captura, análisis, puntaje, clasificación y reportes HTML/PDF sin cambios.
+
+### Agregado
+- Resumen en bento, de arriba abajo: encabezado (dominio, ID, URL final, fecha, validez de la medición con la regla
+  antibot y Exportar); índice con medidor semicircular, banda, «Evidencia + Inferencia», «↑/↓ N vs scan anterior» (solo
+  con un scan anterior del mismo sitio y el mismo protocolo de visita) y «Cómo se calculó» plegado; «Lo más relevante»
+  (una frase con 3 cifras y hasta 3 alertas con su nivel); condiciones de la medición y consentimiento (siempre visible);
+  8 cifras con una línea de color por tipo; mapa de relaciones con la leyenda en pastillas; los dos gráficos con barras
+  redondeadas; «Quién recibió más datos» y «Datos expuestos a terceros» lado a lado; plegados al final.
+- «Quién recibió más datos» (`GET /api/scans/{id}/overview`): por organización, tipos de dato recibidos según los
+  hallazgos (identificador, URL, consentimiento, dispositivo, búsqueda), requests de tracking y su cookie más larga.
+
+### Cambiado
+- Ninguna información del Resumen se quitó: se reordenó o se plegó (desglose del índice, protocolo de visita, detalle
+  de cada categoría de datos, cookies por propósito, servicios sin señales, niveles de evidencia, Client Hints, linker,
+  misma organización y «Límites de la medición»).
+- Estilo por variables CSS en los dos temas: tarjetas de radio 16 px y sombra suave (blancas en
+  Clásico; oscuras y sin esquinas cortadas en Unidad Púrpura, sin imágenes). Mismos colores con significado en ambos (rojo tracking/evidencia, morado
+  fingerprinting/inferencia, azul propio, gris tercero, naranjo exfiltración, verde medición válida), contraste ≥ 4,5:1,
+  también en modo presentación. Contenedor de 1200 px; en móvil el bento se apila sin scroll horizontal.
+
 ## 1.5.3 — 2026-10-19
 
 Solo seguridad. Analizador 1.18.0 · schema de reporte 1.11.0 (sin cambios) ·

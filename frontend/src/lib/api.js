@@ -61,6 +61,8 @@ export const api = {
   bands: () => request("/api/bands"),
   report: (jobId) => request(`/api/scans/${id(jobId)}/report`),
   domains: (jobId) => request(`/api/scans/${id(jobId)}/domains`),
+  // v1.6.0: «Quién recibió más datos» y el scan anterior del mismo sitio con el mismo protocolo.
+  overview: (jobId) => request(`/api/scans/${id(jobId)}/overview`),
   requests: (jobId, query) => request(`/api/scans/${id(jobId)}/requests${query || ""}`),
   // v1.5.1: sin `reveal` la api devuelve los identificadores enmascarados.
   requestDetail: (jobId, requestId, reveal = false) =>

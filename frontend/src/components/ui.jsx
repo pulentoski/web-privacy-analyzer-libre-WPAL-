@@ -211,9 +211,9 @@ export function Logo({ size = "header", testId = "logo" }) {
 }
 
 /** Tarjeta del resumen. En «Unidad Púrpura» lleva esquinas cortadas y rótulo. */
-export function StatCard({ label, value, hint, testId }) {
+export function StatCard({ label, value, hint, testId, kind }) {
   return (
-    <div className="vignette" data-testid={testId}>
+    <div className={`vignette${kind ? " stat" : ""}`} data-testid={testId} data-kind={kind}>
       <div className="vignette-caption">{label}</div>
       <div className="vignette-body">
         <div className="text-3xl font-bold vignette-value">{value === null || value === undefined ? "—" : value}</div>

@@ -37,6 +37,8 @@ def test_third_party_services_in_trackers_and_summary(session, shared, browser):
 
     session.goto(f"#/scan/{job_id}")
     expect(session.page.get_by_test_id("dashboard")).to_be_visible()
+    # v1.6.0: en el Resumen los servicios van plegados al final.
+    session.page.get_by_test_id("fold-services").locator("summary").click()
     summary = session.page.get_by_test_id("third-party-services")
     expect(summary).to_be_visible()
     expect(summary.locator("[data-testid=third-party-service]", has_text="cdn-b.fixtures.test")).to_have_count(1)

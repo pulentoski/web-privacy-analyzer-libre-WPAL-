@@ -1,3 +1,3 @@
 """Versión de la aplicación: la usan OpenAPI y el HAR exportado (creator.version)."""
 
-APP_VERSION = "1.5.3"
+APP_VERSION = "1.6.0"

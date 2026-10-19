@@ -479,3 +479,108 @@ html[data-theme="purple"] .rc { --rc-bg: #000000; --rc-line: #ff7a1a; --rc-text:
 .rc-table tr[data-alert="true"] td { color: var(--rc-alert); font-weight: 700; }
 .rc-note { margin-top: 0.4rem; font-size: 0.65rem; opacity: 0.95; }
 @media (max-width: 30rem) { .rc-console { grid-template-columns: 1fr; justify-items: center; } }
+
+/* ---------- Resumen en bento (v1.6.0, docs/adr/042) ----------
+   Todo con variables: cada tema define sus colores y la forma de la tarjeta. Los colores con significado son
+   los mismos en los dos temas (rojo = tracking/evidencia, morado = fingerprinting/inferencia, azul = propio
+   del sitio, gris = tercero, naranjo = exfiltración, verde = medición válida); el texto sobre la superficie
+   cumple ≥ 4,5:1 en ambos (lo comprueba e2e/tests/test_v160.py). Clásico: tarjetas blancas con radio de
+   16 px y sombra suave. Unidad Púrpura: superficie oscura con el mismo radio y una sombra suave (en el Resumen
+   no se dibujan las esquinas cortadas del tema). */
+:root {
+  --card-radius: 16px;
+  --card-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 4px 14px rgba(15, 23, 42, 0.06);
+  --c-tracking: #b91c1c;
+  --c-fp: #6d28d9;
+  --c-own: #1d4ed8;
+  --c-third: #475569;
+  --c-exfil: #c2410c;
+  --c-valid: #15803d;
+  --c-warn: #a16207;
+  --gauge-track: #e2e8f0;
+  --gauge-fill: #1d4ed8;
+  --bar-track: #e2e8f0;
+  --pill-bg: #f1f5f9;
+  --pill-line: #cbd5e1;
+}
+html[data-theme="purple"] {
+  --card-radius: 16px;
+  --card-shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 6px 18px rgba(0, 0, 0, 0.35);
+  --c-tracking: #ff6b7d;
+  --c-fp: #c4a1ff;
+  --c-own: #6cc4ff;
+  --c-third: #b4adc6;
+  --c-exfil: #ff9a4a;
+  --c-valid: #7cff4f;
+  --c-warn: #ffe08a;
+  --gauge-track: #2a1a45;
+  --gauge-fill: #7cff4f;
+  --bar-track: #2a1a45;
+  --pill-bg: #1e1036;
+  --pill-line: #6b2fb3;
+}
+.summary { max-width: 1200px; }
+.summary .card { border-radius: var(--card-radius); box-shadow: var(--card-shadow); text-align: left; min-width: 0; }
+.section-title { font-family: var(--font-body); font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0 0 0.5rem; }
+html[data-theme="purple"] .section-title { font-family: var(--font-display); font-size: 0.95rem; }
+.bento { display: grid; gap: 1rem; grid-template-columns: minmax(0, 1fr); align-items: start; }
+@media (min-width: 1024px) { .bento { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 1fr); } }
+.duo { display: grid; gap: 1rem; grid-template-columns: minmax(0, 1fr); align-items: start; }
+@media (min-width: 1024px) { .duo { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.stats { display: grid; gap: 0.75rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 768px) { .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+/* Línea de color por tipo de cifra (y la misma variable para íconos y barras). */
+[data-kind="tracking"] { --kind: var(--c-tracking); }
+[data-kind="fp"] { --kind: var(--c-fp); }
+[data-kind="own"] { --kind: var(--c-own); }
+[data-kind="third"] { --kind: var(--c-third); }
+[data-kind="exfil"] { --kind: var(--c-exfil); }
+[data-kind="valid"] { --kind: var(--c-valid); }
+[data-kind="warn"] { --kind: var(--c-warn); }
+.summary .vignette.stat { border-radius: var(--card-radius); box-shadow: var(--card-shadow); border-top: 4px solid var(--kind, var(--line)); }
+.kind-ink { color: var(--kind); }
+
+/* Medidor semicircular del índice. */
+.gauge { display: block; width: 100%; max-width: 15rem; height: auto; }
+.gauge-track { stroke: var(--gauge-track); }
+.gauge-fill { stroke: var(--gauge-fill); }
+.gauge-value { fill: var(--ink); font-family: var(--font-display); font-weight: 700; }
+
+/* Barras finas: Evidencia + Inferencia y componentes del índice. */
+.split-bar, .thin-bar { display: flex; width: 100%; overflow: hidden; background: var(--bar-track); border-radius: 999px; }
+.split-bar { height: 0.6rem; }
+.thin-bar { height: 0.35rem; }
+html[data-theme="purple"] .split-bar, html[data-theme="purple"] .thin-bar { border-radius: 0; }
+.split-evidence { background: var(--c-tracking); }
+.split-inference { background: var(--c-fp); }
+.thin-fill { background: var(--gauge-fill); }
+
+/* Pastillas (leyenda del mapa, tipos de dato, validez). */
+.pill { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.15rem 0.6rem; border: 1px solid var(--pill-line); border-radius: 999px; background: var(--pill-bg); color: var(--ink); font-size: 0.8rem; line-height: 1.4; }
+html[data-theme="purple"] .pill { border-radius: 0; }
+.pill-dot { width: 0.6rem; height: 0.6rem; border-radius: 999px; background: var(--kind); flex: none; }
+.validity { font-weight: 700; border-color: var(--kind); color: var(--kind); }
+
+/* Alertas de «Lo más relevante». */
+.alert-row { display: flex; align-items: flex-start; gap: 0.6rem; padding: 0.5rem 0; border-top: 1px solid var(--line); }
+.alert-row:first-child { border-top: 0; }
+.alert-row svg { flex: none; color: var(--kind); margin-top: 0.1rem; }
+
+/* Plegados del final. */
+.fold > summary { cursor: pointer; list-style: revert; }
+.fold > summary .section-title { display: inline; margin: 0; }
+.fold[open] > summary { margin-bottom: 0.75rem; }
+
+html[data-theme="purple"] .summary .card::before, html[data-theme="purple"] .summary .card::after,
+html[data-theme="purple"] .summary .vignette.stat::before, html[data-theme="purple"] .summary .vignette.stat::after { content: none; }
+html[data-theme="purple"] .summary .card .panel { border-radius: calc(var(--card-radius) - 4px); }
+html.presentation .summary .card, html.presentation .summary .vignette.stat { box-shadow: none; }
+html.presentation[data-theme="classic"] { --c-third: #1f2937; --muted: #111827; }
+.gauge-number { font-family: var(--font-display); color: var(--ink); line-height: 1; }
+/* Barras de los gráficos y nodos del mapa: el color de su tipo, igual en los dos temas. */
+.summary [data-kind] .recharts-bar-rectangle path { fill: var(--kind); }
+html[data-theme] .graph-tracker { fill: var(--c-tracking); }
+html[data-theme] .graph-fingerprinting { fill: var(--c-fp); }
+html[data-theme] .graph-firstParty { fill: var(--c-own); }
+html[data-theme] .graph-thirdParty { fill: var(--c-third); }

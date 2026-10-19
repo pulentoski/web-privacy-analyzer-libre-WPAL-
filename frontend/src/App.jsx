@@ -89,7 +89,7 @@ export default function App() {
       <GlossaryContext.Provider value={glossary}>
         <div className="app-root">
           <header className="app-header">
-            <div className="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+            <div className="max-w-[1200px] mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
               <a href="#/" className="brand-link text-lg font-bold display" data-testid="home-link">
                 <Logo size="header" testId="header-logo" />
                 <span>Web Privacy &amp; Tracker Analyzer</span>
@@ -119,7 +119,7 @@ export default function App() {
             {/* Cromo de la aplicación, no contenido: vive en el encabezado y se pinta fijo en la esquina inferior. */}
             {mode === "full" && <ResourceIndicator />}
           </header>
-          <main className="max-w-6xl mx-auto px-4 py-4 app-main">{view}</main>
+          <main className="max-w-[1200px] mx-auto px-4 py-4 app-main">{view}</main>
         </div>
       </GlossaryContext.Provider>
     </ThemeContext.Provider>

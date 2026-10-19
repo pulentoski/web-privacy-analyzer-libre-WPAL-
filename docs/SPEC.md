@@ -667,6 +667,17 @@ hacia quién la envían.
   (irreversible). La api las filtra en el detalle de request, el HAR exportado (también con `include_sensitive=true`) y la
   comparación de visitas. El analizador no las usaba: puntaje y clasificación sin cambios.
 
+## Resumen en bento (v1.6.0, docs/adr/042)
+- Orden: encabezado (dominio, ID, URL final, fecha, validez —Medición válida, Posible variante, Bloqueo parcial, Posible
+  bloqueo o No aplica— con la regla antibot, Exportar) → índice · lo más relevante · condiciones y consentimiento → 8
+  cifras → mapa → 2 gráficos → «Quién recibió más datos» y datos expuestos → plegados. Nada se quita: se reordena o se pliega.
+- «vs scan anterior»: el scan anterior más reciente del mismo sitio (host sin «www.»), del mismo origen y analizado; solo
+  si tiene el mismo `protocol_version`.
+- `GET /api/scans/{id}/overview`: ranking por organización (tercero) por cantidad de tipos de dato recibidos según los
+  hallazgos (identificador, URL, consentimiento, dispositivo, búsqueda) y luego por requests de tracking, con la cookie
+  más larga; calculado al leer, sin cambiar el análisis.
+- Colores con significado por variables CSS, iguales en los dos temas; contraste ≥ 4,5:1.
+
 ## Fases
 F0 spec · F1 infra+aislamiento · F2 captura · F3 análisis+scoring ·
 F4 instrumentación · F5 UI · F6 exposición · F7 escenarios ·
@@ -688,4 +699,5 @@ v1.4.10 linker de Google (_gl), cookie que coincide, aviso de consentimiento y t
 v1.5.0 protocolo de visita fijo, condiciones de la medición y cobertura por contexto auditada (versión 1.5.0) ·
 v1.5.1 detalle de request enmascarado, marca y dueño, subdominios publicitarios y regla concreta de la lista (versión 1.5.1) ·
 v1.5.2 comparación de visitas con perfiles A y B en disco (versión 1.5.2) ·
-v1.5.3 cabeceras del proxy fuera de la captura (versión 1.5.3)
+v1.5.3 cabeceras del proxy fuera de la captura (versión 1.5.3) ·
+v1.6.0 Resumen en bento y «Quién recibió más datos» (versión 1.6.0)

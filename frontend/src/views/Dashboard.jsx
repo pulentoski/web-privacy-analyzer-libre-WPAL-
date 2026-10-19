@@ -4,9 +4,10 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import Graph from "../components/Graph.jsx";
 import { CoverageTable, MeasurementPanel } from "../components/Measurement.jsx";
 import { Term, WhatIsThis } from "../components/Term.jsx";
-import { BandBadge, BlockingBanner, Captured, Empty, ErrorNotice, EvidenceBadge, EvidenceLegend, EvidenceRefs, Info, LimitsNotice, Loading, Panel, PARTIAL_INDEX, Plain, StatCard } from "../components/ui.jsx";
+import { ConsentCard, Fold, HeaderCard, HighlightsCard, IndexCard, PurposeBar, RecipientsCard, STAT_KINDS } from "../components/Summary.jsx";
+import { BlockingBanner, Captured, Empty, ErrorNotice, EvidenceBadge, EvidenceLegend, EvidenceRefs, LimitsNotice, Loading, Panel, PARTIAL_INDEX, Plain, StatCard } from "../components/ui.jsx";
 import { api } from "../lib/api.js";
-import { categoryLabel, COMPONENT_LABELS, entityLabel, formatDate, STATUS_LABELS, truncate } from "../lib/format.js";
+import { categoryLabel, entityLabel, formatDate, STATUS_LABELS, truncate } from "../lib/format.js";
 import { useApi } from "../lib/useApi.js";
 import { ThirdPartyServices } from "./Trackers.jsx";
 
@@ -53,7 +54,7 @@ function Chart({ data, label }) {
           <XAxis type="number" allowDecimals={false} />
           <YAxis type="category" dataKey="name" width={190} tick={{ fontSize: 12 }} />
           <Tooltip />
-          <Bar dataKey="requests" name="Requests" fill="#2563eb" isAnimationActive={false} />
+          <Bar dataKey="requests" name="Requests" fill="#2563eb" radius={[0, 6, 6, 0]} isAnimationActive={false} />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -74,7 +75,8 @@ export function CookiePurposes({ purposes }) {
       subtitle="Propias y de terceros. El propósito se infiere del nombre de la cookie o, si no se conoce, de la organización que la creó."
       info={<><strong>Cookies por propósito</strong>: el nombre de una cookie (por ejemplo _ga o PHPSESSID) o el tipo de servicio de la organización que la creó es compatible con un uso conocido, pero no lo prueba. Las cookies funcionales (sesión, antibot, idioma, carrito) no suman al índice de exposición.</>}>
       <p className="text-sm mb-2"><EvidenceBadge level={purposes.level || "INFERENCIA"} /> {total} {total === 1 ? "cookie" : "cookies"} al terminar la visita.</p>
-      <ul className="flex flex-wrap gap-3 text-sm">
+      <PurposeBar purposes={purposes} keys={keys} />
+      <ul className="flex flex-wrap gap-3 text-sm mt-2">
         {keys.map((key) => (
           <li key={key} data-testid="cookie-purpose" data-purpose={key}>
             <span className="font-semibold">{purposes.by_purpose[key]}</span> {(purposes.labels || {})[key] || key}
@@ -169,21 +171,8 @@ function SiteClientHints({ info }) {
   );
 }
 
-export function ConsentPanel({ consent }) {
-  const info = consent || {};
-  const conclusions = info.conclusions || [];
-  if (conclusions.length === 0 && !info.tcf && !info.consent_mode) return null;
-  // v1.4.10: banner_interaction (un reporte anterior trae user_interaction). No son los clics de la captura interactiva.
-  const pressed = info.banner_interaction ?? info.user_interaction;
-  return (
-    <Panel title="Consentimiento" testId="consent-conclusions">
-      {conclusions.map((item, index) => <Plain key={index} text={item.text} level={item.level} />)}
-      <p className="text-sm" data-testid="banner-interaction">Interacción con el aviso de consentimiento: {pressed ? "sí" : "no"}{" "}
-        <Info label="Interacción con el aviso de consentimiento"><strong>Interacción con el aviso de consentimiento</strong>: si el escenario pulsó un botón del aviso (aceptar o rechazar). No incluye los clics ni los desplazamientos de una captura interactiva.</Info>
-      </p>
-    </Panel>
-  );
-}
+// v1.6.0: el consentimiento se muestra siempre, como tarjeta del Resumen (components/Summary.jsx).
+export const ConsentPanel = ConsentCard;
 
 // v1.4.10: _gl en URLs de navegación y redirección. Presencia, campos decodificados y conclusión se muestran por separado.
 const GL_VIA = { referer: "Referer", redirect: "cadena de redirección", pagina_anterior: "página anterior", url_de_entrada: "URL de entrada del scan" };
@@ -222,9 +211,56 @@ export function SiteLinker({ info }) {
   );
 }
 
+const STATUS_RANK = { observado: 0, inferido: 1, potencial: 2 };
+
+/** Cada categoría: su nivel más alto, una frase y el detalle actual (con sus requests) plegado. */
+function DataExposed({ grouped, jobId }) {
+  return (
+    <section className="panel card p-4" data-testid="data-categories">
+      <h2 className="section-title">Datos expuestos a terceros</h2>
+      <ul className="space-y-3">
+        {grouped.map(([category, items]) => {
+          const best = [...items].sort((a, b) => (STATUS_RANK[a.status] ?? 9) - (STATUS_RANK[b.status] ?? 9))[0];
+          return (
+            <li key={category} data-testid="data-category" data-category={category}>
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="font-semibold">{DATA_LABELS[category]}</h3>
+                {best && (
+                  <span className={`badge inline-block rounded border px-1.5 py-0.5 text-xs font-semibold ${STATUS_CLASS[best.status] || ""}`}>
+                    {STATUS_LABELS[best.status] || best.status}
+                  </span>
+                )}
+              </div>
+              {items.length === 0 ? <Empty>Nada observado ni inferido en este scan.</Empty> : (
+                <>
+                  <p className="text-sm" data-testid="data-category-sentence">{items.length > 1 ? `${items[0].item.replace(/\.\s*$/, "")}; y ${items.length - 1} más.` : items[0].item}</p>
+                  <details className="text-sm mt-1">
+                    <summary className="link cursor-pointer" data-testid="data-category-toggle">Ver detalle y requests</summary>
+                    <ul className="space-y-1 mt-1">
+                      {items.map((item, index) => (
+                        <li key={index}>
+                          <span className={`badge inline-block rounded border px-1.5 py-0.5 text-xs font-semibold mr-2 ${STATUS_CLASS[item.status] || ""}`}>
+                            {STATUS_LABELS[item.status] || item.status}
+                          </span>
+                          {item.item} <EvidenceRefs jobId={jobId} requests={item.evidence_refs} max={5} />
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                </>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 export default function Dashboard({ jobId }) {
   const report = useApi(() => api.report(jobId), `report-${jobId}`);
   const domains = useApi(() => api.domains(jobId), `domains-${jobId}`);
+  const extras = useApi(() => api.overview(jobId), `overview-${jobId}`);
   if (report.loading) return <Loading what="el resumen" />;
   if (report.error) return <ErrorNotice error={report.error} />;
   const data = report.data;
@@ -243,120 +279,105 @@ export default function Dashboard({ jobId }) {
   }));
   const grouped = DATA_ORDER.map((category) => [category, site.data_categories.filter((item) => item.category === category)]);
   const sameOrg = (site.summary.parties || {}).same_org_domains || [];
+  const telemetry = site.summary.first_party_telemetry;
+  // Sin respuesta del endpoint nuevo (p. ej. una api anterior) el Resumen sigue: sin ranking ni «vs scan anterior».
+  const overview = extras.loading ? undefined : extras.error ? null : extras.data;
+  const partialText = data.scan.source === "har_import" ? `${PARTIAL_INDEX.charAt(0).toUpperCase() + PARTIAL_INDEX.slice(1)}: no es comparable con el índice de un scan.` : null;
 
   return (
-    <div className="space-y-4" data-testid="dashboard">
-      <WhatIsThis panel="summary" />
-      <BlockingBanner blocking={site.summary.blocking} />
-      {data.scan.source === "interactive" && <InteractiveTimeline info={data.scan.interactive} />}
-      <div className="flex flex-wrap items-center gap-4">
-        <div className="flex-1 min-w-[16rem]"><Plain text={headline(data.capture, site.summary, data.scan.source)} level="EVIDENCIA" testId="summary-plain" /></div>
-      </div>
-      <ConsentPanel consent={data.consent} />
-      <LimitsNotice limitations={data.limitations}>
-        <CoverageTable coverage={(data.measurement || {}).coverage} />
-      </LimitsNotice>
-      <MeasurementPanel measurement={data.measurement} />
-
-      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-        <div className="panel p-3 col-span-2 lg:row-span-3" data-testid="card-exposure">
-          <div className="muted text-sm">Exposición del sitio (0–99, estimación){" "}
-            <Info label="Exposición del sitio"><strong>Exposición del sitio</strong>: cada fila aporta puntos que se acercan a su tope sin alcanzarlo; el total nunca llega a 100.</Info>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-5xl font-bold" data-testid="exposure-score">{site.exposure_score}</span>
-            <BandBadge band={site.band} />
-          </div>
-          {site.summary.score_by_level && (
-            <p className="text-sm" data-testid="exposure-levels">
-              Evidencia {site.summary.score_by_level.EVIDENCIA} + Inferencia {site.summary.score_by_level.INFERENCIA}{" "}
-              <Info label="Evidencia e inferencia en el índice">Puntos que se sostienen solo con hechos observados (Evidencia) y los que dependen de inferencias, como un patrón compatible con fingerprinting o el puntaje de una request que necesita razones de nivel Inferencia para llegar a la banda de rastreador.</Info>
-            </p>
-          )}
-          {data.scan.source === "har_import" && (
-            <p className="text-sm font-medium" data-testid="exposure-partial">
-              {PARTIAL_INDEX.charAt(0).toUpperCase() + PARTIAL_INDEX.slice(1)}: no es comparable con el índice de un scan.
-            </p>
-          )}
-          <table className="w-full text-sm mt-2">
-            <tbody>
-              {site.breakdown.map((component) => (
-                <tr key={component.component} className="border-t border-slate-200">
-                  <td className="py-0.5 pr-2">{COMPONENT_LABELS[component.component] || component.component}</td>
-                  <td className="pr-2 text-right">{component.count}</td>
-                  <td className="text-right whitespace-nowrap">+{component.points} <span className="muted">de {component.cap}</span>
-                    {component.inference_points > 0 && <span className="muted text-xs" data-testid="component-inference"> (inferencia {component.inference_points})</span>}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+    <div className="summary space-y-4" data-testid="dashboard">
+      {/* a) Encabezado */}
+      <HeaderCard data={data} jobId={jobId} exportHref={api.reportUrl(jobId)}>
+        <div className="mt-3 space-y-2">
+          <WhatIsThis panel="summary" />
+          <BlockingBanner blocking={site.summary.blocking} />
         </div>
-        <StatCard testId="card-trackers" label={<>Conexiones de <Term id="tracker">rastreadores</Term> (requests de tracking)</>} value={site.summary.trackers} hint="Banda Moderado o superior" />
-        <StatCard testId="card-third" label={<>Dominios de <Term id="tercero">terceros</Term></>} value={site.summary.third_party_domains} hint="Ser tercero no implica rastrear" />
-        <StatCard testId="card-orgs" label="Organizaciones" value={organizations} hint="Con requests de tracking y dueño conocido" />
-        <StatCard testId="card-fp" label={<>Scripts con patrón de <Term id="fingerprinting">fingerprinting</Term></>} value={fingerprinting.instrumented ? fpScripts.length : "—"} hint={fingerprinting.instrumented ? "Inferencia, no confirmación" : "Scan sin instrumentación"} />
-        <StatCard testId="card-exfil" label={<><Term id="exfiltracion">Exfiltraciones</Term> observadas</>} value={fingerprinting.instrumented ? fingerprinting.exfiltrations.length : "—"}
+      </HeaderCard>
+      {data.scan.source === "interactive" && <InteractiveTimeline info={data.scan.interactive} />}
+
+      {/* b) Bento: índice · lo más relevante · condiciones y consentimiento */}
+      <div className="bento" data-testid="summary-bento">
+        <IndexCard site={site} source={data.scan.source} overview={overview} partialText={partialText} />
+        <HighlightsCard report={data} fpScripts={fingerprinting.instrumented ? fpScripts.length : 0}>
+          <Plain text={headline(data.capture, site.summary, data.scan.source)} level="EVIDENCIA" testId="summary-plain" />
+        </HighlightsCard>
+        <div className="space-y-4 min-w-0">
+          <MeasurementPanel measurement={data.measurement} />
+          <ConsentCard consent={data.consent} />
+        </div>
+      </div>
+
+      {/* c) Cifras */}
+      <div className="stats" data-testid="summary-stats">
+        <Stat id="card-trackers" label={<>Requests de <Term id="tracker">rastreo</Term></>} value={site.summary.trackers} hint="Banda Moderado o superior" />
+        <Stat id="card-orgs" label="Organizaciones con rastreo" value={organizations} hint="Con requests de tracking y dueño conocido" />
+        <Stat id="card-leaks" label="Fugas de URL" value={urlLeaks.length} hint="La URL de la página llegó a un tercero" />
+        <Stat id="card-exfil" label={<><Term id="exfiltracion">Exfiltraciones</Term> observadas</>} value={fingerprinting.instrumented ? fingerprinting.exfiltrations.length : "—"}
           hint={fingerprinting.instrumented
             ? `Pares «valor leído → destino». Corresponden a ${exfilApis} API(s) distinta(s), que es lo que cuenta el desglose. 0 no significa que no salgan datos.`
             : "Scan sin instrumentación"} />
-        <StatCard testId="card-leaks" label="Fugas de URL" value={urlLeaks.length} hint="La URL de la página llegó a un tercero" />
-        {site.summary.first_party_telemetry && (
-          <StatCard testId="card-telemetry" label="Telemetría propia (requests de eventos)" value={site.summary.first_party_telemetry.requests}
-            hint={`Al propio sitio o a su misma organización; no son terceros. ${site.summary.first_party_telemetry.scripts} script(s) de analítica propia`} />
-        )}
-        <StatCard testId="card-same-org" label="Dominios de la misma organización" value={sameOrg.length} hint="Otro dominio del mismo dueño; no son terceros" />
+        <Stat id="card-fp" label={<>Scripts con <Term id="fingerprinting">fingerprinting</Term></>} value={fingerprinting.instrumented ? fpScripts.length : "—"} hint={fingerprinting.instrumented ? "Inferencia, no confirmación" : "Scan sin instrumentación"} />
+        <Stat id="card-third" label={<>Dominios de <Term id="tercero">terceros</Term></>} value={site.summary.third_party_domains} hint="Ser tercero no implica rastrear" />
+        <Stat id="card-telemetry" label="Telemetría propia (requests de eventos)" value={telemetry ? telemetry.requests : "—"}
+          hint={telemetry ? `Al propio sitio o a su misma organización; no son terceros. ${telemetry.scripts} script(s) de analítica propia` : "Análisis anterior a v1.3.4: no disponible"} />
+        <Stat id="card-same-org" label="Dominios de la misma organización" value={sameOrg.length} hint="Otro dominio del mismo dueño; no son terceros" />
         {data.scan.source === "har_import" && (
-          <StatCard testId="card-blocked-client" label="Bloqueadas por una extensión del navegador" value={data.capture.blocked_by_client}
+          <Stat id="card-blocked-client" label="Bloqueadas por una extensión del navegador" value={data.capture.blocked_by_client}
             hint="Requests que el navegador del usuario canceló (net::ERR_BLOCKED_BY_CLIENT); se cuentan aparte" />
         )}
       </div>
-      <ThirdPartyServices services={site.summary.third_party_services} compact />
-      <SiteClientHints info={site.summary.client_hints} />
-      <SiteLinker info={site.summary.linker} />
-      <CookiePurposes purposes={site.summary.cookie_purposes} />
-      {sameOrg.length > 0 && (
-        <Panel title="Recursos de la misma organización (no son terceros)" testId="same-org">
-          <p className="text-sm muted">Dominios de otra dirección pero del mismo dueño que el sitio, según el mapa de entidades. No cuentan como terceros ni entran en el índice de exposición.</p>
-          <ul className="mt-1 flex flex-wrap gap-2">
-            {sameOrg.map((domain) => <li key={domain} className="captured text-xs">{domain}</li>)}
-          </ul>
-        </Panel>
-      )}
 
-      <Panel title="Niveles de evidencia"><EvidenceLegend /></Panel>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Panel title="Requests por categoría" testId="chart-category"><Chart data={byCategory} label="Requests por categoría" /></Panel>
-        <Panel title="Requests de tracking por organización" testId="chart-org"><Chart data={byOrganization} label="Requests de tracking por organización" /></Panel>
-      </div>
-
-      <Panel title="Relaciones: sitio → categorías → organizaciones → dominios">
+      {/* d) Mapa de relaciones */}
+      <section className="panel card p-4" data-testid="relations">
+        <h2 className="section-title">Relaciones: sitio → categorías → organizaciones → dominios</h2>
         {domains.loading ? <Loading what="el grafo" /> : domains.error ? <ErrorNotice error={domains.error} /> : (
           <Graph domains={domains.data.domains} siteLabel={siteHost(data.scan.url)} />
         )}
-      </Panel>
+      </section>
 
-      <Panel title="Categorías de datos expuestos a terceros" testId="data-categories">
-        <div className="space-y-2">
-          {grouped.map(([category, items]) => (
-            <div key={category}>
-              <h3 className="font-semibold">{DATA_LABELS[category]}</h3>
-              {items.length === 0 ? <Empty>Nada observado ni inferido en este scan.</Empty> : (
-                <ul className="space-y-1">
-                  {items.map((item, index) => (
-                    <li key={index} className="text-sm">
-                      <span className={`badge inline-block rounded border px-1.5 py-0.5 text-xs font-semibold mr-2 ${STATUS_CLASS[item.status] || ""}`}>
-                        {STATUS_LABELS[item.status] || item.status}
-                      </span>
-                      {item.item} <EvidenceRefs jobId={jobId} requests={item.evidence_refs} max={5} />
-                    </li>
-                  ))}
+      {/* e) Gráficos */}
+      <div className="duo">
+        <section className="panel card p-4" data-testid="chart-category" data-kind="own">
+          <h2 className="section-title">Requests por categoría</h2><Chart data={byCategory} label="Requests por categoría" />
+        </section>
+        <section className="panel card p-4" data-testid="chart-org" data-kind="tracking">
+          <h2 className="section-title">Requests de tracking por organización</h2><Chart data={byOrganization} label="Requests de tracking por organización" />
+        </section>
+      </div>
+
+      {/* f) Quién recibió más datos · datos expuestos */}
+      <div className="duo">
+        <RecipientsCard overview={overview} jobId={jobId} />
+        <DataExposed grouped={grouped} jobId={jobId} />
+      </div>
+
+      {/* g) Plegados */}
+      <Fold id="cookies" title="Cookies por propósito"><CookiePurposes purposes={site.summary.cookie_purposes} /></Fold>
+      <Fold id="services" title="Servicios de terceros sin señales de rastreo"><ThirdPartyServices services={site.summary.third_party_services} compact /></Fold>
+      <Fold id="levels" title="Niveles de evidencia"><EvidenceLegend /></Fold>
+      {(site.summary.client_hints || site.summary.linker || sameOrg.length > 0) && (
+        <Fold id="more" title="Client Hints, linker de Google y dominios de la misma organización">
+          <div className="space-y-4">
+            <SiteClientHints info={site.summary.client_hints} />
+            <SiteLinker info={site.summary.linker} />
+            {sameOrg.length > 0 && (
+              <Panel title="Recursos de la misma organización (no son terceros)" testId="same-org">
+                <p className="text-sm muted">Dominios de otra dirección pero del mismo dueño que el sitio, según el mapa de entidades. No cuentan como terceros ni entran en el índice de exposición.</p>
+                <ul className="mt-1 flex flex-wrap gap-2">
+                  {sameOrg.map((domain) => <li key={domain} className="captured text-xs">{domain}</li>)}
                 </ul>
-              )}
-            </div>
-          ))}
-        </div>
-      </Panel>
+              </Panel>
+            )}
+          </div>
+        </Fold>
+      )}
+      <LimitsNotice limitations={data.limitations}>
+        <CoverageTable coverage={(data.measurement || {}).coverage} />
+      </LimitsNotice>
     </div>
   );
+}
+
+function Stat({ id, ...props }) {
+  return <StatCard testId={id} kind={STAT_KINDS[id]} {...props} />;
 }

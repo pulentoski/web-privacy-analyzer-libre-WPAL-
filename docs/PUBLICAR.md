@@ -15,11 +15,11 @@ automáticamente; cada `push` lo ejecuta usted. Reemplace `pulentoski` por su us
 # Crear el repositorio vacío en https://github.com/new  (sin README/LICENSE: ya existen)
 git remote add origin https://github.com/pulentoski/web-privacy-analyzer-libre-WPAL-.git
 git push -u origin main
-git push origin v1.5.3           # el tag
+git push origin v1.6.0           # el tag
 ```
 
 Opcional, release con el .zip: en GitHub → *Releases* → *Draft a new release* → elija el tag
-`v1.5.3`, adjunte `web-privacy-analyzer-libre-v1.5.3.zip` y publique.
+`v1.6.0`, adjunte `web-privacy-analyzer-libre-v1.6.0.zip` y publique.
 
 ## 2. Imágenes Docker
 
@@ -29,7 +29,7 @@ Opcional, release con el .zip: en GitHub → *Releases* → *Draft a new release
 ./scripts/release-images.sh
 ```
 
-Produce `pulentoski/wpa-<servicio>:1.5.3` y `:latest` para `db`, `api`, `worker`, `egress-proxy` y
+Produce `pulentoski/wpa-<servicio>:1.6.0` y `:latest` para `db`, `api`, `worker`, `egress-proxy` y
 `frontend`.
 
 ### 2.2 Verificar que las imágenes no llevan secretos ni datos
@@ -38,7 +38,7 @@ Produce `pulentoski/wpa-<servicio>:1.5.3` y `:latest` para `db`, `api`, `worker`
 # No debe aparecer .env, data/ descargado, docs/samples ni backups dentro de la imagen:
 for s in db api worker egress-proxy frontend; do
   echo "== $s =="
-  docker run --rm --entrypoint sh "pulentoski/wpa-$s:1.5.3" -c \
+  docker run --rm --entrypoint sh "pulentoski/wpa-$s:1.6.0" -c \
     'find / -maxdepth 6 \( -name ".env" -o -name "*.mmdb" -o -path "*docs/samples*" \) 2>/dev/null | head'
 done
 ```
@@ -51,7 +51,7 @@ están dentro de las imágenes.)
 ```sh
 docker login                                   # usuario de Docker Hub
 for s in db api worker egress-proxy frontend; do
-  docker push "pulentoski/wpa-$s:1.5.3"
+  docker push "pulentoski/wpa-$s:1.6.0"
   docker push "pulentoski/wpa-$s:latest"
 done
 ```
@@ -61,8 +61,8 @@ done
 ```sh
 echo "$GHCR_TOKEN" | docker login ghcr.io -u pulentoski --password-stdin   # token con write:packages
 for s in db api worker egress-proxy frontend; do
-  docker tag "pulentoski/wpa-$s:1.5.3" "ghcr.io/pulentoski/wpa-$s:1.5.3"
-  docker push "ghcr.io/pulentoski/wpa-$s:1.5.3"
+  docker tag "pulentoski/wpa-$s:1.6.0" "ghcr.io/pulentoski/wpa-$s:1.6.0"
+  docker push "ghcr.io/pulentoski/wpa-$s:1.6.0"
 done
 ```
 

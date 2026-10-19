@@ -5,7 +5,7 @@ from fastapi import FastAPI, Request
 
 from app.errors import register_error_handlers
 from app.version import APP_VERSION
-from app.routes import analysis, comparisons, exposure, har, health, history, interactive, panel, privacy, reports, resources, scans
+from app.routes import analysis, comparisons, exposure, har, health, history, interactive, overview, panel, privacy, reports, resources, scans
 
 logger = logging.getLogger("app.access")
 
@@ -23,6 +23,7 @@ register_error_handlers(app)
 app.include_router(health.router)
 app.include_router(scans.router)
 app.include_router(analysis.router)
+app.include_router(overview.router)
 app.include_router(exposure.router)
 app.include_router(privacy.router)
 app.include_router(comparisons.router)

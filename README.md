@@ -10,7 +10,7 @@ con qué métodos y hacia quién la envían.
 </p>
 
 <p align="center">
-  <em>Versión 1.5.3 · beta · herramienta de investigación · se ejecuta solo en <code>127.0.0.1</code></em>
+  <em>Versión 1.6.0 · beta · herramienta de investigación · se ejecuta solo en <code>127.0.0.1</code></em>
 </p>
 
 <p align="center">
@@ -231,10 +231,14 @@ enviados, ranking por índice de exposición y la tarjeta «Mi exposición».
 **Historial** — scans y grupos guardados, con filtros por fecha, sitio y estado.
 ![Historial](docs/images/historial.png)
 
-**Resumen del scan** — índice de exposición (0–99) con su desglose, terceros, organizaciones,
-exfiltraciones y fugas de URL.
-![Resumen del scan, parte 1](docs/images/resumen-1.png)
-![Resumen del scan, parte 2](docs/images/resumen-2.png)
+**Resumen del scan** (bento, v1.6.0) — encabezado con la validez de la medición; índice de exposición (0–99) con
+medidor, «Evidencia + Inferencia», cambio frente al scan anterior del mismo protocolo y su desglose plegado; lo más
+relevante; condiciones y consentimiento; 8 cifras; mapa de relaciones y gráficos; **Quién recibió más datos**
+(`GET /api/scans/{id}/overview`); datos expuestos y plegados al final.
+
+| Clásico | Unidad Púrpura |
+|---|---|
+| ![Resumen, tema Clásico](docs/images/resumen-clasico.png) | ![Resumen, tema Unidad Púrpura](docs/images/resumen-unidad-purpura.png) |
 
 **Hallazgos** — ocho grupos técnicos con su nivel y conteo; debajo, la lista técnica completa.
 ![Hallazgos por grupo](docs/images/hallazgos.png)

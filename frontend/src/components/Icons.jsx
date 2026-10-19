@@ -28,6 +28,10 @@ const PATHS = {
   user: <><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" /></>,
   repeat: <><path d="M4 9a6 6 0 016-6h8M15 0l3 3-3 3" transform="translate(0 3)" /><path d="M20 12a6 6 0 01-6 6H6M9 21l-3-3 3-3" /></>,
   book: <><path d="M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2V5z" /><path d="M8 7h7M8 11h7" /></>,
+  // v1.6.0: alertas del Resumen (consentimiento, sincronización y rastreo del lado del servidor).
+  shield: <><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6l8-3z" /><path d="M12 8v5M12 16v.3" /></>,
+  link: <><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1" /><path d="M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1" /></>,
+  server: <><rect x="4" y="4" width="16" height="6" rx="1.5" /><rect x="4" y="14" width="16" height="6" rx="1.5" /><path d="M8 7h.01M8 17h.01M12 10v4" /></>,
 };
 
 export const ICON_NAMES = Object.keys(PATHS);

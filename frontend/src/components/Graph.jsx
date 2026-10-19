@@ -58,9 +58,9 @@ export default function Graph({ domains, siteLabel }) {
 
   return (
     <div data-testid="graph">
-      <ul className="flex flex-wrap gap-4 text-sm mb-2" aria-label="Leyenda del grafo">
+      <ul className="flex flex-wrap gap-2 text-sm mb-2" aria-label="Leyenda del grafo">
         {[["firstParty", "Propio del sitio"], ["thirdParty", "Tercero"], ["tracker", "Con requests de tracking"], ["fingerprinting", "Con patrón de fingerprinting"]].map(([kind, label]) => (
-          <li key={kind} className="flex items-center gap-1">
+          <li key={kind} className="pill" data-testid="graph-legend-item">
             <svg width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="6" fill={COLORS[kind]} className={`graph-${kind}`} /></svg>
             {label}
           </li>

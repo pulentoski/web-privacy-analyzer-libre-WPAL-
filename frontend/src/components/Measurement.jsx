@@ -1,6 +1,6 @@
 // Condiciones de la medición, protocolo de visita y cobertura por contexto (v1.5.0, docs/adr/038).
 // Todo viene del reporte (sección `measurement`); los textos de motivos ya llegan redactados desde la api.
-import { Captured, Panel } from "./ui.jsx";
+import { Captured, Info } from "./ui.jsx";
 import { formatDate } from "../lib/format.js";
 
 const MODE_LABELS = { headful: "con ventana (headful)", headless: "headless", no_aplica: "no aplica", no_disponible: "no disponible" };
@@ -21,26 +21,44 @@ export function countryText(country) {
   return `${country.country} (${country.country_code})${country.source ? ` · ${country.source}` : ""}`;
 }
 
+/** Abre «Límites de la medición» (plegado al final del Resumen) y lleva la vista hasta él. */
+function openLimits() {
+  const limits = document.querySelector("[data-testid=limits-notice]");
+  if (!limits) return;
+  limits.open = true;
+  limits.scrollIntoView({ block: "start" });
+}
+
 export function MeasurementPanel({ measurement }) {
   if (!measurement) return null;
   const conditions = measurement.conditions || {};
   const browser = conditions.browser || {};
   const protocol = measurement.visit_protocol || {};
+  const stages = protocol.stages || [];
+  // v1.6.0: tarjeta compacta del Resumen; el protocolo con sus etapas y los envíos del cierre van plegados.
   return (
-    <Panel title="Condiciones de la medición" subtitle="Navegador, modo, fecha, versiones, país de la IP de salida y protocolo de visita." testId="measurement"
-      info={<>El país sale de la IP de salida del analizador (consultada una vez por scan a través del egress-proxy y geolocalizada con DB-IP Lite; la IP no se guarda). Nunca se deduce del idioma ni de la zona horaria del navegador.</>}>
-      <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-sm" data-testid="measurement-conditions">
+    <section className="panel card p-4" data-testid="measurement">
+      <h2 className="section-title">Condiciones de la medición{" "}
+        <Info label="Condiciones de la medición">El país sale de la IP de salida del analizador (consultada una vez por scan a través del egress-proxy y geolocalizada con DB-IP Lite; la IP no se guarda). Nunca se deduce del idioma ni de la zona horaria del navegador.</Info>
+      </h2>
+      <dl className="grid grid-cols-1 gap-y-1 text-sm" data-testid="measurement-conditions">
         <div><dt className="muted">Navegador</dt><dd data-testid="measurement-browser">{[browser.name, value(browser.version)].filter(Boolean).join(" ")}</dd></div>
         <div><dt className="muted">Modo</dt><dd data-testid="measurement-mode">{MODE_LABELS[conditions.browser_mode] || value(conditions.browser_mode)}</dd></div>
         <div><dt className="muted">Fecha y hora de la visita</dt><dd>{conditions.measured_at && conditions.measured_at !== "no_disponible" ? formatDate(conditions.measured_at) : "no disponible"}</dd></div>
         <div><dt className="muted">País de la IP de salida</dt><dd data-testid="measurement-country">{countryText(conditions.egress_country)}</dd></div>
         <div><dt className="muted">Analizador</dt><dd className="captured">{value(conditions.analyzer_version)}</dd></div>
         <div><dt className="muted">Listas</dt><dd className="captured">{value(conditions.lists_version)}{(conditions.lists || []).length > 0 && ` (${conditions.lists.map((item) => `${item.id} ${value(item.version)}`).join(", ")})`}</dd></div>
+        <div><dt className="muted">Protocolo y etapas completadas</dt><dd data-testid="measurement-protocol">{protocol.applies
+          ? `Protocolo ${protocol.protocol_version} · ${stages.filter((stage) => stage.completed).length} de ${stages.length} etapas`
+          : "sin protocolo de visita"}</dd></div>
       </dl>
+      <button type="button" className="link text-sm mt-2" onClick={openLimits} data-testid="measurement-limits-link">Límites de la medición</button>
+      <details className="mt-2" data-testid="visit-protocol-fold">
+      <summary className="cursor-pointer text-sm font-semibold">Protocolo de visita y envíos del cierre</summary>
       <div className="mt-3" data-testid="visit-protocol" data-protocol={protocol.protocol_version ?? "ninguno"}>
         <h3 className="font-semibold">{protocol.applies ? `Protocolo de visita ${protocol.protocol_version}` : "Protocolo de visita"}</h3>
         {!protocol.applies ? <p className="text-sm" data-testid="visit-protocol-note">{protocol.note}</p> : (
-          <table className="text-sm w-full">
+          <div className="overflow-x-auto"><table className="text-sm w-full">
             <thead><tr className="text-left"><th className="pr-3">Etapa</th><th className="pr-3">Previsto</th><th className="pr-3">Completada</th><th className="pr-3">Inicio</th><th className="pr-3">Requests</th><th>Motivo</th></tr></thead>
             <tbody>
               {(protocol.stages || []).map((stage) => (
@@ -54,7 +72,7 @@ export function MeasurementPanel({ measurement }) {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
         {protocol.applies && (
           <div className="text-sm mt-2" data-testid="closing-sends">
@@ -69,7 +87,8 @@ export function MeasurementPanel({ measurement }) {
         )}
         <p className="muted text-xs mt-1" data-testid="closing-notice">{protocol.closing_notice}</p>
       </div>
-    </Panel>
+      </details>
+    </section>
   );
 }
 
