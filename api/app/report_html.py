@@ -11,6 +11,9 @@ import html
 from datetime import datetime, timezone
 import pathlib
 from dataclasses import dataclass
+from urllib.parse import urlsplit
+
+from app import brands
 
 UNKNOWN = "no_disponible"
 # request_analysis.party → etiqueta. «Tercero» es siempre otra organización.
@@ -110,6 +113,14 @@ def e(value) -> str:
     if value is None:
         return UNKNOWN
     return html.escape(str(value), quote=True)
+
+
+def _host(url) -> str | None:
+    """Host de una URL (también enmascarada: el host se conserva siempre)."""
+    try:
+        return urlsplit(url).hostname if isinstance(url, str) else None
+    except ValueError:
+        return None
 
 
 def when(value) -> str:
@@ -887,7 +898,7 @@ def render_scan_report(report: dict, sha256: str, brand: Brand | None = None) ->
              "organización (p. ej. su CDN) no cuentan como terceros; se indican aparte, más abajo. El "
              "«giro» describe a qué se dedica normalmente el servicio (contexto, no evidencia del uso concreto).</p>")
     body += table(["Organización", "Giro (contexto)", "Dominios", "Requests", "Banda máxima", "Categorías", "Referencias de evidencia"], [
-        [e(group.get("entity")), e(group.get("service_label") or "tipo no identificado"),
+        [e(brands.group_label(group.get("entity"), group.get("domains") or [])), e(group.get("service_label") or "tipo no identificado"),
          "<br>".join(f'<span class="mono">{e(domain)}</span>' for domain in group.get("domains") or []), e(group.get("request_count")),
          f'{e(group.get("max_band"))} ({e(group.get("max_score"))})', e(", ".join(group.get("categories") or [])),
          refs([request.get("request_id") for request in group.get("requests") or []])]
@@ -898,7 +909,7 @@ def render_scan_report(report: dict, sha256: str, brand: Brand | None = None) ->
     body += _telemetry_section(report)
 
     tracker_requests = [
-        [f'#{e(request.get("request_id"))}', e(group.get("entity")), f'<span class="mono">{e(request.get("url"))}</span>',
+        [f'#{e(request.get("request_id"))}', e(brands.label(group.get("entity"), _host(request.get("url")))), f'<span class="mono">{e(request.get("url"))}</span>',
          f'{e(request.get("band"))} ({e(request.get("score"))})', e(request.get("mechanism")), e(request.get("category"))]
         for group in report.get("trackers") or [] for request in group.get("requests") or []
     ]
@@ -920,7 +931,7 @@ def render_scan_report(report: dict, sha256: str, brand: Brand | None = None) ->
         addresses, networks, countries = _ip_cell(domain)
         domain_rows.append([
             f'<span class="mono">{e(domain.get("domain"))}</span>', PARTY_LABELS.get(domain.get("party")) or ("tercero" if domain.get("third_party") else "propio"), e(domain.get("requests")),
-            e(domain.get("entity")) + (" <strong>(difiere de la red)</strong>" if domain.get("sources_differ") else ""), addresses, networks, countries,
+            e(brands.label(domain.get("entity"), domain.get("domain"))) + (" <strong>(difiere de la red)</strong>" if domain.get("sources_differ") else ""), addresses, networks, countries,
         ])
     body += table(["Dominio", "Tipo", "Requests", "Dueño del dominio", "IP observada", "Red de la IP (ASN)", "País de la IP"], domain_rows)
     body += '<p class="small">«Dueño del dominio» y «red de la IP» vienen de fuentes distintas y no se arbitran: cuando difieren, se muestran ambas.</p>'

@@ -606,6 +606,32 @@ hacia quién la envían.
 - Puntaje y clasificación sin cambios (analizador 1.17.0). Con el scroll y el cierre se capturan más requests, así que el
   índice de un sitio puede variar respecto de un scan anterior a v1.5.0 aunque las reglas sean las mismas.
 
+## Detalle de request enmascarado, marca y dueño, subdominios publicitarios (v1.5.1, docs/adr/039)
+- Detalle de request: con «Mostrar identificadores completos» desactivado (por defecto, y de nuevo al pasar a otra request)
+  la api enmascara (`GET /api/scans/{id}/requests/{rid}`; `?reveal=true` = valores completos; campo `masked`) la URL, el
+  origen, el iniciador, la tabla de parámetros, las cookies recibidas y enviadas, las cabeceras, la cadena de redirección,
+  las decodificaciones y el cuerpo. URLs: como el reporte (`mask_url`). Valores libres (`mask_identifiers`): URLs citadas,
+  correos y cada tramo con forma de identificador (UUID, hexadecimal, 9 o más cifras, token mixto); lo legible no cambia.
+  Un parámetro que el análisis marcó `identifier_like` se enmascara entero. El HTML/PDF exportado no cambia de contenido
+  (no lleva el detalle de request; sus URLs ya se enmascaraban).
+- Organización: «Marca (Dueño)» cuando difieren («LinkedIn (Microsoft)»; `data/brands.yaml`). Solo presentación: la
+  organización que agrupa, decide «misma organización» y entra en el análisis sigue siendo el dueño. La marca se muestra
+  solo si el dueño resuelto es exactamente el declarado. La api añade `brand` en requests, detalle, saltos de redirección,
+  rastreadores (si todo el grupo es de la misma marca) y dominios; el HTML/PDF la muestra en rastreadores y destinos. El
+  JSON del reporte no cambia (schema 1.11.0).
+- Categoría por subdominio (`data/host_categories.yaml`): una etiqueta del host a la izquierda del dominio registrable igual
+  a `ads`, `adservice`, `adserver` o `adsystem` → Publicidad (px.ads.linkedin.com, aunque linkedin.com sea «social»). Gana
+  sobre `domain_categories.yaml` y la lista; nunca en requests del propio sitio. INFERENCIA. La categoría se decide después
+  del puntaje: score, banda e índice no cambian.
+- Regla de lista: se informa la regla concreta que coincidió (motor de adblock-rust sin optimizar), no el bloque de reglas
+  unidas por « <+> ». Las coincidencias son las mismas. Analizador 1.18.0: los análisis anteriores muestran el bloque hasta
+  reanalizar.
+- Título de la página: `document.title` (scan y captura interactiva), no `page.title()`, que durante una navegación devuelve
+  el título provisional de la pestaña de Chromium («Loading <URL>»). Si no se puede leer al detener una captura interactiva,
+  el último título registrado al cargar esa misma URL; si no hay, vacío.
+- Captura interactiva: el volcado trabaja sobre una copia fija de las requests; las que llegan mientras se construye quedan
+  para el siguiente (en 1.5.0 podía fallar con `KeyError` si la pestaña seguía generando tráfico al terminar).
+
 ## Fases
 F0 spec · F1 infra+aislamiento · F2 captura · F3 análisis+scoring ·
 F4 instrumentación · F5 UI · F6 exposición · F7 escenarios ·
@@ -624,4 +650,5 @@ v1.4.7 fugas hacia un CDN con su receptor real y cookies por la organización (v
 v1.4.8 navegación con ACCEPT_CH, scans fallidos y parciales, alerta antibot con señal dura, bandas y reglas corregidas, WebRTC (versión 1.4.8) ·
 v1.4.9 Client Hints (solicitud, envío y delegación), cadena de redirección y puntaje por nivel (versión 1.4.9) ·
 v1.4.10 linker de Google (_gl), cookie que coincide, aviso de consentimiento y tabla del índice verificada (versión 1.4.10) ·
-v1.5.0 protocolo de visita fijo, condiciones de la medición y cobertura por contexto auditada (versión 1.5.0)
+v1.5.0 protocolo de visita fijo, condiciones de la medición y cobertura por contexto auditada (versión 1.5.0) ·
+v1.5.1 detalle de request enmascarado, marca y dueño, subdominios publicitarios y regla concreta de la lista (versión 1.5.1)

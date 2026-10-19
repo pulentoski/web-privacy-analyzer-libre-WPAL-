@@ -52,6 +52,18 @@ class AnalyzerConfig:
     cookie_purposes: CookiePurposes = field(default_factory=CookiePurposes)
     # v1.4.9: Client Hints (data/client_hints.yaml): solicitud, envío y delegación.
     client_hints: ClientHintsRules = field(default_factory=ClientHintsRules)
+    # v1.5.1: categoría por etiqueta de subdominio (data/host_categories.yaml): px.ads.linkedin.com → advertising.
+    host_label_categories: dict = field(default_factory=dict)
+
+    def host_category(self, host: str | None, registrable_domain: str | None) -> str | None:
+        """Categoría por una etiqueta del host a la izquierda del dominio registrable, o None."""
+        host, domain = (host or "").lower().rstrip("."), (registrable_domain or "").lower()
+        if not domain or not host.endswith("." + domain):
+            return None
+        for label in host[: -len(domain) - 1].split("."):
+            if label in self.host_label_categories:
+                return self.host_label_categories[label]
+        return None
 
     @property
     def bands(self) -> list[dict]:
@@ -91,6 +103,12 @@ def load_config(data_dir: str | pathlib.Path, *, allow_fixtures: bool = False, l
         for category, domains in read("domain_categories.yaml").items()
         for domain in domains or []
     }
+    host_label_categories = {}
+    for category, rule in read("host_categories.yaml").items():
+        if not isinstance(rule, dict) or not isinstance(rule.get("labels"), list):
+            raise ValueError(f"host_categories.yaml: {category!r} sin lista de labels")
+        for label in rule["labels"]:
+            host_label_categories[str(label).lower()] = category
     consent = read("consent_mode.yaml")
     google = set(consent.get("google_domains") or [])
     if allow_fixtures:
@@ -125,4 +143,5 @@ def load_config(data_dir: str | pathlib.Path, *, allow_fixtures: bool = False, l
         public_cdns=PublicCdns(read("organizations.yaml").get("public_cdns"), benign),
         cookie_purposes=CookiePurposes(read("cookie_purposes.yaml")),
         client_hints=ClientHintsRules(read("client_hints.yaml")),
+        host_label_categories=host_label_categories,
     )

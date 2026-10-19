@@ -1,0 +1,11 @@
+# Categoría por subdominio (v1.5.1). Gana sobre domain_categories.yaml y sobre la categoría por lista.
+#
+# Una organización de redes sociales (p. ej. linkedin.com) también sirve publicidad desde subdominios propios
+# (px.ads.linkedin.com): la categoría del dominio registrable («social») no describe esa request. Se aplica solo a
+# requests de otra organización o de la misma organización (nunca a las del propio sitio). Produce INFERENCIA, como
+# toda categoría: el nombre del host no dice qué hizo la request.
+#
+# `labels`: una etiqueta del host, a la izquierda del dominio registrable, igual a una de estas
+# (px.ads.linkedin.com → «px», «ads»; «ads» coincide). Solo etiquetas completas: «adsense» o «loads» no coinciden.
+advertising:
+  labels: [ads, adservice, adserver, adsystem]

@@ -60,6 +60,19 @@ PAGE_META_JS = """() => {
 }"""
 
 
+async def page_title(page) -> str | None:
+    """Título del documento (`document.title`), o None si no se pudo leer (v1.5.1).
+
+    No se usa page.title(): mientras el documento carga, Chromium devuelve ahí el título provisional de la pestaña
+    («Loading <URL>»), que no es un dato del sitio. `document.title` es el del documento, también en un scan parcial con
+    la carga sin terminar. Como todo dato del sitio, se sanea (clean_text).
+    """
+    try:
+        return clean_text(await asyncio.wait_for(page.evaluate("() => document.title"), 5), MAX_TITLE_CHARS)
+    except (PlaywrightError, asyncio.TimeoutError):
+        return None
+
+
 async def page_meta(page) -> dict:
     """Meta description y keywords de la página, como texto acotado. None si falta o no se pudo leer. Nunca lanza."""
     try:
@@ -276,13 +289,10 @@ async def _run_scan(url, timeout_s, max_requests, max_body_bytes, idle_s, fp_ins
             tcf = await tcf_info(page) if open_page and partial is None else None
             result = None
             if error is None:
-                try:
-                    title = await asyncio.wait_for(page.title(), 5)
-                except (PlaywrightError, asyncio.TimeoutError):
-                    title = ""
+                title = await page_title(page) if open_page else None
                 result = {
                     "http_status": response.status if response is not None else monitor.document_status(),
-                    "title": clean_text(title, MAX_TITLE_CHARS),
+                    "title": title or "",
                     # Parcial sin commit: la pestaña sigue en about:blank; la dirección visitada es la pedida.
                     "final_url": clean_text(url if page.url == "about:blank" else page.url, MAX_URL_CHARS),
                 }

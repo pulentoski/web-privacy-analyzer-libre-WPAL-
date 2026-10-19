@@ -26,7 +26,7 @@ from app.destinations import build_destinations
 from app.errors import AppError
 from app.explain import explanations, glossary
 from app.failures import failure, partial_navigation
-from app import measurement
+from app import brands, measurement
 from app.models import RequestAnalysis, ScanRequest
 from app.bands import BANDS, TRACKER_BANDS
 from app.routes.scans import _get_job, _summary
@@ -574,6 +574,7 @@ async def get_domains(job_id: uuid.UUID, session: AsyncSession = Depends(get_ses
                 "party": "third_party" if row["third_party"] else "same_org" if row["same_org"] else "first_party",
                 "requests": row["requests"],
                 "max_score": row["max_score"], "category": row["category"], "entity": row["entity"] or UNKNOWN,
+                "brand": brands.brand(row["entity"], row["domain"]),
                 "tracker_requests": row["tracker_requests"], "tracker": row["tracker_requests"] > 0,
                 "fingerprinting": bool(row["fingerprinting"]),
             }
@@ -591,7 +592,8 @@ async def get_trackers(job_id: uuid.UUID, session: AsyncSession = Depends(get_se
         "analysis_status": job.analysis_status,
         "min_band": TRACKER_BANDS[0],
         "tracker_requests": sum(group["request_count"] for group in groups),
-        "entities": groups,
+        # v1.5.1: marca del grupo si todos sus dominios son de la misma marca (fuera del reporte: solo la vista).
+        "entities": [{**group, "brand": brands.group_brand(group["entity"], group["domains"])} for group in groups],
     }
 
 

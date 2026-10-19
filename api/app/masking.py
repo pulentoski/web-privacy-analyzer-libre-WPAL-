@@ -117,6 +117,85 @@ def mask_text(text: object) -> object:
     return URL_IN_TEXT.sub(lambda match: str(mask_url(match.group(0))), text)
 
 
+ID_TOKEN = re.compile(r"[A-Za-z0-9_\-~+%]+={0,2}")
+EMAIL_IN_TEXT = re.compile(r"[^@/\s;,&=\"'<>]+(?:@|%40)[^@/\s;,&=\"'<>]+\.[A-Za-z]{2,}")
+
+
+def _mask_token(match: re.Match) -> str:
+    token = match.group(0)
+    return mask_value(token) if len(token) >= MIN_LENGTH and looks_like_id(token.rstrip("=")) else token
+
+
+def mask_identifiers(value: object) -> object:
+    """Enmascara en un valor libre (parámetro, cookie, cabecera, cuerpo) lo que tiene forma de identificador (v1.5.1).
+
+    Una URL se enmascara como en el reporte (mask_url); en el resto del texto, las URLs que cite, los correos y cada
+    tramo alfanumérico con forma de ID (looks_like_id: UUID, hexadecimal, 9 o más cifras, token mixto). El texto
+    legible se conserva: «text/html», «es-CL» o «Mozilla/5.0» no cambian.
+    """
+    if not isinstance(value, str) or len(value) < MIN_LENGTH:
+        return value
+    if SCHEME.match(value):
+        return mask_url(value)
+    # El valor viene del sitio: un NUL propio no debe confundirse con los marcadores de abajo.
+    value = value.replace("\x00", "\ufffd")
+    kept: list[str] = []
+
+    def keep(masked: str) -> str:
+        kept.append(masked)
+        return f"\x00{len(kept) - 1}\x00"
+
+    # Las URLs y los correos se enmascaran enteros; lo que queda de ellos no se vuelve a partir en tramos.
+    text = URL_IN_TEXT.sub(lambda match: keep(str(mask_url(match.group(0)))), value)
+    text = EMAIL_IN_TEXT.sub(lambda match: keep(mask_value(match.group(0))), text)
+    text = ID_TOKEN.sub(_mask_token, text)
+    return re.sub(r"\x00(\d+)\x00", lambda match: kept[int(match.group(1))], text)
+
+
+def mask_request_detail(detail: dict) -> dict:
+    """Copia del detalle de una request con los identificadores enmascarados (v1.5.1, «Mostrar identificadores
+    completos» desactivado): URL, parámetros, cookies, cabeceras, cadena de redirección, decodificaciones y cuerpo."""
+    masked = copy.deepcopy(detail)
+    for key in ("url", "frame_url"):
+        masked[key] = mask_url(masked.get(key))
+    if isinstance(masked.get("path"), str):
+        masked["path"] = mask_path(masked["path"])
+    if isinstance(masked.get("query_params"), list):
+        masked["query_params"] = [[pair[0], mask_value(pair[1])] if isinstance(pair, list) and len(pair) == 2 else pair
+                                  for pair in masked["query_params"]]
+    initiator = masked.get("initiator")
+    if isinstance(initiator, dict):
+        for key in ("url", "script_url"):
+            initiator[key] = mask_url(initiator.get(key))
+        for frame in initiator.get("stack") or []:
+            if isinstance(frame, dict):
+                frame["url"] = mask_url(frame.get("url"))
+    # Parámetros y cookies: el valor entero si el análisis ya lo vio con forma de identificador; si no, por tramos.
+    for row in masked.get("parameters") or []:
+        value = row.get("value")
+        row["value"] = mask_value(value) if row.get("identifier_like") else mask_identifiers(value)
+    for key in ("request_headers", "response_headers"):
+        for header in masked.get(key) or []:
+            if isinstance(header, dict):
+                header["value"] = mask_identifiers(header.get("value"))
+    for hop in masked.get("redirect_chain") or []:
+        for key in ("url", "location"):
+            hop[key] = mask_url(hop.get(key))
+    for row in masked.get("decoded_values") or []:
+        for key in ("raw_value", "decoded_value"):
+            row[key] = mask_identifiers(row.get(key))
+    if isinstance(masked.get("post_data"), dict):
+        masked["post_data"]["data"] = mask_identifiers(masked["post_data"].get("data"))
+    for finding in masked.get("findings") or []:
+        for key in ("claim", "plain"):
+            finding[key] = mask_text(finding.get(key))
+    for reason in masked.get("reasons") or []:
+        if isinstance(reason, dict):
+            reason["detail"] = mask_text(reason.get("detail"))
+    masked["masked"] = True
+    return masked
+
+
 def mask_report(report: dict) -> dict:
     """Copia del reporte con las URLs enmascaradas (query, fragmento y segmentos de ruta con forma de ID).
 

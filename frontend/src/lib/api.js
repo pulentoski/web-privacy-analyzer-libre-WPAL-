@@ -62,7 +62,9 @@ export const api = {
   report: (jobId) => request(`/api/scans/${id(jobId)}/report`),
   domains: (jobId) => request(`/api/scans/${id(jobId)}/domains`),
   requests: (jobId, query) => request(`/api/scans/${id(jobId)}/requests${query || ""}`),
-  requestDetail: (jobId, requestId) => request(`/api/scans/${id(jobId)}/requests/${id(requestId)}`),
+  // v1.5.1: sin `reveal` la api devuelve los identificadores enmascarados.
+  requestDetail: (jobId, requestId, reveal = false) =>
+    request(`/api/scans/${id(jobId)}/requests/${id(requestId)}${reveal ? "?reveal=true" : ""}`),
   fingerprinting: (jobId) => request(`/api/scans/${id(jobId)}/fingerprinting`),
   findings: (jobId) => request(`/api/scans/${id(jobId)}/findings`),
   privacyProfiles: () => request("/api/privacy/profiles"),

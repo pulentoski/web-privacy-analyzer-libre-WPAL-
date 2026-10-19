@@ -100,7 +100,7 @@ export default function Trackers({ jobId }) {
           {groups.map((group, index) => (
             <details key={index} className="panel p-2" data-testid="tracker-group">
               <summary className="cursor-pointer">
-                <strong>{entityLabel(group.entity)}</strong>{" "}
+                <strong>{entityLabel(group.entity, group.brand)}</strong>{" "}
                 <BandBadge band={group.max_band} score={group.max_score} />{" "}
                 <span className="muted text-sm">
                   {group.request_count} requests · {group.categories.map(categoryLabel).join(", ")} ·{" "}

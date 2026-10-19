@@ -8,11 +8,13 @@ from pydantic import BaseModel, Field, StrictBool
 from sqlalchemy import and_, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import brands
 from app.bands import BANDS
 from app.config import get_settings
 from app.db import get_session
 from app.errors import AppError
 from app.explain import explanations
+from app.masking import mask_request_detail
 from app.failures import failure, net_error, partial_navigation
 from app.models import Job, RequestAnalysis, ScanRedirect, ScanRequest
 from app.ratelimit import client_ip, scan_limiter
@@ -244,6 +246,8 @@ def _analysis_item(analysis: RequestAnalysis | None) -> dict:
 def _request_item(request: ScanRequest, analysis: RequestAnalysis | None = None) -> dict:
     return {
         **_analysis_item(analysis),
+        # v1.5.1: marca de la organización cuando difiere del dueño («LinkedIn» de Microsoft). Solo presentación.
+        "brand": brands.brand(analysis.entity if analysis else None, request.registrable_domain or request.host),
         "plain": _plain(request, analysis),
         "request_id": request.id,
         "seq": request.seq,
@@ -551,8 +555,10 @@ async def _request_client_hints(session: AsyncSession, job_id: uuid.UUID, reques
 
 @router.get("/{job_id}/requests/{request_id}")
 async def get_request(
-    job_id: uuid.UUID, request_id: int, session: AsyncSession = Depends(get_session)
+    job_id: uuid.UUID, request_id: int, reveal: bool = False, session: AsyncSession = Depends(get_session)
 ) -> dict:
+    """Detalle de una request. v1.5.1: por defecto con los identificadores enmascarados (como el reporte exportado);
+    `reveal=true` = «Mostrar identificadores completos»."""
     await _get_job(session, job_id)
     # Postgres bigint: fuera de rango no puede existir.
     request = await session.get(ScanRequest, request_id) if 0 < request_id < 2**63 else None
@@ -627,11 +633,13 @@ async def get_request(
         by_seq = {row["seq"]: row for row in hops}
         for hop in detail["redirect_chain"]:
             row = by_seq.get(hop["request_seq"]) or {}
-            hop.update({"request_id": row.get("id"), "host": row.get("host"), "entity": row.get("entity")})
+            hop.update({"request_id": row.get("id"), "host": row.get("host"), "entity": row.get("entity"),
+                        "brand": brands.brand(row.get("entity"), row.get("host"))})
             following = by_seq.get(hop["next_request_seq"]) or {}
             hop["next_request_id"] = following.get("id")
-    return {
+    full = {
         **detail,
+        "masked": False,
         "parameters": [dict(row) for row in parameters],
         "decoded_values": [dict(row) for row in decoded],
         "findings": [
@@ -642,3 +650,4 @@ async def get_request(
             for row in findings
         ],
     }
+    return full if reveal else mask_request_detail(full)

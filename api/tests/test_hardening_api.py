@@ -207,7 +207,7 @@ def test_report_states_its_license_profile(client, analyzed_scan):  # noqa: F811
 
 def test_openapi_is_served_on_the_api_port(client):
     schema = client.get("/openapi.json")
-    assert schema.status_code == 200 and schema.json()["info"]["version"] == "1.5.0"
+    assert schema.status_code == 200 and schema.json()["info"]["version"] == "1.5.1"
     paths = schema.json()["paths"]
     for path in ("/health", "/api/scans", "/api/scans/{job_id}/report", "/api/scans/{job_id}/export", "/api/privacy/test"):
         assert path in paths, path

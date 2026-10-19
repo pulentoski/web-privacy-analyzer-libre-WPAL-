@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import { Term } from "../components/Term.jsx";
 import { BandBadge, Captured, Empty, ErrorNotice, EvidenceBadge, ExternalUrl, Link, Loading, Panel, Plain, TechDetail, TextViewer } from "../components/ui.jsx";
 import { api } from "../lib/api.js";
@@ -65,7 +67,7 @@ export function RedirectChain({ jobId, chain, current }) {
         {chain.map((hop) => (
           <li key={hop.hop} data-testid="redirect-hop" className={hop.request_seq === current ? "font-semibold" : ""}>
             {hop.request_id ? <Link to={["scan", jobId, "request", hop.request_id]}>#{hop.request_seq + 1}</Link> : <>#{hop.request_seq + 1}</>}{" "}
-            <span className="captured">{orUnavailable(hop.status)}</span> · <span className="captured">{orUnavailable(hop.host)}</span> · {entityLabel(hop.entity)}
+            <span className="captured">{orUnavailable(hop.status)}</span> · <span className="captured">{orUnavailable(hop.host)}</span> · {entityLabel(hop.entity, hop.brand)}
             {hop.location && (
               <div className="ml-4 muted">
                 Location: <Captured value={hop.location} limit={120} /> → {hop.next_request_id
@@ -116,8 +118,30 @@ export function ClientHints({ info }) {
   );
 }
 
+/** v1.5.1: «Mostrar identificadores completos» (desactivado: la api enmascara los valores con forma de identificador). */
+function RevealToggle({ reveal, onChange }) {
+  return (
+    <div className="text-sm" data-testid="request-masking">
+      <label className="flex items-center gap-1">
+        <input type="checkbox" checked={reveal} onChange={(event) => onChange(event.target.checked)} data-testid="request-reveal" />
+        Mostrar identificadores completos
+      </label>
+      <p className="muted text-xs" data-testid="request-masking-note">
+        {reveal
+          ? "Se muestran los valores completos de la URL, los parámetros, las cookies, las cabeceras y la redirección."
+          : "Los valores con forma de identificador van enmascarados (prefijo y largo) en la URL, los parámetros, las cookies, las cabeceras, la redirección, las decodificaciones y el cuerpo."}
+      </p>
+    </div>
+  );
+}
+
 export default function RequestDetail({ jobId, requestId }) {
-  const { data, error, loading } = useApi(() => api.requestDetail(jobId, requestId), `${jobId}-${requestId}`);
+  // Mostrar los valores completos es una elección explícita para ESTA request: al pasar a otra vuelve a enmascarado.
+  const current = `${jobId}-${requestId}`;
+  const [revealed, setRevealed] = useState(null);
+  const reveal = revealed === current;
+  const setReveal = (on) => setRevealed(on ? current : null);
+  const { data, error, loading } = useApi(() => api.requestDetail(jobId, requestId, reveal), `${current}-${reveal}`);
   if (loading) return <Loading what="la request" />;
   if (error) return <ErrorNotice error={error} />;
   const r = data;
@@ -133,7 +157,7 @@ export default function RequestDetail({ jobId, requestId }) {
           ? <Plain text={r.plain.text} level={r.plain.level} testId="request-plain" />
           : <Empty>Esta conexión todavía no tiene análisis.</Empty>}
         <p className="text-sm mt-2">
-          Destino: <span className="captured">{orUnavailable(r.host)}</span> · {entityLabel(r.entity)} ·{" "}
+          Destino: <span className="captured">{orUnavailable(r.host)}</span> · <span data-testid="request-entity">{entityLabel(r.entity, r.brand)}</span> ·{" "}
           {r.party === "third_party" || (!r.party && r.third_party) ? <><Term id="tercero">tercero</Term> (empresa distinta del sitio)</> : partyLabel(r)}{" "}
           <BandBadge band={r.band} score={r.score} />
         </p>
@@ -147,6 +171,7 @@ export default function RequestDetail({ jobId, requestId }) {
       </Panel>
 
       <TechDetail testId="request-tech" remember>
+      <RevealToggle reveal={reveal} onChange={setReveal} />
       <Panel title={`Request #${r.seq + 1}`}>
         <table className="w-full text-sm">
           <tbody>
@@ -157,7 +182,7 @@ export default function RequestDetail({ jobId, requestId }) {
               <Captured value={r.frame_url} limit={80} /> → <span className="captured">{orUnavailable(r.host)}</span>{" "}
               ({partyLabel(r)})
             </Row>
-            <Row label="Organización">{entityLabel(r.entity)} · dominio registrable: <span className="captured">{orUnavailable(r.registrable_domain)}</span></Row>
+            <Row label="Organización">{entityLabel(r.entity, r.brand)} · dominio registrable: <span className="captured">{orUnavailable(r.registrable_domain)}</span></Row>
             <Row label="Categoría">{r.category ? categoryLabel(r.category) : "sin análisis"}</Row>
             <Row label="Iniciada por">
               {initiator ? (

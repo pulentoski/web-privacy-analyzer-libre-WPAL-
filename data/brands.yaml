@@ -1,0 +1,16 @@
+# Marcas de una organización (v1.5.1): se muestra «Marca (Dueño)», p. ej. «LinkedIn (Microsoft)».
+#
+# Solo PRESENTACIÓN: la organización sigue siendo la del mapa de entidades (o del catálogo) y es la que agrupa,
+# decide «misma organización» y entra en el análisis. La marca se muestra solo si el dueño resuelto para el dominio
+# es exactamente `owner` (si el mapa cambia o el perfil de licencia usa otro nombre, se muestra solo el dueño).
+# Dominio registrable exacto; lista corta de marcas muy conocidas cuyo nombre difiere del de su dueño.
+version: 1
+brands:
+  LinkedIn: {owner: Microsoft, domains: [linkedin.com, licdn.com]}
+  Bing: {owner: Microsoft, domains: [bing.com]}
+  Microsoft Clarity: {owner: Microsoft, domains: [clarity.ms]}
+  Xandr: {owner: Microsoft, domains: [adnxs.com]}
+  Instagram: {owner: Facebook, domains: [instagram.com, cdninstagram.com]}
+  WhatsApp: {owner: Facebook, domains: [whatsapp.com, whatsapp.net]}
+  YouTube: {owner: Google, domains: [youtube.com, ytimg.com, youtube-nocookie.com]}
+  TikTok: {owner: ByteDance, domains: [tiktok.com, tiktokcdn.com, tiktokv.com]}

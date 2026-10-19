@@ -3,6 +3,34 @@
 Formato: una sección por versión, la más reciente arriba. Las decisiones de diseño de cada versión están en
 [docs/adr/](docs/adr/README.md); las versiones anteriores a 1.4.6, en la sección «Fases» de [docs/SPEC.md](docs/SPEC.md).
 
+## 1.5.1 — 2026-10-18
+
+Analizador 1.18.0 · schema de reporte 1.11.0 (sin cambios) ·
+[ADR 039](docs/adr/039-detalle-enmascarado-marca-y-subdominios-publicitarios.md). Para ver la regla concreta y la nueva
+categoría en scans ya guardados, reanalícelos.
+
+### Agregado
+- Detalle de request enmascarado: con «Mostrar identificadores completos» desactivado (por defecto, y de nuevo al pasar a
+  otra request), la URL, la tabla de parámetros, las cookies recibidas y enviadas, las cabeceras, la cadena de redirección,
+  las decodificaciones y el cuerpo muestran los valores con forma de identificador como prefijo y largo. Lo enmascara la api
+  (`GET /api/scans/{id}/requests/{rid}`; `?reveal=true` para los valores completos), con las mismas reglas que el reporte.
+- Marca y dueño: «LinkedIn (Microsoft)» cuando difieren (`data/brands.yaml`). Solo presentación: la organización que agrupa
+  y entra en el análisis sigue siendo el dueño. Campo `brand` en requests, detalle, redirecciones, rastreadores y dominios;
+  el HTML/PDF lo muestra en rastreadores y destinos.
+
+### Cambiado
+- Subdominios publicitarios de una organización (`ads.`, `adservice.`, `adserver.`, `adsystem.`; p. ej. px.ads.linkedin.com)
+  se categorizan como Publicidad aunque la organización sea de redes sociales (`data/host_categories.yaml`). Puntaje, banda
+  e índice no cambian.
+- Regla de lista: se informa la regla concreta que coincidió, no el bloque de reglas unidas por « <+> ».
+- El título de la página se lee de `document.title`: `page.title()` devolvía, si la pestaña estaba navegando, el título
+  provisional de Chromium («Loading <URL>»).
+
+### Corregido
+- Captura interactiva: podía fallar al terminar (`KeyError: 'built'`) si la pestaña seguía generando tráfico mientras se
+  volcaba la captura. Regresión de 1.5.0.
+- Captura interactiva y scans parciales: el título podía quedar como «Loading <URL>».
+
 ## 1.5.0 — 2026-10-18
 
 Analizador 1.17.0 (sin cambios) · schema de reporte 1.11.0 · protocolo de visita 1 ·

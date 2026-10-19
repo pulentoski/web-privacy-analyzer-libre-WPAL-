@@ -272,8 +272,10 @@ export function categoryLabel(category) {
 
 export const UNKNOWN_ENTITY = "no_disponible";
 
-export function entityLabel(entity) {
-  return !entity || entity === UNKNOWN_ENTITY ? "Organización no disponible" : entity;
+/** Organización; con marca distinta del dueño (v1.5.1): «LinkedIn (Microsoft)». */
+export function entityLabel(entity, brand) {
+  if (!entity || entity === UNKNOWN_ENTITY) return "Organización no disponible";
+  return brand && brand !== entity ? `${brand} (${entity})` : entity;
 }
 
 export const SCENARIO_LABELS = {

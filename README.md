@@ -10,7 +10,7 @@ con qué métodos y hacia quién la envían.
 </p>
 
 <p align="center">
-  <em>Versión 1.5.0 · beta · herramienta de investigación · se ejecuta solo en <code>127.0.0.1</code></em>
+  <em>Versión 1.5.1 · beta · herramienta de investigación · se ejecuta solo en <code>127.0.0.1</code></em>
 </p>
 
 <p align="center">
@@ -239,8 +239,13 @@ exfiltraciones y fugas de URL.
 **Hallazgos** — ocho grupos técnicos con su nivel y conteo; debajo, la lista técnica completa.
 ![Hallazgos por grupo](docs/images/hallazgos.png)
 
-**Rastreadores** — requests con señales de seguimiento, agrupadas por organización.
+**Rastreadores** — requests con señales de seguimiento, agrupadas por organización. Cuando la marca difiere
+del dueño se muestran ambas: «LinkedIn (Microsoft)» (v1.5.1).
 ![Rastreadores](docs/images/rastreadores.png)
+
+**Detalle de cada request** (v1.5.1) — los valores con forma de identificador de la URL, los parámetros, las
+cookies, las cabeceras y la cadena de redirección se muestran enmascarados (prefijo y largo), salvo que marque
+«Mostrar identificadores completos» en esa request.
 
 **Servicios de terceros sin señales de rastreo** (v1.4.5) — en Rastreadores, en el Resumen y en los
 reportes: las otras organizaciones que la página contacta para funcionar, con su **tipo de servicio**

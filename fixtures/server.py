@@ -120,6 +120,22 @@ async def redirect_to_hang(request: web.Request) -> web.Response:
     raise web.HTTPFound("/v148/hang")
 
 
+# v1.5.1: identificador fijo que el fixture envía en URL, parámetros, cookies, cabeceras y redirección.
+V151_ID = "5f0c3e9a7b1d4c2e8f6a0b9c3d7e1f42"
+
+
+async def v151_page(request: web.Request) -> web.Response:
+    response = web.Response(body=(STATIC / "v151/index.html").read_bytes(), content_type="text/html")
+    response.set_cookie("v151_uid", V151_ID, path="/")
+    return response
+
+
+async def v151_pixel(request: web.Request) -> web.Response:
+    response = web.HTTPFound(f"http://{CDN}/v151/sync/{V151_ID}?partner_uid={V151_ID}")
+    response.set_cookie("v151_tp", V151_ID, path="/")
+    raise response
+
+
 async def redirect_hop(request: web.Request) -> web.Response:
     raise web.HTTPMovedPermanently(f"http://{CDN}/redirect/final")
 
@@ -314,6 +330,12 @@ def build_app() -> web.Application:
             web.get("/static/v150/close.js", static("v150/close.js", "application/javascript")),
             web.post("/v150/bye", empty),
             web.get("/__egress-ip", egress_ip),
+            # Enmascarado del detalle de request (v1.5.1)
+            web.get("/v151/", v151_page),
+            web.get("/static/v151/v151.js", static("v151/v151.js", "application/javascript")),
+            web.get("/v151/px", v151_pixel),
+            web.get("/v151/sync/{uid}", binary(GIF_1X1, "image/gif")),
+            web.get("/v151/ping", empty),
             web.get("/__egress-ip-invalid", egress_ip_invalid),
             # fixture XSS (F5)
             web.get("/xss/", static("xss/index.html", "text/html")),

@@ -195,7 +195,10 @@ class FilterLists:
     def _add_engine(self, list_id: str, path: pathlib.Path) -> None:
         filter_set = adblock.FilterSet(debug=True)  # debug: conserva el texto de la regla
         filter_set.add_filter_list(path.read_text(encoding="utf-8", errors="replace"))
-        self._engines.append((list_id, adblock.Engine(filter_set)))
+        # optimize=False (v1.5.1): el motor optimizado une reglas parecidas en un solo filtro y devuelve el bloque
+        # completo («/gtm.js <+> /gtm/gtm- <+> …»); sin optimizar devuelve la regla concreta que coincidió. Las
+        # coincidencias son las mismas.
+        self._engines.append((list_id, adblock.Engine(filter_set, optimize=False)))
 
     def _load_ddg_entities(self, path: pathlib.Path) -> None:
         """Formato de Tracker Radar: {entidad: {displayName, properties: [dominio, ...]}}."""

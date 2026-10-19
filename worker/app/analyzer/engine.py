@@ -560,7 +560,12 @@ def analyze(capture: dict, lists, config: AnalyzerConfig, *, deadline_s: float =
             # party == "same_org": asset estático de la misma organización, sin señal.
 
         score = max(0, min(100, sum(item["weight"] for item in reasons)))
-        if domain in config.domain_categories:
+        # v1.5.1: el subdominio publicitario de una organización (px.ads.linkedin.com) gana sobre la categoría de su
+        # dominio («social») y sobre la de la lista. Nunca en requests del propio sitio.
+        host_category = config.host_category(request.get("host"), domain) if party != "first_party" else None
+        if host_category:
+            category = host_category
+        elif domain in config.domain_categories:
             category = config.domain_categories[domain]
         elif matches:
             category = config.scoring["list_categories"].get(matches[0]["list"], "third-party")

@@ -217,7 +217,7 @@ def test_domains_endpoint(client, analyzed_scan):
     by_domain = {item["domain"]: item for item in body["domains"]}
     assert by_domain["site.example"] == {
         "domain": "site.example", "third_party": False, "party": "first_party", "requests": 1, "max_score": 0, "category": "first-party",
-        "entity": "no_disponible", "tracker_requests": 0, "tracker": False, "fingerprinting": False,
+        "entity": "no_disponible", "brand": None, "tracker_requests": 0, "tracker": False, "fingerprinting": False,
     }
     assert by_domain["metrics.example"]["tracker"] is True and by_domain["metrics.example"]["entity"] == "Metrics Corp"
     assert by_domain["unknown.example"]["max_score"] == 90 and by_domain["unknown.example"]["third_party"] is True

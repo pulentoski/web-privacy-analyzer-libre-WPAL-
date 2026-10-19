@@ -24,7 +24,7 @@ from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 from playwright.async_api import async_playwright
 
 from app import jobs
-from app.browser.capture import MAX_TITLE_CHARS, MAX_URL_CHARS, ScanOutcome, _error, clean_text, measurement, net_error_code, page_meta, partial_navigation
+from app.browser.capture import MAX_URL_CHARS, ScanOutcome, _error, clean_text, measurement, net_error_code, page_meta, page_title, partial_navigation
 from app.browser.consent import tcf_info
 from app.browser.fp_monitor import PAGE_FLUSH_MS, FingerprintMonitor
 from app.browser.launcher import base_session_setup, context_kwargs, launch_kwargs
@@ -218,11 +218,10 @@ class InteractiveSession:
             pass
 
     async def _note_title(self, page) -> None:
-        try:
-            title = clean_text(await asyncio.wait_for(page.title(), 3), MAX_TITLE_CHARS)
-            url = clean_text(page.url, MAX_URL_CHARS)
-        except (PlaywrightError, asyncio.TimeoutError):
+        title = await page_title(page)
+        if title is None:
             return
+        url = clean_text(page.url, MAX_URL_CHARS)
         for entry in reversed(self.timeline):
             if entry["url"] == url:
                 entry["title"] = title
@@ -314,9 +313,14 @@ class InteractiveSession:
         self.monitor.set_primary(page)
         result = None
         if error is None:
-            title, tcf = "", None
+            tcf = None
+            # v1.5.1: document.title, nunca el título provisional de Chromium («Loading <URL>»). Si no se puede leer, el
+            # último título registrado al cargar esa misma URL.
+            title = await page_title(page)
+            if not title:
+                url = clean_text(page.url, MAX_URL_CHARS)
+                title = next((entry["title"] for entry in reversed(self.timeline) if entry["url"] == url and entry["title"]), "")
             try:
-                title = await asyncio.wait_for(page.title(), 5)
                 tcf = await tcf_info(page)
             except (PlaywrightError, asyncio.TimeoutError):
                 pass
@@ -325,7 +329,7 @@ class InteractiveSession:
                 await asyncio.sleep(PAGE_FLUSH_MS / 1000 + 0.2)  # último envío periódico de la instrumentación
             result = {
                 "http_status": self._response.status if self._response is not None else self.monitor.document_status(),
-                "title": clean_text(title, MAX_TITLE_CHARS),
+                "title": title,
                 "final_url": clean_text(page.url, MAX_URL_CHARS),
                 "tcf": tcf,
                 "page_meta": meta,

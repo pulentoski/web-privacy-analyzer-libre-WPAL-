@@ -5,4 +5,4 @@ dict con la captura y devuelve un dict con el análisis. Cambiar la lógica o lo
 pesos implica subir ANALYZER_VERSION, que se guarda en cada resultado.
 """
 
-ANALYZER_VERSION = "1.17.0"
+ANALYZER_VERSION = "1.18.0"
