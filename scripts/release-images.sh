@@ -3,7 +3,7 @@
 #
 #   ./scripts/release-images.sh
 #
-# Resultado: pulentoski/wpa-<servicio>:1.5.2 y :latest, para db, api, worker, egress-proxy y frontend.
+# Resultado: pulentoski/wpa-<servicio>:1.5.3 y :latest, para db, api, worker, egress-proxy y frontend.
 # Se construye cada servicio con `docker build` directamente (no por compose), para no depender de
 # .env ni arrastrar los servicios de prueba. La imagen de db es postgres oficial + parches de Alpine
 # y sin gosu (db/Dockerfile): es endurecimiento, no solo configuración, por eso se publica propia.
@@ -11,7 +11,7 @@ set -eu
 cd "$(dirname "$0")/.."
 
 REGISTRY="${REGISTRY:-pulentoski}"
-VERSION="${VERSION:-1.5.2}"
+VERSION="${VERSION:-1.5.3}"
 
 # servicio = carpeta con el Dockerfile. El frontend se construye en su modo de producción
 # (sin VITE_XSS_CONTROL: la vista vulnerable del control de XSS nunca entra en la imagen publicada).

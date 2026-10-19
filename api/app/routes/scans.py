@@ -17,6 +17,7 @@ from app.explain import explanations
 from app.masking import mask_request_detail
 from app.failures import failure, net_error, partial_navigation
 from app.models import Job, RequestAnalysis, ScanRedirect, ScanRequest
+from app.proxy_headers import without_proxy_headers
 from app.ratelimit import client_ip, scan_limiter
 from app.security.url_validator import MAX_URL_LENGTH, UrlValidationError, validate_url
 from app.testscans import is_test_scan
@@ -291,9 +292,9 @@ def _request_detail(
         "query_params": request.query_params,
         "frame_url": request.frame_url,
         "initiator": request.initiator,
-        "request_headers": request.request_headers,
+        "request_headers": without_proxy_headers(request.request_headers),
         "post_data": post_data,
-        "response_headers": request.response_headers,
+        "response_headers": without_proxy_headers(request.response_headers),
         "sizes": request.sizes,
         "timing": request.timing,
         "registrable_domain": request.registrable_domain,

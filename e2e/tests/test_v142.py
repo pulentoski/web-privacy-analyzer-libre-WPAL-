@@ -346,7 +346,7 @@ def test_interactive_capture_correlates_user_interaction_with_sends(session):
         # 7. HAR exportado: una página por página visitada y la versión real.
         har = get_json(page, f"/api/scans/{job_id}/har")["log"]
         timeline = report["scan"]["interactive"]["timeline"]
-        assert har["creator"]["version"] == "1.5.2" and len(har["pages"]) == len(timeline) == 1
+        assert har["creator"]["version"] == "1.5.3" and len(har["pages"]) == len(timeline) == 1
         assert {entry["pageref"] for entry in har["entries"]} == {"page_1"}
         # Reporte exportado: grupo y sección de interacción.
         exported = page.request.post(f"{BASE_URL}/api/scans/{job_id}/export")

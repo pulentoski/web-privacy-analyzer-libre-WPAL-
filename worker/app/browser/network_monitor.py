@@ -34,6 +34,9 @@ ASYNC_STACK_DEPTH = 8
 MAX_FUNCTION_NAME_CHARS = 256
 MAX_FAILURE_CHARS = 512
 MAX_WEBSOCKETS = 50
+# Cabeceras del navegador con el egress-proxy, no del sitio (v1.5.3, docs/adr/041): Proxy-Authorization lleva el usuario
+# del scan y PROXY_SCAN_SECRET en base64. Nunca se guardan.
+PROXY_HEADERS = frozenset({"proxy-authorization", "proxy-connection"})
 MAX_WS_FRAMES = 50
 MAX_WS_FRAME_BYTES = 4096
 MAX_COOKIES = 500
@@ -146,7 +149,7 @@ def clean_headers(headers: object) -> list[dict]:
             continue
         name = text(header.get("name"), MAX_HEADER_NAME_CHARS)
         value = text(header.get("value"), MAX_HEADER_VALUE_CHARS)
-        if name is not None and value is not None:
+        if name is not None and value is not None and name.lower() not in PROXY_HEADERS:
             out.append({"name": name, "value": value})
     return out
 

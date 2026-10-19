@@ -3,6 +3,26 @@
 Formato: una sección por versión, la más reciente arriba. Las decisiones de diseño de cada versión están en
 [docs/adr/](docs/adr/README.md); las versiones anteriores a 1.4.6, en la sección «Fases» de [docs/SPEC.md](docs/SPEC.md).
 
+## 1.5.3 — 2026-10-19
+
+Solo seguridad. Analizador 1.18.0 · schema de reporte 1.11.0 (sin cambios) ·
+[ADR 041](docs/adr/041-cabeceras-del-proxy-fuera-de-la-captura.md). Migración 0017 (irreversible).
+
+### Seguridad
+- La captura guardaba `Proxy-Authorization` y `Proxy-Connection` en las requests `http://`: cabeceras del navegador con el
+  egress-proxy, la primera con el usuario del scan y `PROXY_SCAN_SECRET` en base64. Salían en el detalle de request con
+  «Mostrar identificadores completos» y en el HAR exportado con `include_sensitive=true`. Ahora:
+  - el worker no las guarda (tampoco el HAR importado);
+  - la migración 0017 las borra de las capturas ya guardadas y del staging de HAR importados;
+  - la api las filtra en el detalle de request, el HAR exportado y la comparación de visitas (el JSON, el HTML y el PDF
+    del reporte no llevan cabeceras).
+- Test con el sitio de fixtures (http) y el worker real: ni la cabecera ni `PROXY_SCAN_SECRET`, en claro o en base64,
+  aparecen en ninguna salida de la api ni en los reportes exportados.
+
+### Al actualizar
+- Si escaneó sitios `http://` con una versión anterior, rote `PROXY_SCAN_SECRET` (`./scripts/rotate-secrets.sh`): los HAR
+  y reportes ya descargados y los respaldos previos pueden contenerlo.
+
 ## 1.5.2 — 2026-10-19
 
 Analizador 1.18.0 (sin cambios) · schema de reporte 1.11.0 (sin cambios) · protocolo de visita 1 (sin cambios) ·

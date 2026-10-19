@@ -20,6 +20,7 @@ from app.db import get_session
 from app.errors import AppError
 from app.measurement import protocol_version
 from app.models import HarImport, Job, ScanRequest
+from app.proxy_headers import is_proxy_header
 from app.ratelimit import client_ip, scan_limiter
 from app.routes.scans import BLOCKED_BY_CLIENT, _get_job, _serialize
 from app.version import APP_VERSION
@@ -98,6 +99,8 @@ def _export_headers(headers: list | None, include_sensitive: bool) -> tuple[list
     for header in headers or []:
         if not isinstance(header, dict) or not isinstance(header.get("name"), str):
             continue
+        if is_proxy_header(header["name"]):
+            continue  # del navegador con el egress-proxy: no se exporta nunca, ni con include_sensitive (v1.5.3)
         if header["name"].lower() in EXPORT_SENSITIVE and (not include_sensitive or header.get("redacted")):
             removed += 1
             continue

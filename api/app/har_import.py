@@ -15,6 +15,7 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode, urlsplit
 
 from app.errors import AppError
+from app.proxy_headers import is_proxy_header
 
 MAX_ENTRIES = 20000  # entradas que se aceptan en el archivo
 MAX_LOAD_ENTRIES = 5000  # entradas de la carga elegida que se guardan (el worker aplica MAX_REQUESTS)
@@ -200,6 +201,11 @@ def _headers(headers: object, removed: Counter) -> list[dict]:
         if not name or not isinstance(value, str):
             continue
         kind = SENSITIVE_HEADERS.get(name.lower())
+        if is_proxy_header(name):
+            # Del navegador con su proxy (v1.5.3): ni el nombre se guarda. Proxy-Authorization cuenta como credencial descartada.
+            if kind is not None:
+                removed[kind] += 1
+            continue
         if kind is not None:
             removed[kind] += 1
             out.append({"name": name, "value": "", "redacted": True, "length": len(value)})
