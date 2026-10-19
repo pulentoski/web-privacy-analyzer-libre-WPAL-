@@ -21,7 +21,7 @@ from app.browser import profiles
 from app.browser.consent import SCENARIOS, handle_consent, tcf_info
 from app.browser.fp_monitor import PAGE_FLUSH_MS, FingerprintMonitor
 from app.browser.proxy_log import read_destinations_when_flushed
-from app.browser.launcher import base_session_setup, launch_browser, new_context
+from app.browser.launcher import base_session_setup, launch_browser, launch_persistent_context, new_context
 from app.browser.network_monitor import PROXY_ERROR_HEADER, NetworkMonitor
 from app.browser.visit import StageLog, close_stage, interrupted, load_protocol, scroll_stage, wait_stage
 from app.config import settings
@@ -147,8 +147,14 @@ async def run_scan(
     probe: bool = False,
     proxy_user: str | None = None,
     progress=None,
+    profile_session=None,
 ) -> ScanOutcome:
-    """`scenario` y `profile_name` son los del Privacy Test (F7); `probe` añade el sondeo de atributos."""
+    """`scenario` y `profile_name` son los del Privacy Test (F7); `probe` añade el sondeo de atributos.
+
+    `profile_session` (solo las visitas de una comparación, v1.5.2, app/comparison.py): navegador con contexto persistente
+    en su directorio de perfil y verificación del estado antes de navegar y antes de cerrar. Sin él, como siempre:
+    contexto efímero.
+    """
     timeout_s = settings.scan_timeout_s if timeout_s is None else timeout_s
     loop = asyncio.get_running_loop()
     # Cada scan tiene su usuario de proxy: así se sabe qué conexiones del log son suyas.
@@ -156,7 +162,7 @@ async def run_scan(
     # País de la IP de salida (v1.5.0): una consulta por scan, fuera del navegador y con otro usuario de proxy.
     egress = asyncio.ensure_future(lookup_country_async())
     try:
-        outcome = await _run_scan(url, timeout_s, max_requests, max_body_bytes, idle_s, fp_instrumentation, scenario, profile_name, probe, proxy_user, loop, progress)
+        outcome = await _run_scan(url, timeout_s, max_requests, max_body_bytes, idle_s, fp_instrumentation, scenario, profile_name, probe, proxy_user, loop, progress, profile_session)
     except BaseException:
         egress.cancel()
         raise
@@ -184,16 +190,27 @@ def measurement(browser_version: str | None, started_at: str, visit_protocol: di
 LOAD_REASONS = {"network_idle": "network_idle", "timeout": "scan_timeout", "max_requests": "max_requests", "page_closed": "page_closed"}
 
 
-async def _run_scan(url, timeout_s, max_requests, max_body_bytes, idle_s, fp_instrumentation, scenario, profile_name, probe, proxy_user, loop, progress=None) -> ScanOutcome:
+async def _run_scan(url, timeout_s, max_requests, max_body_bytes, idle_s, fp_instrumentation, scenario, profile_name, probe, proxy_user, loop, progress=None, profile_session=None) -> ScanOutcome:
     protocol = load_protocol()
     idle_s = settings.network_idle_s if idle_s is None else idle_s
+    if profile_session is not None and (scenario or probe or (profile_name and profile_name != profiles.REAL)):
+        # La comparación de visitas usa el perfil base, sin escenario ni sondeo: lo único que cambia es el perfil en disco.
+        raise ValueError("la comparación de visitas no admite escenario, perfil emulado ni sondeo")
     async with async_playwright() as playwright:
-        browser = await launch_browser(playwright, proxy_user)
+        if profile_session is None:
+            browser = await launch_browser(playwright, proxy_user)
+            closer = browser
+        else:
+            profile_session.launching()
+            persistent = await launch_persistent_context(playwright, profile_session.user_data_dir, proxy_user)
+            browser, closer = persistent.browser, persistent
         try:
             profile = None
             if profile_name and profile_name != profiles.REAL:
                 profile = profiles.resolve(profiles.load_profile(profile_name), browser.version)
-            context = await new_context(browser, profile)
+            # El contexto persistente ya trae una pestaña about:blank; se deja abierta (sin tráfico) para que cerrar la
+            # pestaña del scan no cierre el navegador antes de volcar la captura.
+            context = await new_context(browser, profile) if profile_session is None else persistent
             if profile is not None:
                 # Antes que la instrumentación: así esta registra los valores ya emulados.
                 await context.add_init_script(script=profiles.init_script(profile))
@@ -214,6 +231,9 @@ async def _run_scan(url, timeout_s, max_requests, max_body_bytes, idle_s, fp_ins
             if profile is None:
                 monitor.session_setup = base_session_setup()
             await monitor.start()
+            if profile_session is not None:
+                # Estado con que abrió el perfil (cookies cargadas del disco), antes de la primera request del sitio.
+                await profile_session.before_navigation(context)
 
             started = loop.time()
             started_at = datetime.now(timezone.utc).isoformat(timespec="milliseconds")
@@ -342,6 +362,11 @@ async def _run_scan(url, timeout_s, max_requests, max_body_bytes, idle_s, fp_ins
                 }
             capture["end_reason"] = end_reason
             capture["duration_ms"] = round((loop.time() - started) * 1000)
+            if profile_session is not None:
+                await profile_session.before_close(context)
             return ScanOutcome(result=result, error=error, capture=capture)
         finally:
-            await browser.close()
+            # Contexto persistente: cerrarlo cierra el navegador y Chromium vuelca su estado al directorio del perfil.
+            await closer.close()
+            if profile_session is not None:
+                profile_session.closed()

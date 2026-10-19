@@ -10,7 +10,7 @@ con qué métodos y hacia quién la envían.
 </p>
 
 <p align="center">
-  <em>Versión 1.5.1 · beta · herramienta de investigación · se ejecuta solo en <code>127.0.0.1</code></em>
+  <em>Versión 1.5.2 · beta · herramienta de investigación · se ejecuta solo en <code>127.0.0.1</code></em>
 </p>
 
 <p align="center">
@@ -247,6 +247,14 @@ del dueño se muestran ambas: «LinkedIn (Microsoft)» (v1.5.1).
 cookies, las cabeceras y la cadena de redirección se muestran enmascarados (prefijo y largo), salvo que marque
 «Mostrar identificadores completos» en esa request.
 
+**Comparación de visitas** (v1.5.2) — en Analizar un sitio, «Comparar visitas» lanza tres visitas (3 scans)
+a la misma URL con el mismo protocolo: (1) perfil A limpio, (2) el mismo perfil A tras cerrar el navegador y
+esperar un intervalo (300 s por defecto, `VISIT_COMPARISON_INTERVAL_S`), con su estado conservado en disco, y
+(3) un perfil B limpio de control. Muestra si la comparación es válida (no lo es si se perdió el estado de A),
+el intervalo configurado y el real, las condiciones que difirieron y qué valores, en el mismo destino y el mismo
+campo, aparecieron en qué visitas. Es una comparación reproducible, no un detector de retargeting: **tres
+visitas no prueban causalidad**. Diseño y límites: [docs/adr/040](docs/adr/040-comparacion-de-visitas.md).
+
 **Servicios de terceros sin señales de rastreo** (v1.4.5) — en Rastreadores, en el Resumen y en los
 reportes: las otras organizaciones que la página contacta para funcionar, con su **tipo de servicio**
 (mapas, fuentes tipográficas, CDN de librerías, antibot, clima, widgets para compartir en redes, video…)
@@ -294,7 +302,8 @@ contexto auditada con tests (`data/coverage.yaml`): el frame principal y los ifr
 de terceros, tienen instrumentación, APIs observadas y tráfico capturado; los dedicated workers solo
 tráfico (sin instrumentación); los service workers se bloquean (ni instrumentación ni tráfico); del
 cierre de la pestaña se capturan los beacons de `beforeunload`, los de `visibilitychange` solo a veces
-y los de `pagehide` no; el modo *headless* puede cambiar el comportamiento del sitio; la geolocalización por IP es aproximada; no hay GPS sin permiso. Ver
+y los de `pagehide` no; la comparación de visitas sale por la misma IP en las tres visitas y no observa la
+caché HTTP (desactivada en todos los scans); el modo *headless* puede cambiar el comportamiento del sitio; la geolocalización por IP es aproximada; no hay GPS sin permiso. Ver
 [docs/SPEC.md](docs/SPEC.md) §Limitaciones y cada ADR.
 
 **Roadmap (ideas):** más fuentes de listas y entidades; mejores heurísticas de fingerprinting;

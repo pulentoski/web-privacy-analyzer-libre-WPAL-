@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     # Privacy Test (F7): máximo de scans de un grupo (escenarios × perfiles × corridas).
     max_group_jobs: int = 10
     profiles_dir: str = "/app/data/profiles"
+    # Comparación de visitas (v1.5.2): intervalo por defecto entre las visitas 1 y 2.
+    visit_comparison_interval_s: int = 300
     # Proxies cuyo X-Forwarded-For se acepta (IPs o redes, separadas por comas): el nginx del frontend.
     trusted_proxies: str = ""
     # Redes internas de Docker (docker-compose.yml). Una visita con IP de estas redes llegó por el

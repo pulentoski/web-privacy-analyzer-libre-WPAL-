@@ -13,6 +13,7 @@ import History from "./views/History.jsx";
 import PanelView from "./views/Panel.jsx";
 import PrivacyTest from "./views/PrivacyTest.jsx";
 import Scan from "./views/Scan.jsx";
+import VisitComparison from "./views/VisitComparison.jsx";
 
 // Control negativo de XSS: SOLO en el build de test. Con cualquier otro valor esta rama es
 // código muerto y el empaquetador elimina la vista vulnerable del bundle.
@@ -75,6 +76,7 @@ export default function App() {
   }
 
   if (section === "privacy" && !legacyPrivacy) view = <PrivacyTest groupId={jobId} />;
+  if (section === "comparison" && UUID.test(jobId || "")) view = <VisitComparison comparisonId={jobId} />;
   if (section === "glossary") view = <GlossaryPage />;
   if (section === "exposure" || mode === "exposure") view = <Exposure mode={mode || "full"} />;
   if (mode === null) view = null;

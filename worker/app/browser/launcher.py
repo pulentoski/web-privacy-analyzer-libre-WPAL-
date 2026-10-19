@@ -119,3 +119,19 @@ async def launch_browser(playwright, proxy_user: str | None = None):
 
 async def new_context(browser, profile: dict | None = None):
     return await browser.new_context(**context_kwargs(profile))
+
+
+def persistent_kwargs(user_data_dir: str, proxy_user: str | None = None) -> dict:
+    """Opciones del contexto persistente de la comparación de visitas (v1.5.2, docs/adr/040).
+
+    Las mismas del navegador y del contexto efímero, más la caché HTTP dentro del directorio del perfil: así la caché
+    de un perfil nunca la ve el otro y se borra con él.
+    """
+    kwargs = launch_kwargs(proxy_user)
+    kwargs["args"] = [*kwargs["args"], f"--disk-cache-dir={user_data_dir}/cache"]
+    return {**kwargs, **context_kwargs()}
+
+
+async def launch_persistent_context(playwright, user_data_dir: str, proxy_user: str | None = None):
+    """Solo para las visitas de una comparación: los scans normales e interactivos siguen con new_context() efímero."""
+    return await playwright.chromium.launch_persistent_context(user_data_dir, **persistent_kwargs(user_data_dir, proxy_user))

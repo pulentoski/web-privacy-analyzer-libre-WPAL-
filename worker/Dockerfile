@@ -33,5 +33,9 @@ RUN for dir in /etc/opt/chrome_for_testing /etc/chromium /etc/opt/chrome; do \
 RUN mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix
 ENV DISPLAY=:99
 
+# Perfiles de la comparación de visitas (v1.5.2, docs/adr/040). El volumen `profiles` se monta aquí y, al crearse,
+# hereda este dueño y estos permisos: solo pwuser (uid 1001) puede entrar.
+RUN mkdir -p /var/lib/wpa/profiles && chown pwuser:pwuser /var/lib/wpa/profiles && chmod 0700 /var/lib/wpa/profiles
+
 USER pwuser
 CMD ["python", "-m", "app"]

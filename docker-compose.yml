@@ -68,6 +68,8 @@ services:
       SCAN_RATE_WINDOW_S: ${SCAN_RATE_WINDOW_S:-60}
       MAX_QUEUED_JOBS: ${MAX_QUEUED_JOBS:-20}
       MAX_GROUP_JOBS: ${MAX_GROUP_JOBS:-10}
+      # Comparación de visitas (v1.5.2, docs/adr/040): intervalo por defecto entre las visitas 1 y 2.
+      VISIT_COMPARISON_INTERVAL_S: ${VISIT_COMPARISON_INTERVAL_S:-300}
       # Solo el nginx del frontend (IP fija) puede informar la IP real del cliente.
       TRUSTED_PROXIES: 172.30.1.10
       EXPOSURE_TTL_S: ${EXPOSURE_TTL_S:-7200}
@@ -164,6 +166,11 @@ services:
       - ./data:/app/data:ro
       # Log de conexiones del proxy, para saber a qué IP fue cada request (solo lectura).
       - scanlog:/var/log/scanlog:ro
+      # Perfiles A y B de la comparación de visitas (v1.5.2, docs/adr/040): en disco, solo de este servicio, dueño
+      # pwuser y 0700 (los hereda de la imagen). Se borran al terminar cada comparación. No entra en los respaldos
+      # (scripts/backup.sh vuelca solo la base) ni en los exportes. Docker no permite noexec/nosuid en un volumen con
+      # nombre en disco (ver THREAT-MODEL); el contenedor ya corre con no-new-privileges y raíz de solo lectura.
+      - profiles:/var/lib/wpa/profiles
     # Solo redes internal: true. La única salida a internet es egress-proxy. NO añadir otras.
     networks:
       - internal
@@ -363,4 +370,5 @@ networks:
 volumes:
   pgdata:
   scanlog:
+  profiles:
   brand:

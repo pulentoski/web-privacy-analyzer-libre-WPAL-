@@ -155,6 +155,23 @@ terms:
     term: "Linker de Google (_gl)"
     plain: "parámetro _gl que pasa datos de medición entre dominios"
     definition: "Parámetro _gl que las etiquetas de Google (gtag.js, Google Tag Manager) añaden a un enlace o a una redirección para pasar datos de medición de un dominio a otro. Su formato habitual es 1*hash*nombre*valor, con los valores en base64; los campos varían (pueden incluir el valor de cookies como _ga o _gcl_au, o no). Que una URL lo lleve demuestra la transferencia del parámetro; no demuestra que el destino lo haya usado para reconocer al visitante ni que se haya completado una atribución."
+  # v1.5.2
+  - id: comparacion_visitas
+    term: "Comparación de visitas"
+    plain: "tres visitas con perfiles controlados"
+    definition: "Tres visitas a la misma URL con el mismo protocolo: perfil A limpio, el mismo perfil A tras cerrar el navegador y esperar un intervalo, y un perfil B limpio de control. Compara valores exactos en su contexto. Tres visitas no prueban causalidad."
+  - id: perfil_persistente
+    term: "Perfil persistente"
+    plain: "perfil del navegador conservado en disco"
+    definition: "Directorio del navegador que se conserva entre dos visitas: cookies persistentes, almacenamiento local e IndexedDB. Las cookies de sesión no sobreviven al cierre del navegador."
+  - id: perfil_control
+    term: "Perfil limpio de control"
+    plain: "perfil nuevo y vacío"
+    definition: "Perfil B de una comparación de visitas: directorio nuevo y vacío, otro proceso del navegador y otro usuario del proxy. Sirve para ver qué cambia sin el estado del perfil A; sale por la misma IP."
+  - id: identificador_persistente
+    term: "Identificador persistente"
+    plain: "mismo valor en dos visitas del mismo perfil"
+    definition: "Valor con forma de identificador que se observó igual en las dos visitas del perfil A, en el mismo destino y el mismo campo, y distinto o no observado en el perfil limpio de control. Es una observación, no una prueba de reconocimiento."
 
 panels:
   summary:

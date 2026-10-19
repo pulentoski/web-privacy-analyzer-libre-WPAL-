@@ -14,7 +14,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Tablas con datos de scans que no cuelgan de jobs.id por una columna job_id.
-EXTRA_TABLES = ("jobs", "test_groups", "report_files")
+EXTRA_TABLES = ("jobs", "test_groups", "report_files", "visit_comparisons")
 
 
 async def job_tables(session: AsyncSession) -> list[str]:
@@ -73,6 +73,7 @@ async def delete_scan(session: AsyncSession, job_id: uuid.UUID) -> dict | None:
     if group_id is None:
         return None
     group_id = group_id[0]
+    comparison_id = await session.scalar(text("SELECT comparison_id FROM jobs WHERE id = :id"), {"id": job_id})
     last_of_group = group_id is not None and await session.scalar(
         text("SELECT count(*) FROM jobs WHERE group_id = :group AND id <> :id"), {"group": group_id, "id": job_id}
     ) == 0
@@ -82,6 +83,11 @@ async def delete_scan(session: AsyncSession, job_id: uuid.UUID) -> dict | None:
     await session.execute(text("DELETE FROM jobs WHERE id = :id"), {"id": job_id})
     if last_of_group:
         await session.execute(text("DELETE FROM test_groups WHERE id = :group"), {"group": group_id})
+    # Igual una comparación de visitas (v1.5.2): sin visitas no queda nada que comparar.
+    if comparison_id is not None and not await session.scalar(
+        text("SELECT count(*) FROM jobs WHERE comparison_id = :comparison"), {"comparison": comparison_id}
+    ):
+        await session.execute(text("DELETE FROM visit_comparisons WHERE id = :comparison"), {"comparison": comparison_id})
     reports = reports_before - await session.scalar(text("SELECT count(*) FROM report_files"))
     return {"scans": 1, "groups": len(groups), "reports": reports, "bytes_freed": freed}
 
@@ -89,7 +95,7 @@ async def delete_scan(session: AsyncSession, job_id: uuid.UUID) -> dict | None:
 async def delete_all(session: AsyncSession) -> dict:
     """Borra todos los scans y todos los grupos de Privacy Test, con todo lo que cuelga de ellos."""
     # Bloquea las altas mientras se mide y se borra: lo que se informa es lo que se borró.
-    await session.execute(text("LOCK TABLE jobs, test_groups IN SHARE ROW EXCLUSIVE MODE"))
+    await session.execute(text("LOCK TABLE jobs, test_groups, visit_comparisons IN SHARE ROW EXCLUSIVE MODE"))
     before = await stats(session)
     freed = await data_bytes(session, None)
     # Primero se vacían las tablas hijas, de una vez, en vez de dejar que la cascada las
@@ -100,6 +106,7 @@ async def delete_all(session: AsyncSession) -> dict:
     for table in sorted(tables, key=lambda name: name == "scan_requests"):  # scan_requests al final: otras la referencian
         await session.execute(text(f"DELETE FROM {table}"))
     await session.execute(text("DELETE FROM test_groups"))  # arrastra los scans de cada grupo
+    await session.execute(text("DELETE FROM visit_comparisons"))  # y los de cada comparación de visitas (v1.5.2)
     await session.execute(text("DELETE FROM jobs"))
     after = await stats(session)
     return {

@@ -98,6 +98,8 @@ SELECT j.url, s.summary->>'requests' AS requests, s.summary->>'trackers' AS trac
   FROM jobs j JOIN site_analysis s ON s.job_id = j.id
  WHERE j.status = 'completed' AND j.id <> $1
    AND j.created_at < (SELECT created_at FROM jobs WHERE id = $1)
+   -- Las visitas de una comparación (v1.5.2) no son scans sueltos: no entran en el historial de un sitio.
+   AND j.comparison_id IS NULL
    AND COALESCE((s.summary->'blocking'->>'blocked')::boolean, false) = false
  ORDER BY j.created_at DESC LIMIT 300
 """

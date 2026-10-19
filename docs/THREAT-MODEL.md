@@ -84,6 +84,17 @@ línea de configuración que `scripts/hardening-check.sh` o el propio compose ve
 | I | El registro de interacción guarda lo que el usuario tecleó o dónde hizo clic | El relé solo anota hora y tipo; no lee el keysym ni la posición | `api/tests/test_v142_api.py::test_interaction_log_keeps_time_and_kind_only`; `e2e/tests/test_v142.py` |
 | R | Afirmar que la interacción «se envió» por coincidencia temporal | Línea base por organización, mínimo de interacciones, navegaciones excluidas; el texto dice «secuencia temporal» | `worker/tests/v142/test_rules.py` |
 
+### 2 ter. Comparación de visitas (v1.5.2, docs/adr/040)
+
+| STRIDE | Amenaza | Control | Evidencia |
+|---|---|---|---|
+| I | Los perfiles A y B guardan en disco cookies, Local Storage e IndexedDB de sitios reales | Volumen `profiles` montado solo en el worker; directorio dueño pwuser (uid 1001) y 0700; los perfiles se borran al terminar la comparación o al fallar una visita, y los huérfanos al arrancar el worker y en cada vuelta del reaper; fuera de respaldos (`scripts/backup.sh` vuelca solo la base) y de los exportes | `test_profiles_volume_is_private_to_the_worker_user`; `test_worker_runs_the_three_visits_and_removes_the_profiles` |
+| I | `visit_comparisons.state` filtra valores de cookies | Solo huellas sha256 de cada archivo del perfil y de cada valor de cookie, nunca los valores | `test_cookie_fingerprints_keep_hashes_never_values` |
+| T | Un nombre de directorio construido con datos externos sale del volumen | El directorio sale siempre de `uuid.UUID(...)` y del perfil `A`/`B`; la purga solo toca directorios con nombre de UUID | `test_profile_dir_only_from_uuid_and_known_profile` |
+| T | El perfil B arrastra estado de A, o el de A se pierde sin aviso | B es otro directorio, otro proceso de Chromium y otro usuario del proxy, y debe abrir sin cookies; el estado de A se verifica por huellas antes de la visita 2; si algo no cuadra, la comparación es no válida | `test_profile_b_shares_nothing_with_profile_a`; `test_lost_or_changed_state_of_a_is_detected`; `test_lost_state_of_a_invalidates_the_comparison` |
+| E | Un binario escrito en el perfil se ejecuta | Docker no permite `noexec`/`nosuid` en un volumen con nombre en disco (probado con Docker 29.8.0; con un bind el montaje queda `rw` y un binario copiado ahí se ejecuta). Lo compensan `no-new-privileges`, seccomp, `cap_drop: ALL`, uid 1001 y la raíz de solo lectura del worker | `scripts/hardening-check.sh`; `docker-compose.yml` (worker) |
+| R | El resultado se lee como prueba de que el sitio reconoció al visitante | Textos fijos («se observó…», «no observado en esta captura», nunca «no existe») y advertencia fija: tres visitas no prueban causalidad | `test_same_value_in_1_and_2_and_different_in_3_is_persistent_with_the_fixed_text`; `test_absent_in_control_is_never_said_to_not_exist` |
+
 ### 3. Demo en LAN
 
 | STRIDE | Amenaza | Control | Evidencia |
@@ -139,7 +150,8 @@ Notas:
 - El worker añade un perfil seccomp propio (`worker/seccomp_profile.json`) que permite
   al sandbox de Chromium crear sus espacios de nombres sin dar capabilities (ADR 001).
 - Lo que cada servicio puede escribir es un `tmpfs` o un volumen declarado; el único
-  volumen con datos es `pgdata`.
+  volumen con datos persistentes es `pgdata`; `profiles` (v1.5.2) guarda los perfiles de una comparación de visitas
+  solo mientras dura.
 - Puertos publicados: solo `127.0.0.1:8000` (api) y `127.0.0.1:8080` (frontend).
 
 ## Riesgos aceptados
@@ -155,5 +167,7 @@ Notas:
 - **Vulnerabilidades sin parche** en paquetes de las imágenes base
   (docs/SECURITY-SCAN.md).
 - **Swagger UI** carga scripts de un CDN en el navegador de quien abre `/docs`.
+- **Volumen `profiles` sin `noexec`/`nosuid`** (v1.5.2): Docker no lo permite en un volumen con nombre en disco;
+  ver §2 ter.
 - **El enmascarado es heurístico**: puede dejar pasar un identificador con forma de
   palabra. La variante con valores completos es siempre un documento sensible.

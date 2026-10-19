@@ -1,0 +1,1532 @@
+{
+ "http://site.fixtures.test/": {
+  "analysis": {
+   "band": "Bajo",
+   "partial": false,
+   "site_exposure_score": 20,
+   "trackers": 10
+  },
+  "browser_mode": "headful",
+  "capture": {
+   "cookies": 2,
+   "end_reason": "network_idle",
+   "first_party_domains": [
+    "site.fixtures.test"
+   ],
+   "storage_items": 2,
+   "total_requests": 21,
+   "truncated": false,
+   "websockets": 1
+  },
+  "domains": [
+   {
+    "brand": null,
+    "category": "analytics",
+    "domain": "tracker-a.fixtures.test",
+    "entity": "no_disponible",
+    "fingerprinting": false,
+    "max_score": 100,
+    "party": "third_party",
+    "requests": 9,
+    "third_party": true,
+    "tracker": true,
+    "tracker_requests": 9
+   },
+   {
+    "brand": null,
+    "category": "first-party",
+    "domain": "site.fixtures.test",
+    "entity": "no_disponible",
+    "fingerprinting": false,
+    "max_score": 0,
+    "party": "first_party",
+    "requests": 7,
+    "third_party": false,
+    "tracker": false,
+    "tracker_requests": 0
+   },
+   {
+    "brand": null,
+    "category": "third-party",
+    "domain": "cdn-b.fixtures.test",
+    "entity": "no_disponible",
+    "fingerprinting": false,
+    "max_score": 75,
+    "party": "third_party",
+    "requests": 5,
+    "third_party": true,
+    "tracker": true,
+    "tracker_requests": 1
+   }
+  ],
+  "final_url": "http://site.fixtures.test/",
+  "findings": [
+   [
+    "1 request(s) al propio sitio o a su misma organización tienen el patrón de un envío de eventos (rutas de medición o respuestas 204), hacia 1 endpoint(s): site.fixtures.test.",
+    "INFERENCIA",
+    "first_party_telemetry",
+    "general"
+   ],
+   [
+    "2 request(s) a tracker-a.fixtures.test coinciden con reglas de la lista easyprivacy (p. ej. «<regla>»).",
+    "EVIDENCIA",
+    "general",
+    "list_match"
+   ],
+   [
+    "9 request(s) a tracker-a.fixtures.test coinciden con reglas de la lista test-fixtures (p. ej. «<regla>»).",
+    "EVIDENCIA",
+    "general",
+    "list_match"
+   ],
+   [
+    "EVIDENCIA",
+    "El mismo valor (a3f9c2…(32 caracteres)) se envió en requests a 2 dominios registrables distintos, de 2 organizaciones distintas del sitio: cdn-b.fixtures.test, tracker-a.fixtures.test.",
+    "general",
+    "id_sync"
+   ],
+   [
+    "EVIDENCIA",
+    "El valor enviado a cdn-b.fixtures.test (a3f9c2…(32 caracteres)) coincide con la cookie «tr_uid» del navegador.",
+    "general",
+    "persistent_id"
+   ],
+   [
+    "EVIDENCIA",
+    "El valor enviado a tracker-a.fixtures.test (a3f9c2…(32 caracteres)) coincide con la cookie «tr_uid» del navegador.",
+    "general",
+    "persistent_id"
+   ],
+   [
+    "EVIDENCIA",
+    "La URL de la página analizada se envió a tracker-a.fixtures.test dentro del parámetro «page».",
+    "general",
+    "url_leak"
+   ],
+   [
+    "EVIDENCIA",
+    "La cabecera Referer enviada a tracker-a.fixtures.test contiene la URL completa de la página, con ruta y parámetros.",
+    "general",
+    "referer_leak"
+   ],
+   [
+    "El parámetro «partner_uid» enviado a cdn-b.fixtures.test tiene nombre típico de identificador y un valor con forma de identificador. El nombre no prueba qué contiene.",
+    "INFERENCIA",
+    "general",
+    "identifier_param"
+   ],
+   [
+    "El parámetro «token.payload.sub» enviado a tracker-a.fixtures.test tiene nombre típico de identificador y un valor con forma de identificador. El nombre no prueba qué contiene.",
+    "INFERENCIA",
+    "general",
+    "identifier_param"
+   ],
+   [
+    "El parámetro «token» enviado a tracker-a.fixtures.test (tercero) tiene forma de token de sesión o JWT.",
+    "INFERENCIA",
+    "general",
+    "session_token_third_party"
+   ],
+   [
+    "El parámetro «uid» enviado a tracker-a.fixtures.test tiene nombre típico de identificador y un valor con forma de identificador. El nombre no prueba qué contiene.",
+    "INFERENCIA",
+    "general",
+    "identifier_param"
+   ],
+   [
+    "El parámetro «user.id» enviado a tracker-a.fixtures.test tiene nombre típico de identificador y un valor con forma de identificador. El nombre no prueba qué contiene.",
+    "INFERENCIA",
+    "general",
+    "identifier_param"
+   ]
+  ],
+  "http_status": 200,
+  "report_cookies": [],
+  "requests": [
+   [
+    "GET",
+    "analytics",
+    "document",
+    "http://tracker-a.fixtures.test/frame.html",
+    "iframe",
+    "no_disponible",
+    "third_party",
+    45,
+    null
+   ],
+   [
+    "GET",
+    "analytics",
+    "http://tracker-a.fixtures.test/frame-pixel.gif",
+    "image",
+    "image",
+    "no_disponible",
+    "third_party",
+    55,
+    null
+   ],
+   [
+    "GET",
+    "analytics",
+    "http://tracker-a.fixtures.test/jwt.gif?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3ItN2YzYTljMjFkNCIsImlhdCI6MTc5MDAwMDAwMCwic2NvcGUiOiJyZWFkIn0.c2lnbmF0dXJhLWRlLXBydWViYS1uby12YWxpZGE",
+    "image",
+    "no_disponible",
+    "pixel",
+    "third_party",
+    85,
+    null
+   ],
+   [
+    "GET",
+    "analytics",
+    "http://tracker-a.fixtures.test/leak.gif?page=http%3A%2F%2Fsite.fixtures.test%2F",
+    "image",
+    "no_disponible",
+    "pixel",
+    "third_party",
+    75,
+    null
+   ],
+   [
+    "GET",
+    "analytics",
+    "http://tracker-a.fixtures.test/pixel.gif?uid=a3f9c2e1b7d44f6a9c0e5d2b8f1a6c3e&ts=<ts>",
+    "image",
+    "no_disponible",
+    "pixel",
+    "third_party",
+    100,
+    null
+   ],
+   [
+    "GET",
+    "analytics",
+    "http://tracker-a.fixtures.test/redirect/hop",
+    "image",
+    "image",
+    "no_disponible",
+    "third_party",
+    45,
+    null
+   ],
+   [
+    "GET",
+    "analytics",
+    "http://tracker-a.fixtures.test/tracker.js",
+    "no_disponible",
+    "script",
+    "script",
+    "third_party",
+    45,
+    null
+   ],
+   [
+    "GET",
+    "cross-site",
+    "http://cdn-b.fixtures.test/sync.gif?partner=tracker-a&partner_uid=a3f9c2e1b7d44f6a9c0e5d2b8f1a6c3e",
+    "image",
+    "no_disponible",
+    "pixel",
+    "third_party",
+    75,
+    null
+   ],
+   [
+    "GET",
+    "document",
+    "document",
+    "first-party",
+    "first_party",
+    "http://site.fixtures.test/",
+    "no_disponible",
+    0,
+    null
+   ],
+   [
+    "GET",
+    "fetch/xhr",
+    "first-party",
+    "first_party",
+    "http://site.fixtures.test/api/data?x=1&x=2&empty=&flag",
+    "no_disponible",
+    "xhr",
+    0,
+    null
+   ],
+   [
+    "GET",
+    "first-party",
+    "first_party",
+    "http://site.fixtures.test/img/first.png",
+    "image",
+    "image",
+    "no_disponible",
+    0,
+    null
+   ],
+   [
+    "GET",
+    "first-party",
+    "first_party",
+    "http://site.fixtures.test/redirect/start",
+    "image",
+    "image",
+    "no_disponible",
+    0,
+    null
+   ],
+   [
+    "GET",
+    "first-party",
+    "first_party",
+    "http://site.fixtures.test/static/app.js",
+    "no_disponible",
+    "script",
+    "script",
+    0,
+    null
+   ],
+   [
+    "GET",
+    "first-party",
+    "first_party",
+    "http://site.fixtures.test/static/style.css",
+    "no_disponible",
+    "static",
+    "stylesheet",
+    0,
+    null
+   ],
+   [
+    "GET",
+    "font",
+    "http://cdn-b.fixtures.test/font.woff2",
+    "no_disponible",
+    "static",
+    "third-party",
+    "third_party",
+    0,
+    null
+   ],
+   [
+    "GET",
+    "http://cdn-b.fixtures.test/lib.css",
+    "no_disponible",
+    "static",
+    "stylesheet",
+    "third-party",
+    "third_party",
+    0,
+    null
+   ],
+   [
+    "GET",
+    "http://cdn-b.fixtures.test/logo.png",
+    "image",
+    "image",
+    "no_disponible",
+    "third-party",
+    "third_party",
+    0,
+    null
+   ],
+   [
+    "GET",
+    "http://cdn-b.fixtures.test/redirect/final",
+    "image",
+    "image",
+    "no_disponible",
+    "third-party",
+    "third_party",
+    0,
+    null
+   ],
+   [
+    "POST",
+    "analytics",
+    "beacon",
+    "http://tracker-a.fixtures.test/beacon",
+    "no_disponible",
+    "ping",
+    "third_party",
+    100,
+    null
+   ],
+   [
+    "POST",
+    "analytics",
+    "fetch",
+    "fetch/xhr",
+    "http://tracker-a.fixtures.test/collect",
+    "no_disponible",
+    "third_party",
+    65,
+    null
+   ],
+   [
+    "POST",
+    "fetch",
+    "fetch/xhr",
+    "first-party",
+    "first_party",
+    "http://site.fixtures.test/metrics",
+    "no_disponible",
+    0,
+    null
+   ]
+  ],
+  "stages": [
+   [
+    "carga",
+    "network_idle",
+    true
+   ],
+   [
+    "cierre",
+    "tab_closed",
+    true
+   ],
+   [
+    "document_end",
+    "scroll",
+    true
+   ],
+   [
+    "duration_elapsed",
+    "espera",
+    true
+   ],
+   [
+    "duration_elapsed",
+    "espera",
+    true
+   ]
+  ],
+  "status": "completed",
+  "summary": {
+   "blocked": 0,
+   "blocked_by_client": 0,
+   "by_resource_type": {
+    "document": 2,
+    "fetch": 2,
+    "font": 1,
+    "image": 10,
+    "ping": 1,
+    "script": 2,
+    "stylesheet": 2,
+    "xhr": 1
+   },
+   "capture_truncated": false,
+   "cookies": 2,
+   "first_party": 7,
+   "party_unknown": 0,
+   "redirect_chains": 1,
+   "same_org": 0,
+   "storage_items": 2,
+   "third_party": 14,
+   "total_requests": 21,
+   "websockets": 1
+  },
+  "title": "Fixture Site",
+  "trackers": [
+   {
+    "brand": null,
+    "categories": [
+     "analytics"
+    ],
+    "domains": [
+     "tracker-a.fixtures.test"
+    ],
+    "entity": "no_disponible",
+    "max_band": "Muy alto",
+    "max_score": 100,
+    "request_count": 9,
+    "requests": [
+     {
+      "band": "Alto",
+      "category": "analytics",
+      "mechanism": "fetch/xhr",
+      "plain": {
+       "generic": false,
+       "level": "INFERENCIA",
+       "signal": "identifier_param",
+       "text": "Parámetro identificador (inferencia): el parámetro «user.id» enviado a tracker-a.fixtures.test podría contener un identificador de usuario."
+      },
+      "reasons": [
+       {
+        "data": {
+         "list": "test-fixtures"
+        },
+        "detail": "La URL coincide con la regla «||tracker-a.fixtures.test^$third-party» de la lista test-fixtures.",
+        "level": "EVIDENCIA",
+        "signal": "list_test-fixtures",
+        "weight": 40
+       },
+       {
+        "data": {
+         "parameter": "user.id"
+        },
+        "detail": "El parámetro «user.id» tiene nombre típico de identificador y un valor con forma de identificador.",
+        "level": "INFERENCIA",
+        "signal": "identifier_param",
+        "weight": 15
+       },
+       {
+        "detail": "El cuerpo viaja codificado (no es texto ni JSON directo).",
+        "level": "INFERENCIA",
+        "signal": "encoded_payload_third_party",
+        "weight": 5
+       },
+       {
+        "detail": "El dominio tracker-a.fixtures.test es de otra organización, distinta a la del sitio analizado.",
+        "level": "EVIDENCIA",
+        "signal": "third_party",
+        "weight": 5
+       }
+      ],
+      "score": 65,
+      "url": "http://tracker-a.fixtures.test/collect"
+     },
+     {
+      "band": "Alto",
+      "category": "analytics",
+      "mechanism": "pixel",
+      "plain": {
+       "generic": false,
+       "level": "EVIDENCIA",
+       "signal": "url_leak",
+       "text": "Fuga de URL: la URL de la página se envió a tracker-a.fixtures.test en un parámetro de la request."
+      },
+      "reasons": [
+       {
+        "data": {
+         "list": "test-fixtures"
+        },
+        "detail": "La URL coincide con la regla «||tracker-a.fixtures.test^$third-party» de la lista test-fixtures.",
+        "level": "EVIDENCIA",
+        "signal": "list_test-fixtures",
+        "weight": 40
+       },
+       {
+        "data": {
+         "parameter": "page"
+        },
+        "detail": "El parámetro «page» contiene la URL de la página.",
+        "level": "EVIDENCIA",
+        "signal": "url_leak",
+        "weight": 20
+       },
+       {
+        "detail": "El dominio tracker-a.fixtures.test es de otra organización, distinta a la del sitio analizado.",
+        "level": "EVIDENCIA",
+        "signal": "third_party",
+        "weight": 5
+       },
+       {
+        "detail": "Imagen mínima con parámetros.",
+        "level": "INFERENCIA",
+        "signal": "mechanism_pixel",
+        "weight": 10
+       }
+      ],
+      "score": 75,
+      "url": "http://tracker-a.fixtures.test/leak.gif?page=http%3A%2F%2Fsite.fixtures.test%2F"
+     },
+     {
+      "band": "Moderado",
+      "category": "analytics",
+      "mechanism": "iframe",
+      "plain": {
+       "generic": false,
+       "level": "EVIDENCIA",
+       "signal": "list_test-fixtures",
+       "text": "Coincidencia con lista de filtros: la request a tracker-a.fixtures.test coincide con una regla de la lista de pruebas."
+      },
+      "reasons": [
+       {
+        "data": {
+         "list": "test-fixtures"
+        },
+        "detail": "La URL coincide con la regla «||tracker-a.fixtures.test^$third-party» de la lista test-fixtures.",
+        "level": "EVIDENCIA",
+        "signal": "list_test-fixtures",
+        "weight": 40
+       },
+       {
+        "detail": "El dominio tracker-a.fixtures.test es de otra organización, distinta a la del sitio analizado.",
+        "level": "EVIDENCIA",
+        "signal": "third_party",
+        "weight": 5
+       }
+      ],
+      "score": 45,
+      "url": "http://tracker-a.fixtures.test/frame.html"
+     },
+     {
+      "band": "Moderado",
+      "category": "analytics",
+      "mechanism": "image",
+      "plain": {
+       "generic": false,
+       "level": "EVIDENCIA",
+       "signal": "list_test-fixtures",
+       "text": "Coincidencia con lista de filtros: la request a tracker-a.fixtures.test coincide con una regla de la lista de pruebas."
+      },
+      "reasons": [
+       {
+        "data": {
+         "list": "test-fixtures"
+        },
+        "detail": "La URL coincide con la regla «||tracker-a.fixtures.test^$third-party» de la lista test-fixtures.",
+        "level": "EVIDENCIA",
+        "signal": "list_test-fixtures",
+        "weight": 40
+       },
+       {
+        "detail": "El dominio tracker-a.fixtures.test es de otra organización, distinta a la del sitio analizado.",
+        "level": "EVIDENCIA",
+        "signal": "third_party",
+        "weight": 5
+       }
+      ],
+      "score": 45,
+      "url": "http://tracker-a.fixtures.test/redirect/hop"
+     },
+     {
+      "band": "Moderado",
+      "category": "analytics",
+      "mechanism": "image",
+      "plain": {
+       "generic": false,
+       "level": "EVIDENCIA",
+       "signal": "referer_full_url",
+       "text": "Fuga por Referer: la cabecera Referer transmitió a tracker-a.fixtures.test la URL completa de la página."
+      },
+      "reasons": [
+       {
+        "data": {
+         "list": "test-fixtures"
+        },
+        "detail": "La URL coincide con la regla «||tracker-a.fixtures.test^$third-party» de la lista test-fixtures.",
+        "level": "EVIDENCIA",
+        "signal": "list_test-fixtures",
+        "weight": 40
+       },
+       {
+        "detail": "El dominio tracker-a.fixtures.test es de otra organización, distinta a la del sitio analizado.",
+        "level": "EVIDENCIA",
+        "signal": "third_party",
+        "weight": 5
+       },
+       {
+        "detail": "La cabecera Referer llevó a un tercero la URL completa de la página (ruta y parámetros).",
+        "level": "EVIDENCIA",
+        "signal": "referer_full_url",
+        "weight": 10
+       }
+      ],
+      "score": 55,
+      "url": "http://tracker-a.fixtures.test/frame-pixel.gif"
+     },
+     {
+      "band": "Moderado",
+      "category": "analytics",
+      "mechanism": "script",
+      "plain": {
+       "generic": false,
+       "level": "EVIDENCIA",
+       "signal": "list_test-fixtures",
+       "text": "Coincidencia con lista de filtros: la request a tracker-a.fixtures.test coincide con una regla de la lista de pruebas."
+      },
+      "reasons": [
+       {
+        "data": {
+         "list": "test-fixtures"
+        },
+        "detail": "La URL coincide con la regla «||tracker-a.fixtures.test^$third-party» de la lista test-fixtures.",
+        "level": "EVIDENCIA",
+        "signal": "list_test-fixtures",
+        "weight": 40
+       },
+       {
+        "detail": "El dominio tracker-a.fixtures.test es de otra organización, distinta a la del sitio analizado.",
+        "level": "EVIDENCIA",
+        "signal": "third_party",
+        "weight": 5
+       }
+      ],
+      "score": 45,
+      "url": "http://tracker-a.fixtures.test/tracker.js"
+     },
+     {
+      "band": "Muy alto",
+      "category": "analytics",
+      "mechanism": "beacon",
+      "plain": {
+       "generic": false,
+       "level": "EVIDENCIA",
+       "signal": "id_sync",
+       "text": "Sincronización de identificadores (cookie syncing): tracker-a.fixtures.test recibió un identificador que también recibió cdn-b.fixtures.test; el valor común permite correlacionar los registros del mismo navegador."
+      },
+      "reasons": [
+       {
+        "data": {
+         "list": "easyprivacy"
+        },
+        "detail": "La URL coincide con la regla «*$ping,third-party» de la lista easyprivacy.",
+        "level": "EVIDENCIA",
+        "signal": "list_easyprivacy",
+        "weight": 40
+       },
+       {
+        "data": {
+         "matched_cookie": "tr_uid",
+         "parameter": "uid",
+         "stored_in": "la cookie «tr_uid»"
+        },
+        "detail": "El parámetro «uid»: el valor enviado coincide con la cookie «tr_uid» del navegador.",
+        "level": "EVIDENCIA",
+        "signal": "persistent_id",
+        "weight": 20
+       },
+       {
+        "data": {
+         "other_domains": [
+          "cdn-b.fixtures.test"
+         ],
+         "other_entities": []
+        },
+        "detail": "El valor a3f9c2…(32 caracteres) también se envió a: cdn-b.fixtures.test.",
+        "level": "EVIDENCIA",
+        "signal": "id_sync",
+        "weight": 25
+       },
+       {
+        "data": {
+         "parameter": "uid"
+        },
+        "detail": "El parámetro «uid» tiene nombre típico de identificador y un valor con forma de identificador.",
+        "level": "INFERENCIA",
+        "signal": "identifier_param",
+        "weight": 15
+       },
+       {
+        "detail": "El dominio tracker-a.fixtures.test es de otra organización, distinta a la del sitio analizado.",
+        "level": "EVIDENCIA",
+        "signal": "third_party",
+        "weight": 5
+       },
+       {
+        "detail": "Enviada con sendBeacon/ping.",
+        "level": "INFERENCIA",
+        "signal": "mechanism_beacon",
+        "weight": 10
+       }
+      ],
+      "score": 100,
+      "url": "http://tracker-a.fixtures.test/beacon"
+     },
+     {
+      "band": "Muy alto",
+      "category": "analytics",
+      "mechanism": "pixel",
+      "plain": {
+       "generic": false,
+       "level": "EVIDENCIA",
+       "signal": "id_sync",
+       "text": "Sincronización de identificadores (cookie syncing): tracker-a.fixtures.test recibió un identificador que también recibió cdn-b.fixtures.test; el valor común permite correlacionar los registros del mismo navegador."
+      },
+      "reasons": [
+       {
+        "data": {
+         "list": "easyprivacy"
+        },
+        "detail": "La URL coincide con la regla «/pixel.gif?» de la lista easyprivacy.",
+        "level": "EVIDENCIA",
+        "signal": "list_easyprivacy",
+        "weight": 40
+       },
+       {
+        "data": {
+         "matched_cookie": "tr_uid",
+         "parameter": "uid",
+         "stored_in": "la cookie «tr_uid»"
+        },
+        "detail": "El parámetro «uid»: el valor enviado coincide con la cookie «tr_uid» del navegador.",
+        "level": "EVIDENCIA",
+        "signal": "persistent_id",
+        "weight": 20
+       },
+       {
+        "data": {
+         "other_domains": [
+          "cdn-b.fixtures.test"
+         ],
+         "other_entities": []
+        },
+        "detail": "El valor a3f9c2…(32 caracteres) también se envió a: cdn-b.fixtures.test.",
+        "level": "EVIDENCIA",
+        "signal": "id_sync",
+        "weight": 25
+       },
+       {
+        "data": {
+         "parameter": "uid"
+        },
+        "detail": "El parámetro «uid» tiene nombre típico de identificador y un valor con forma de identificador.",
+        "level": "INFERENCIA",
+        "signal": "identifier_param",
+        "weight": 15
+       },
+       {
+        "detail": "El dominio tracker-a.fixtures.test es de otra organización, distinta a la del sitio analizado.",
+        "level": "EVIDENCIA",
+        "signal": "third_party",
+        "weight": 5
+       },
+       {
+        "detail": "Imagen mínima con parámetros.",
+        "level": "INFERENCIA",
+        "signal": "mechanism_pixel",
+        "weight": 10
+       }
+      ],
+      "score": 100,
+      "url": "http://tracker-a.fixtures.test/pixel.gif?uid=a3f9c2e1b7d44f6a9c0e5d2b8f1a6c3e&ts=<ts>"
+     },
+     {
+      "band": "Muy alto",
+      "category": "analytics",
+      "mechanism": "pixel",
+      "plain": {
+       "generic": false,
+       "level": "INFERENCIA",
+       "signal": "mechanism_pixel",
+       "text": "Píxel de seguimiento (inferencia): se solicitó a tracker-a.fixtures.test una imagen de tamaño mínimo con parámetros en la URL; el patrón es compatible con el registro de la visita."
+      },
+      "reasons": [
+       {
+        "data": {
+         "list": "test-fixtures"
+        },
+        "detail": "La URL coincide con la regla «||tracker-a.fixtures.test^$third-party» de la lista test-fixtures.",
+        "level": "EVIDENCIA",
+        "signal": "list_test-fixtures",
+        "weight": 40
+       },
+       {
+        "data": {
+         "parameter": "token"
+        },
+        "detail": "El parámetro «token» tiene forma de token de sesión o JWT.",
+        "level": "INFERENCIA",
+        "signal": "session_token_third_party",
+        "weight": 15
+       },
+       {
+        "data": {
+         "parameter": "token.payload.sub"
+        },
+        "detail": "El parámetro «token.payload.sub» tiene nombre típico de identificador y un valor con forma de identificador.",
+        "level": "INFERENCIA",
+        "signal": "identifier_param",
+        "weight": 15
+       },
+       {
+        "detail": "El dominio tracker-a.fixtures.test es de otra organización, distinta a la del sitio analizado.",
+        "level": "EVIDENCIA",
+        "signal": "third_party",
+        "weight": 5
+       },
+       {
+        "detail": "Imagen mínima con parámetros.",
+        "level": "INFERENCIA",
+        "signal": "mechanism_pixel",
+        "weight": 10
+       }
+      ],
+      "score": 85,
+      "url": "http://tracker-a.fixtures.test/jwt.gif?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3ItN2YzYTljMjFkNCIsImlhdCI6MTc5MDAwMDAwMCwic2NvcGUiOiJyZWFkIn0.c2lnbmF0dXJhLWRlLXBydWViYS1uby12YWxpZGE"
+     }
+    ],
+    "service_label": null,
+    "service_type": null
+   },
+   {
+    "brand": null,
+    "categories": [
+     "cross-site"
+    ],
+    "domains": [
+     "cdn-b.fixtures.test"
+    ],
+    "entity": "no_disponible",
+    "max_band": "Alto",
+    "max_score": 75,
+    "request_count": 1,
+    "requests": [
+     {
+      "band": "Alto",
+      "category": "cross-site",
+      "mechanism": "pixel",
+      "plain": {
+       "generic": false,
+       "level": "EVIDENCIA",
+       "signal": "id_sync",
+       "text": "Sincronización de identificadores (cookie syncing): cdn-b.fixtures.test recibió un identificador que también recibió tracker-a.fixtures.test; el valor común permite correlacionar los registros del mismo navegador."
+      },
+      "reasons": [
+       {
+        "data": {
+         "matched_cookie": "tr_uid",
+         "parameter": "partner_uid",
+         "stored_in": "la cookie «tr_uid»"
+        },
+        "detail": "El parámetro «partner_uid»: el valor enviado coincide con la cookie «tr_uid» del navegador.",
+        "level": "EVIDENCIA",
+        "signal": "persistent_id",
+        "weight": 20
+       },
+       {
+        "data": {
+         "other_domains": [
+          "tracker-a.fixtures.test"
+         ],
+         "other_entities": []
+        },
+        "detail": "El valor a3f9c2…(32 caracteres) también se envió a: tracker-a.fixtures.test.",
+        "level": "EVIDENCIA",
+        "signal": "id_sync",
+        "weight": 25
+       },
+       {
+        "data": {
+         "parameter": "partner_uid"
+        },
+        "detail": "El parámetro «partner_uid» tiene nombre típico de identificador y un valor con forma de identificador.",
+        "level": "INFERENCIA",
+        "signal": "identifier_param",
+        "weight": 15
+       },
+       {
+        "detail": "El dominio cdn-b.fixtures.test es de otra organización, distinta a la del sitio analizado.",
+        "level": "EVIDENCIA",
+        "signal": "third_party",
+        "weight": 5
+       },
+       {
+        "detail": "Imagen mínima con parámetros.",
+        "level": "INFERENCIA",
+        "signal": "mechanism_pixel",
+        "weight": 10
+       }
+      ],
+      "score": 75,
+      "url": "http://cdn-b.fixtures.test/sync.gif?partner=tracker-a&partner_uid=a3f9c2e1b7d44f6a9c0e5d2b8f1a6c3e"
+     }
+    ],
+    "service_label": null,
+    "service_type": null
+   }
+  ]
+ },
+ "http://site.fixtures.test/fp/article?ref=campaign42": {
+  "analysis": {
+   "band": "Bajo-moderado",
+   "partial": false,
+   "site_exposure_score": 21,
+   "trackers": 5
+  },
+  "browser_mode": "headful",
+  "capture": {
+   "cookies": 0,
+   "end_reason": "network_idle",
+   "first_party_domains": [
+    "site.fixtures.test"
+   ],
+   "storage_items": 0,
+   "total_requests": 17,
+   "truncated": false,
+   "websockets": 0
+  },
+  "domains": [
+   {
+    "brand": null,
+    "category": "analytics",
+    "domain": "tracker-a.fixtures.test",
+    "entity": "no_disponible",
+    "fingerprinting": true,
+    "max_score": 85,
+    "party": "third_party",
+    "requests": 5,
+    "third_party": true,
+    "tracker": true,
+    "tracker_requests": 5
+   },
+   {
+    "brand": null,
+    "category": "first-party",
+    "domain": "site.fixtures.test",
+    "entity": "no_disponible",
+    "fingerprinting": true,
+    "max_score": 0,
+    "party": "first_party",
+    "requests": 11,
+    "third_party": false,
+    "tracker": false,
+    "tracker_requests": 0
+   },
+   {
+    "brand": null,
+    "category": "third-party",
+    "domain": "cdn-b.fixtures.test",
+    "entity": "no_disponible",
+    "fingerprinting": false,
+    "max_score": 0,
+    "party": "third_party",
+    "requests": 1,
+    "third_party": true,
+    "tracker": false,
+    "tracker_requests": 0
+   }
+  ],
+  "final_url": "http://site.fixtures.test/fp/article?ref=campaign42",
+  "findings": [
+   [
+    "1 request(s) a tracker-a.fixtures.test coinciden con reglas de la lista easyprivacy (p. ej. «<regla>»).",
+    "EVIDENCIA",
+    "general",
+    "list_match"
+   ],
+   [
+    "1 request(s) al propio sitio o a su misma organización tienen el patrón de un envío de eventos (rutas de medición o respuestas 204), hacia 1 endpoint(s): site.fixtures.test.",
+    "INFERENCIA",
+    "first_party_telemetry",
+    "general"
+   ],
+   [
+    "5 request(s) a tracker-a.fixtures.test coinciden con reglas de la lista test-fixtures (p. ej. «<regla>»).",
+    "EVIDENCIA",
+    "general",
+    "list_match"
+   ],
+   [
+    "EVIDENCIA",
+    "El script http://site.fixtures.test/static/fp/webrtc.js creó 1 conexión(es) WebRTC (RTCPeerConnection).",
+    "fingerprinting",
+    "webrtc_connection"
+   ],
+   [
+    "EVIDENCIA",
+    "El script http://tracker-a.fixtures.test/fp.js leyó UNMASKED_RENDERER_WEBGL y UNMASKED_VENDOR_WEBGL mediante WebGL (fabricante y modelo de la GPU).",
+    "fingerprinting",
+    "webgl_unmasked_read"
+   ],
+   [
+    "EVIDENCIA",
+    "La cabecera Referer enviada a tracker-a.fixtures.test contiene la URL completa de la página, con ruta y parámetros.",
+    "general",
+    "referer_leak"
+   ],
+   [
+    "EVIDENCIA",
+    "Un valor leído con canvas.toDataURL (sha256 del contenido leído) aparece en el parámetro «ch» de una request a tracker-a.fixtures.test. Lo leyó: http://tracker-a.fixtures.test/fp.js.",
+    "exfiltration",
+    "fingerprinting"
+   ],
+   [
+    "EVIDENCIA",
+    "Un valor leído con webgl.UNMASKED_RENDERER_WEBGL (valor) aparece en el parámetro «r» de una request a tracker-a.fixtures.test. Lo leyó: http://tracker-a.fixtures.test/fp.js.",
+    "exfiltration",
+    "fingerprinting"
+   ],
+   [
+    "El script http://site.fixtures.test/static/fp/fonts.js midió texto con 60 fuentes distintas (measureText). Es un patrón compatible con la enumeración de fuentes instaladas.",
+    "INFERENCIA",
+    "fingerprinting",
+    "font_enumeration"
+   ],
+   [
+    "El script http://site.fixtures.test/static/fp/webrtc.js abrió una conexión WebRTC y escuchó candidatos ICE: patrón compatible con un intento de descubrir direcciones IP. El worker bloquea el UDP fuera del proxy y no se observaron candidatos con IP.",
+    "INFERENCIA",
+    "fingerprinting",
+    "webrtc_ip_discovery"
+   ],
+   [
+    "El script http://tracker-a.fixtures.test/fp.js dibujó texto en un canvas de 240x60 y luego leyó su contenido con canvas.toDataURL. Es un patrón compatible con canvas fingerprinting.",
+    "INFERENCIA",
+    "canvas_fingerprinting",
+    "fingerprinting"
+   ],
+   [
+    "El script http://tracker-a.fixtures.test/fp.js generó audio fuera de línea con un oscilador y un compresor y leyó el resultado. Es un patrón compatible con audio fingerprinting.",
+    "INFERENCIA",
+    "audio_fingerprinting",
+    "fingerprinting"
+   ],
+   [
+    "El script http://tracker-a.fixtures.test/fp.js leyó 13 propiedades distintas de navigator/screen. Es un patrón compatible con la recolección de atributos del dispositivo.",
+    "INFERENCIA",
+    "fingerprinting",
+    "property_sweep"
+   ],
+   [
+    "INFERENCIA",
+    "La lectura de UNMASKED_RENDERER_WEBGL y UNMASKED_VENDOR_WEBGL por el script http://tracker-a.fixtures.test/fp.js es compatible con fingerprinting por WebGL.",
+    "fingerprinting",
+    "webgl_fingerprinting"
+   ]
+  ],
+  "http_status": 200,
+  "report_cookies": [],
+  "requests": [
+   [
+    "GET",
+    "analytics",
+    "http://tracker-a.fixtures.test/fp-collect.gif?r=ANGLE%20(Google%2C%20Vulkan%201.3.0%20(SwiftShader%20Device%20(Subzero)%20(0x0000C0DE))%2C%20SwiftShader%20driver)&ch=80efc82c24a7cd75b5c7392b3a285311733551d0e65c4e04bfb555df9c5aa8e0&n=13",
+    "image",
+    "no_disponible",
+    "pixel",
+    "third_party",
+    85,
+    null
+   ],
+   [
+    "GET",
+    "analytics",
+    "http://tracker-a.fixtures.test/fp.js",
+    "no_disponible",
+    "script",
+    "script",
+    "third_party",
+    65,
+    null
+   ],
+   [
+    "GET",
+    "analytics",
+    "http://tracker-a.fixtures.test/ref-full.gif",
+    "image",
+    "image",
+    "no_disponible",
+    "third_party",
+    55,
+    null
+   ],
+   [
+    "GET",
+    "analytics",
+    "http://tracker-a.fixtures.test/ref-origin.gif",
+    "image",
+    "image",
+    "no_disponible",
+    "third_party",
+    45,
+    null
+   ],
+   [
+    "GET",
+    "document",
+    "document",
+    "first-party",
+    "first_party",
+    "http://site.fixtures.test/fp/article?ref=campaign42",
+    "no_disponible",
+    0,
+    null
+   ],
+   [
+    "GET",
+    "fetch",
+    "fetch/xhr",
+    "first-party",
+    "first_party",
+    "http://site.fixtures.test/fp/animation-done?frames=<n>",
+    "no_disponible",
+    0,
+    null
+   ],
+   [
+    "GET",
+    "fetch",
+    "fetch/xhr",
+    "first-party",
+    "first_party",
+    "http://site.fixtures.test/fp/animation-tick",
+    "no_disponible",
+    0,
+    null
+   ],
+   [
+    "GET",
+    "fetch",
+    "fetch/xhr",
+    "first-party",
+    "first_party",
+    "http://site.fixtures.test/fp/animation-tick",
+    "no_disponible",
+    0,
+    null
+   ],
+   [
+    "GET",
+    "fetch",
+    "fetch/xhr",
+    "first-party",
+    "first_party",
+    "http://site.fixtures.test/fp/animation-tick",
+    "no_disponible",
+    0,
+    null
+   ],
+   [
+    "GET",
+    "fetch",
+    "fetch/xhr",
+    "first-party",
+    "first_party",
+    "http://site.fixtures.test/fp/animation-tick",
+    "no_disponible",
+    0,
+    null
+   ],
+   [
+    "GET",
+    "first-party",
+    "first_party",
+    "http://site.fixtures.test/static/fp/abuse.js",
+    "no_disponible",
+    "script",
+    "script",
+    0,
+    null
+   ],
+   [
+    "GET",
+    "first-party",
+    "first_party",
+    "http://site.fixtures.test/static/fp/benign.js",
+    "no_disponible",
+    "script",
+    "script",
+    0,
+    null
+   ],
+   [
+    "GET",
+    "first-party",
+    "first_party",
+    "http://site.fixtures.test/static/fp/fonts.js",
+    "no_disponible",
+    "script",
+    "script",
+    0,
+    null
+   ],
+   [
+    "GET",
+    "first-party",
+    "first_party",
+    "http://site.fixtures.test/static/fp/webrtc.js",
+    "no_disponible",
+    "script",
+    "script",
+    0,
+    null
+   ],
+   [
+    "GET",
+    "http://cdn-b.fixtures.test/ref-none.gif",
+    "image",
+    "image",
+    "no_disponible",
+    "third-party",
+    "third_party",
+    0,
+    null
+   ],
+   [
+    "POST",
+    "analytics",
+    "beacon",
+    "http://tracker-a.fixtures.test/fp-beacon",
+    "no_disponible",
+    "ping",
+    "third_party",
+    70,
+    null
+   ],
+   [
+    "POST",
+    "fetch",
+    "fetch/xhr",
+    "first-party",
+    "first_party",
+    "http://site.fixtures.test/fp/abuse-report",
+    "no_disponible",
+    0,
+    null
+   ]
+  ],
+  "stages": [
+   [
+    "carga",
+    "network_idle",
+    true
+   ],
+   [
+    "cierre",
+    "tab_closed",
+    true
+   ],
+   [
+    "document_end",
+    "scroll",
+    true
+   ],
+   [
+    "duration_elapsed",
+    "espera",
+    true
+   ],
+   [
+    "duration_elapsed",
+    "espera",
+    true
+   ]
+  ],
+  "status": "completed",
+  "summary": {
+   "blocked": 0,
+   "blocked_by_client": 0,
+   "by_resource_type": {
+    "document": 1,
+    "fetch": 6,
+    "image": 4,
+    "ping": 1,
+    "script": 5
+   },
+   "capture_truncated": false,
+   "cookies": 0,
+   "first_party": 11,
+   "party_unknown": 0,
+   "redirect_chains": 0,
+   "same_org": 0,
+   "storage_items": 0,
+   "third_party": 6,
+   "total_requests": 17,
+   "websockets": 0
+  },
+  "title": "Fixture FP",
+  "trackers": [
+   {
+    "brand": null,
+    "categories": [
+     "analytics"
+    ],
+    "domains": [
+     "tracker-a.fixtures.test"
+    ],
+    "entity": "no_disponible",
+    "max_band": "Muy alto",
+    "max_score": 85,
+    "request_count": 5,
+    "requests": [
+     {
+      "band": "Alto",
+      "category": "analytics",
+      "mechanism": "beacon",
+      "plain": {
+       "generic": false,
+       "level": "INFERENCIA",
+       "signal": "mechanism_beacon",
+       "text": "Beacon (inferencia): se envió a tracker-a.fixtures.test una request en segundo plano (sendBeacon o ping); podría transmitir eventos de interacción con la página."
+      },
+      "reasons": [
+       {
+        "data": {
+         "list": "easyprivacy"
+        },
+        "detail": "La URL coincide con la regla «*$ping,third-party» de la lista easyprivacy.",
+        "level": "EVIDENCIA",
+        "signal": "list_easyprivacy",
+        "weight": 40
+       },
+       {
+        "detail": "El dominio tracker-a.fixtures.test es de otra organización, distinta a la del sitio analizado.",
+        "level": "EVIDENCIA",
+        "signal": "third_party",
+        "weight": 5
+       },
+       {
+        "detail": "Enviada con sendBeacon/ping.",
+        "level": "INFERENCIA",
+        "signal": "mechanism_beacon",
+        "weight": 10
+       },
+       {
+        "detail": "La inició http://tracker-a.fixtures.test/fp.js, un script con un patrón compatible con fingerprinting.",
+        "level": "INFERENCIA",
+        "signal": "fp_script_initiator",
+        "weight": 15
+       }
+      ],
+      "score": 70,
+      "url": "http://tracker-a.fixtures.test/fp-beacon"
+     },
+     {
+      "band": "Alto",
+      "category": "analytics",
+      "mechanism": "script",
+      "plain": {
+       "generic": false,
+       "level": "INFERENCIA",
+       "signal": "fp_script",
+       "text": "Script de fingerprinting (inferencia): se descargó de tracker-a.fixtures.test un script cuyo uso de APIs es compatible con la obtención de una huella del dispositivo."
+      },
+      "reasons": [
+       {
+        "data": {
+         "list": "test-fixtures"
+        },
+        "detail": "La URL coincide con la regla «||tracker-a.fixtures.test^$third-party» de la lista test-fixtures.",
+        "level": "EVIDENCIA",
+        "signal": "list_test-fixtures",
+        "weight": 40
+       },
+       {
+        "detail": "El dominio tracker-a.fixtures.test es de otra organización, distinta a la del sitio analizado.",
+        "level": "EVIDENCIA",
+        "signal": "third_party",
+        "weight": 5
+       },
+       {
+        "detail": "Este recurso es un script con un patrón de uso compatible con fingerprinting.",
+        "level": "INFERENCIA",
+        "signal": "fp_script",
+        "weight": 20
+       }
+      ],
+      "score": 65,
+      "url": "http://tracker-a.fixtures.test/fp.js"
+     },
+     {
+      "band": "Moderado",
+      "category": "analytics",
+      "mechanism": "image",
+      "plain": {
+       "generic": false,
+       "level": "EVIDENCIA",
+       "signal": "list_test-fixtures",
+       "text": "Coincidencia con lista de filtros: la request a tracker-a.fixtures.test coincide con una regla de la lista de pruebas."
+      },
+      "reasons": [
+       {
+        "data": {
+         "list": "test-fixtures"
+        },
+        "detail": "La URL coincide con la regla «||tracker-a.fixtures.test^$third-party» de la lista test-fixtures.",
+        "level": "EVIDENCIA",
+        "signal": "list_test-fixtures",
+        "weight": 40
+       },
+       {
+        "detail": "El dominio tracker-a.fixtures.test es de otra organización, distinta a la del sitio analizado.",
+        "level": "EVIDENCIA",
+        "signal": "third_party",
+        "weight": 5
+       }
+      ],
+      "score": 45,
+      "url": "http://tracker-a.fixtures.test/ref-origin.gif"
+     },
+     {
+      "band": "Moderado",
+      "category": "analytics",
+      "mechanism": "image",
+      "plain": {
+       "generic": false,
+       "level": "EVIDENCIA",
+       "signal": "referer_full_url",
+       "text": "Fuga por Referer: la cabecera Referer transmitió a tracker-a.fixtures.test la URL completa de la página."
+      },
+      "reasons": [
+       {
+        "data": {
+         "list": "test-fixtures"
+        },
+        "detail": "La URL coincide con la regla «||tracker-a.fixtures.test^$third-party» de la lista test-fixtures.",
+        "level": "EVIDENCIA",
+        "signal": "list_test-fixtures",
+        "weight": 40
+       },
+       {
+        "detail": "El dominio tracker-a.fixtures.test es de otra organización, distinta a la del sitio analizado.",
+        "level": "EVIDENCIA",
+        "signal": "third_party",
+        "weight": 5
+       },
+       {
+        "detail": "La cabecera Referer llevó a un tercero la URL completa de la página (ruta y parámetros).",
+        "level": "EVIDENCIA",
+        "signal": "referer_full_url",
+        "weight": 10
+       }
+      ],
+      "score": 55,
+      "url": "http://tracker-a.fixtures.test/ref-full.gif"
+     },
+     {
+      "band": "Muy alto",
+      "category": "analytics",
+      "mechanism": "pixel",
+      "plain": {
+       "generic": false,
+       "level": "EVIDENCIA",
+       "signal": "fp_exfiltration",
+       "text": "Exfiltración de atributos: un script leyó el modelo de la GPU (WebGL UNMASKED_RENDERER) y el valor se transmitió a tracker-a.fixtures.test."
+      },
+      "reasons": [
+       {
+        "data": {
+         "api": "webgl.UNMASKED_RENDERER_WEBGL",
+         "form": "valor",
+         "parameter": "r"
+        },
+        "detail": "El parámetro «r» contiene un valor leído con webgl.UNMASKED_RENDERER_WEBGL (valor).",
+        "level": "EVIDENCIA",
+        "signal": "fp_exfiltration",
+        "weight": 30
+       },
+       {
+        "data": {
+         "list": "test-fixtures"
+        },
+        "detail": "La URL coincide con la regla «||tracker-a.fixtures.test^$third-party» de la lista test-fixtures.",
+        "level": "EVIDENCIA",
+        "signal": "list_test-fixtures",
+        "weight": 40
+       },
+       {
+        "detail": "El dominio tracker-a.fixtures.test es de otra organización, distinta a la del sitio analizado.",
+        "level": "EVIDENCIA",
+        "signal": "third_party",
+        "weight": 5
+       },
+       {
+        "detail": "Imagen mínima con parámetros.",
+        "level": "INFERENCIA",
+        "signal": "mechanism_pixel",
+        "weight": 10
+       }
+      ],
+      "score": 85,
+      "url": "http://tracker-a.fixtures.test/fp-collect.gif?r=ANGLE%20(Google%2C%20Vulkan%201.3.0%20(SwiftShader%20Device%20(Subzero)%20(0x0000C0DE))%2C%20SwiftShader%20driver)&ch=80efc82c24a7cd75b5c7392b3a285311733551d0e65c4e04bfb555df9c5aa8e0&n=13"
+     }
+    ],
+    "service_label": null,
+    "service_type": null
+   }
+  ]
+ }
+}

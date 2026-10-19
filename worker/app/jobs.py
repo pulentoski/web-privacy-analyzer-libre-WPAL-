@@ -21,6 +21,8 @@ UPDATE jobs
          WHERE status = 'queued'
            -- Las capturas interactivas tienen su propio turno (una a la vez) y no ocupan el de los scans.
            AND (coalesce(options->>'source', '') = 'interactive') = $3
+           -- Comparación de visitas (v1.5.2): la visita 2 espera el intervalo y la 3 a que termine la 2.
+           AND (not_before IS NULL OR not_before <= now())
          ORDER BY created_at
          FOR UPDATE SKIP LOCKED
          LIMIT 1)
@@ -72,6 +74,37 @@ UPDATE jobs
  WHERE status = 'running' AND locked_until < now() AND attempts >= max_attempts
 RETURNING id, attempts
 """
+
+# Comparación de visitas (v1.5.2, docs/adr/040). La api crea las tres visitas juntas; la 2 y la 3 con not_before
+# = infinity. Al terminar una visita, en la misma transacción que la cierra, se guarda su estado y se libera la
+# siguiente, o, si falló, se cancelan las que quedaban (sin ellas la comparación no vale).
+COMPARISON_STATE_SQL = """
+UPDATE visit_comparisons
+   SET state = jsonb_set(coalesce(state, '{}'::jsonb) || jsonb_build_object('visits', coalesce(state->'visits', '{}'::jsonb)),
+                         ARRAY['visits', $2::text], $3::jsonb, true)
+ WHERE id = $1
+"""
+
+COMPARISON_RELEASE_SQL = """
+UPDATE jobs SET not_before = $3, updated_at = now()
+ WHERE comparison_id = $1 AND status = 'queued' AND options->'comparison'->>'visit' = $2::text
+"""
+
+# También lo corre el reaper: cubre la visita que falló por lease vencido o un worker que murió entre medio.
+COMPARISON_ABORT_SQL = """
+UPDATE jobs q
+   SET status = 'failed', error = $1::jsonb, progress = coalesce(q.progress, '{}'::jsonb) || '{"stage": "failed"}'::jsonb,
+       finished_at = now(), updated_at = now()
+ WHERE q.status = 'queued' AND q.comparison_id IS NOT NULL
+   AND EXISTS (SELECT 1 FROM jobs f WHERE f.comparison_id = q.comparison_id AND f.status = 'failed')
+RETURNING q.id, q.comparison_id
+"""
+
+COMPARISON_ABORTED = {
+    "error_code": "COMPARISON_ABORTED",
+    "message": "Una visita anterior de la comparación falló: esta visita no se hizo.",
+    "stage": "comparison",
+}
 
 HEARTBEAT_SQL = """
 INSERT INTO worker_heartbeats (worker_id, last_seen) VALUES ($1, now())
@@ -289,9 +322,27 @@ async def _insert_capture(conn, job_id, capture: dict) -> None:
     )
 
 
+async def load_comparison(pool, comparison_id: str) -> dict | None:
+    """Configuración y estado guardado de una comparación (None si se borró)."""
+    row = await pool.fetchrow("SELECT config, state FROM visit_comparisons WHERE id = $1::uuid", comparison_id)
+    if row is None:
+        return None
+    load = lambda value: json.loads(value) if isinstance(value, str) else (value or {})  # noqa: E731
+    return {"config": load(row["config"]), "state": load(row["state"])}
+
+
+async def _advance_comparison(conn, comparison: dict, failed: bool) -> None:
+    visit = comparison["visit"]
+    await conn.execute(COMPARISON_STATE_SQL, comparison["id"], str(visit), _json(comparison["state"]))
+    if failed:
+        await conn.fetch(COMPARISON_ABORT_SQL, _json(COMPARISON_ABORTED))
+    elif visit < 3:
+        await conn.execute(COMPARISON_RELEASE_SQL, comparison["id"], str(visit + 1), comparison["next_not_before"])
+
+
 async def finish(
     pool, job, worker_id: str, *, result: dict | None = None, error: dict | None = None, capture: dict | None = None,
-    progress: dict | None = None,
+    progress: dict | None = None, comparison: dict | None = None,
 ) -> bool:
     """Cierra el job y guarda su captura en la misma transacción.
 
@@ -319,6 +370,8 @@ async def finish(
                 await _insert_capture(conn, job["id"], capture)
             # Staging de un HAR importado: ya está en scan_requests (o el job falló); no se conserva.
             await conn.execute("DELETE FROM har_imports WHERE job_id = $1", job["id"])
+            if comparison is not None:
+                await _advance_comparison(conn, comparison, failed=error is not None)
     return True
 
 
@@ -339,6 +392,8 @@ async def reap(pool) -> None:
     }
     for row in await pool.fetch(REAP_FAIL_SQL, json.dumps(error)):
         logger.error("reaper_failed_job", extra={"job_id": str(row["id"]), "attempts": row["attempts"]})
+    for row in await pool.fetch(COMPARISON_ABORT_SQL, json.dumps(COMPARISON_ABORTED)):
+        logger.warning("comparison_visit_aborted", extra={"job_id": str(row["id"]), "comparison_id": str(row["comparison_id"])})
 
 
 async def heartbeat(pool, worker_id: str) -> None:

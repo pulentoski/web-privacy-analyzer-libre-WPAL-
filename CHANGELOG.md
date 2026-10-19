@@ -3,6 +3,52 @@
 Formato: una sección por versión, la más reciente arriba. Las decisiones de diseño de cada versión están en
 [docs/adr/](docs/adr/README.md); las versiones anteriores a 1.4.6, en la sección «Fases» de [docs/SPEC.md](docs/SPEC.md).
 
+## 1.5.2 — 2026-10-19
+
+Analizador 1.18.0 (sin cambios) · schema de reporte 1.11.0 (sin cambios) · protocolo de visita 1 (sin cambios) ·
+[ADR 040](docs/adr/040-comparacion-de-visitas.md). Migración 0016 (tabla nueva y dos columnas nullables en `jobs`): los
+scans existentes no cambian y no hace falta reanalizarlos.
+
+### Agregado
+- Comparación de visitas (**Analizar un sitio → Comparar visitas**, `POST /api/comparisons`): tres visitas a la misma URL
+  con el protocolo de la v1.5.0 —(1) perfil A limpio, (2) el mismo perfil A tras cerrar el navegador, conservar su estado
+  en disco y esperar un intervalo, (3) perfil B limpio de control—. Cada visita es un scan normal, con su puntaje y su
+  reporte. Es una comparación reproducible, no un detector de retargeting.
+- Intervalo configurable (`interval_s`, 0–86 400; por defecto `VISIT_COMPARISON_INTERVAL_S=300`): se registran el
+  configurado y el real.
+- Verificación del estado: huellas sha256 del perfil A y de sus cookies persistentes (nunca los valores). Si el estado de A
+  se perdió o cambió, o un perfil limpio no estaba vacío, la comparación se marca **no válida** con su motivo.
+- Condiciones de cada visita (URL, Chromium, headful/headless, idioma, zona horaria, instrumentación, protocolo, límites,
+  país de salida…) y lista de las que difieren.
+- Comparación de valores exactos en su contexto (mismo destino y mismo campo): requests, destinos, organizaciones, cookies,
+  identificadores en cookies, storage, URL, cabeceras y cuerpos, con textos fijos: «se observó un identificador persistente
+  entre dos visitas con el mismo perfil; el perfil limpio de control mostró un resultado distinto», «cambio observado en el
+  perfil persistente que no apareció en los perfiles limpios», «también observado en el control» y «no observado en esta
+  captura». Descarta valores estáticos, de sesión, constantes conocidas y sin forma de identificador, e informa cuántos.
+  Advertencia fija: tres visitas no prueban causalidad. Valores enmascarados salvo «Mostrar identificadores completos».
+- Historial: sección «Comparaciones de visitas» (`GET /api/comparisons`); borrar las visitas borra la comparación.
+- Glosario: Comparación de visitas, Perfil persistente, Perfil limpio de control, Identificador persistente.
+
+### Cambiado
+- Solo las visitas de una comparación usan un contexto persistente de Chromium; los scans normales e interactivos siguen
+  con el contexto efímero (un test e2e compara un scan normal con la huella de la v1.5.1).
+- Las visitas de una comparación no entran en el ranking del Panel ni en el historial con que se compara un scan con los
+  anteriores del mismo sitio.
+- Volumen nuevo `profiles`, solo del worker (uid 1001, 0700), fuera de respaldos y exportes; los perfiles se borran al
+  terminar cada comparación. Docker no permite `noexec`/`nosuid` en ese volumen (docs/THREAT-MODEL.md).
+- Cola: los jobs pueden esperar una hora (`jobs.not_before`); solo lo usan las visitas 2 y 3.
+
+### Corregido
+- El frontend (nginx) resolvía el nombre de la api una sola vez al arrancar: si la api se recreaba con otra IP, la interfaz
+  respondía 502 a todo `/api/` hasta reiniciar el frontend. Ahora la resuelve con el DNS de Docker en cada request
+  (`frontend/api_upstream.conf`).
+- `scripts/purge-test-scans.sh` borra también las comparaciones de visitas de prueba.
+
+### Límites conocidos
+- La caché HTTP no interviene: Playwright la desactiva en todos los scans por la autenticación contra el egress-proxy, así
+  que la caché como vía de persistencia no se observa.
+- Las tres visitas salen por la misma IP.
+
 ## 1.5.1 — 2026-10-18
 
 Analizador 1.18.0 · schema de reporte 1.11.0 (sin cambios) ·

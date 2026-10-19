@@ -632,6 +632,35 @@ hacia quién la envían.
 - Captura interactiva: el volcado trabaja sobre una copia fija de las requests; las que llegan mientras se construye quedan
   para el siguiente (en 1.5.0 podía fallar con `KeyError` si la pestaña seguía generando tráfico al terminar).
 
+## Comparación de visitas (v1.5.2, docs/adr/040)
+- Comparación reproducible, no detector de retargeting. Tres jobs normales a la misma URL (protocolo de visita 1, mismo
+  análisis y puntaje): (1) perfil A limpio · (2) perfil A persistente: navegador cerrado, estado conservado en disco,
+  espera de `interval_s` (0–86 400; por defecto `VISIT_COMPARISON_INTERVAL_S`, 300 s) · (3) perfil B limpio de control. Un
+  solo intento por visita. La 2 sale de la cola al pasar el intervalo desde el cierre del navegador en la 1
+  (`jobs.not_before`); la 3, al terminar la 2. Si una falla, las pendientes quedan `COMPARISON_ABORTED`. Se registran el
+  intervalo configurado y el real.
+- Solo estas visitas usan contexto persistente (`launch_persistent_context`, caché dentro del perfil); scans normales e
+  interactivos: contexto efímero, sin cambios. Sin escenario, perfil emulado ni sondeo.
+- Perfiles: volumen `profiles` solo del worker (`/var/lib/wpa/profiles/<uuid>/{A,B}`, uid 1001, 0700). Visitas 1 y 3:
+  directorio nuevo y vacío, sin cookies antes de navegar; B con otro proceso y otro usuario de proxy. Estado de A: huellas
+  sha256 de los archivos del perfil y de los valores de cookies persistentes (nunca los valores), verificadas antes de la
+  visita 2. Se borran al terminar la comparación o al fallar una visita, y los huérfanos al arrancar el worker.
+- No válida (con motivo): estado de A perdido o cambiado, cookies persistentes vigentes ausentes o ilegibles, perfil limpio
+  no vacío o con cookies, visita fallida, borrada o sin análisis.
+- Condiciones por visita (URL, Chromium, modo, idioma, zona horaria, Accept-Language, instrumentación, protocolo, límites,
+  argumentos de Chromium, país de salida, worker, modo de perfil); se listan las que difieren.
+- Comparación en la api al leer (`GET /api/comparisons/{id}`), sin escribir en los scans: valores exactos en su contexto
+  (requests y destinos y organizaciones por presencia; cookies, identificadores en cookies, storage, URL, cabeceras y
+  cuerpos por valor; tabla en el ADR). Clases y textos fijos: 1 y 2 sin 3, con forma de identificador → «se observó un
+  identificador persistente entre dos visitas con el mismo perfil; el perfil limpio de control mostró un resultado
+  distinto» · solo 2 → «cambio observado en el perfil persistente que no apareció en los perfiles limpios» · 2 y 3 →
+  «también observado en el control» · ausencia → «no observado en esta captura», nunca «no existe». Descartes informados:
+  estáticos, de sesión, constantes conocidas, sin forma de identificador, valor propio de cada visita. Enmascarado salvo
+  `reveal=true`. Advertencia fija: tres visitas no prueban causalidad.
+- Fuera del ranking del Panel y del historial de un sitio; el Historial las lista aparte (`GET /api/comparisons`).
+- Límites: misma IP en las tres visitas; la caché HTTP está desactivada en todos los scans (autenticación contra el proxy),
+  así que no se observa como vía de persistencia; contexto persistente ≠ efímero (no se compara con scans sueltos).
+
 ## Fases
 F0 spec · F1 infra+aislamiento · F2 captura · F3 análisis+scoring ·
 F4 instrumentación · F5 UI · F6 exposición · F7 escenarios ·
@@ -651,4 +680,5 @@ v1.4.8 navegación con ACCEPT_CH, scans fallidos y parciales, alerta antibot con
 v1.4.9 Client Hints (solicitud, envío y delegación), cadena de redirección y puntaje por nivel (versión 1.4.9) ·
 v1.4.10 linker de Google (_gl), cookie que coincide, aviso de consentimiento y tabla del índice verificada (versión 1.4.10) ·
 v1.5.0 protocolo de visita fijo, condiciones de la medición y cobertura por contexto auditada (versión 1.5.0) ·
-v1.5.1 detalle de request enmascarado, marca y dueño, subdominios publicitarios y regla concreta de la lista (versión 1.5.1)
+v1.5.1 detalle de request enmascarado, marca y dueño, subdominios publicitarios y regla concreta de la lista (versión 1.5.1) ·
+v1.5.2 comparación de visitas con perfiles A y B en disco (versión 1.5.2)

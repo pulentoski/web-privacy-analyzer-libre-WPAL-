@@ -21,6 +21,8 @@ logger = logging.getLogger(__name__)
 EXPIRED_JOBS = "status IN ('completed', 'failed') AND analysis_status IS DISTINCT FROM 'running' AND created_at < now() - make_interval(days => $1)"
 # Un grupo de Privacy Test se borra cuando ya no le queda ningún scan y también es antiguo.
 EXPIRED_GROUPS = "created_at < now() - make_interval(days => $1) AND NOT EXISTS (SELECT 1 FROM jobs WHERE jobs.group_id = test_groups.id)"
+# Igual una comparación de visitas (v1.5.2).
+EXPIRED_COMPARISONS = "created_at < now() - make_interval(days => $1) AND NOT EXISTS (SELECT 1 FROM jobs WHERE jobs.comparison_id = visit_comparisons.id)"
 
 
 async def purge(conn, days: int, *, dry_run: bool = False) -> dict:
@@ -39,6 +41,7 @@ async def purge(conn, days: int, *, dry_run: bool = False) -> dict:
         reports_before = await conn.fetchval("SELECT count(*) FROM report_files")
         scans = await conn.fetchval(f"WITH gone AS (DELETE FROM jobs WHERE {EXPIRED_JOBS} RETURNING 1) SELECT count(*) FROM gone", days)
         groups = await conn.fetchval(f"WITH gone AS (DELETE FROM test_groups WHERE {EXPIRED_GROUPS} RETURNING 1) SELECT count(*) FROM gone", days)
+        await conn.execute(f"DELETE FROM visit_comparisons WHERE {EXPIRED_COMPARISONS}", days)
         reports = reports_before - await conn.fetchval("SELECT count(*) FROM report_files")
     return {"dry_run": False, "days": days, "scans": scans, "reports": reports, "groups": groups}
 

@@ -19,6 +19,7 @@ USER 101
 ARG NGINX_CONF=nginx.conf
 COPY ${NGINX_CONF} /etc/nginx/conf.d/default.conf
 COPY proxy_api.conf /etc/nginx/proxy_api.conf
+COPY api_upstream.conf /etc/nginx/api_upstream.conf
 COPY security_headers.conf /etc/nginx/security_headers.conf
 COPY exposure_locations.conf /etc/nginx/exposure_locations.conf
 # Indicador de recursos (v1.4): bucle que publica los contadores de cgroup de este contenedor.

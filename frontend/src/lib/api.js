@@ -71,6 +71,11 @@ export const api = {
   privacyCreate: (body) =>
     request("/api/privacy/test", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
   privacyTest: (groupId) => request(`/api/privacy/test/${id(groupId)}`),
+  // Comparación de visitas (v1.5.2)
+  comparisonCreate: (body) =>
+    request("/api/comparisons", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+  comparison: (comparisonId, reveal = false) => request(`/api/comparisons/${id(comparisonId)}${reveal ? "?reveal=true" : ""}`),
+  listComparisons: (limit = 50, filters) => request(`/api/comparisons?limit=${limit}${params(filters)}`),
   bannerUrl: (jobId) => `/api/privacy/artifacts/${id(jobId)}/consent_banner`,
   mode: () => request("/mode.json"),
   // Captura interactiva (v1.4). El token y la contraseña del visor se entregan una sola vez, al iniciar.

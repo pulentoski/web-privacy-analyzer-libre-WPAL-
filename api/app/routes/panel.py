@@ -46,7 +46,8 @@ async def get_panel(include_tests: bool = False, session: AsyncSession = Depends
             text(
                 "SELECT j.id, j.url, j.created_at, j.result -> 'measurement' AS measurement, s.score, s.band, s.summary "
                 "FROM jobs j JOIN site_analysis s ON s.job_id = j.id "
-                "WHERE j.status = 'completed' ORDER BY j.created_at DESC LIMIT :limit"
+                # Las visitas de una comparación (v1.5.2) no entran: la visita 2 no es un perfil limpio.
+                "WHERE j.status = 'completed' AND j.comparison_id IS NULL ORDER BY j.created_at DESC LIMIT :limit"
             ),
             {"limit": MAX_SCANS},
         )

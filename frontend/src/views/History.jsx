@@ -74,12 +74,14 @@ export default function History() {
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [scans, setScans] = useState(null);
   const [groups, setGroups] = useState(null);
+  const [comparisons, setComparisons] = useState(null);
   const [stats, setStats] = useState(null);
   const [deleted, setDeleted] = useState(null);
 
   const load = useCallback((alive = () => true) => {
     api.listScans(100, filters).then((data) => alive() && setScans(data), () => alive() && setScans({ items: [], total: 0 }));
     api.listTests(50, filters).then((data) => alive() && setGroups(data.items), () => alive() && setGroups([]));
+    api.listComparisons(50, filters).then((data) => alive() && setComparisons(data.items), () => alive() && setComparisons([]));
     api.history().then((data) => alive() && setStats(data), () => alive() && setStats(null));
   }, [filters]);
 
@@ -164,6 +166,31 @@ export default function History() {
                     <td className="pr-2">{group.done} de {group.total}</td>
                     <td className="pr-2">{group.failed}</td>
                     <td className="pr-2 whitespace-nowrap">{formatDate(group.created_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+
+      <Panel title="Comparaciones de visitas" subtitle="Cada comparación son tres visitas a la misma URL: perfil A limpio, perfil A persistente y perfil B de control." testId="history-comparisons">
+        {comparisons === null ? <Empty>Cargando…</Empty> : comparisons.length === 0 ? <Empty>No hay comparaciones con estos filtros.</Empty> : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="text-left border-b border-slate-300">
+                  <th className="py-1 pr-2">Sitio</th><th className="pr-2">Estado</th><th className="pr-2">Visitas</th><th className="pr-2">Fallidas</th><th className="pr-2">Fecha</th>
+                </tr>
+              </thead>
+              <tbody>
+                {comparisons.map((item) => (
+                  <tr key={item.comparison_id} className="border-b border-slate-200 align-top" data-testid="comparison-row" data-status={item.status}>
+                    <td className="py-1 pr-2"><Site item={item} to={["comparison", item.comparison_id]} testId="comparison-link" /></td>
+                    <td className="pr-2">{GROUP_STATUS[item.status] || "Desconocido"}</td>
+                    <td className="pr-2">{item.done} de {item.total}</td>
+                    <td className="pr-2">{item.failed}</td>
+                    <td className="pr-2 whitespace-nowrap">{formatDate(item.created_at)}</td>
                   </tr>
                 ))}
               </tbody>

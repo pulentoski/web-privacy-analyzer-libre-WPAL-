@@ -10,6 +10,7 @@ import { SCENARIO_LABELS, testSize, validateScanUrl } from "../lib/format.js";
 import { navigate } from "../lib/router.js";
 import HarImport from "./HarImport.jsx";
 import InteractiveCapture from "./InteractiveCapture.jsx";
+import { VisitComparisonStart } from "./VisitComparison.jsx";
 
 const DEFAULT_SCENARIOS = ["sin_interaccion"];
 const DEFAULT_PROFILES = ["real"];
@@ -218,6 +219,7 @@ export default function Analyze({ advanced = false }) {
         <div className="mt-3"><ErrorNotice error={error} /></div>
         <div className="mt-3"><Health /></div>
       </Panel>
+      <VisitComparisonStart url={url} cleanUrl={!keep} />
       <InteractiveCapture url={url} cleanUrl={!keep} />
       <HarImport />
     </div>

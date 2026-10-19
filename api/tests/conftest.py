@@ -85,6 +85,7 @@ def leave_no_test_scans(client):
         async with SessionLocal() as session:
             await session.execute(text(f"DELETE FROM jobs WHERE {TEST_HOST_SQL}"))
             await session.execute(text(f"DELETE FROM test_groups WHERE {TEST_HOST_SQL}"))
+            await session.execute(text(f"DELETE FROM visit_comparisons WHERE {TEST_HOST_SQL}"))
             await session.commit()
 
     client.portal.call(purge)

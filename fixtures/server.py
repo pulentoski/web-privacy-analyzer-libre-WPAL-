@@ -10,6 +10,7 @@ import base64
 import hashlib
 import json
 import pathlib
+import uuid
 
 from aiohttp import WSMsgType, web
 
@@ -136,6 +137,29 @@ async def v151_pixel(request: web.Request) -> web.Response:
     raise response
 
 
+# v1.5.2: comparación de visitas. El servidor da un identificador nuevo a cada perfil sin cookie y reutiliza el que trae
+# la cookie. La «campaña» cambia desde la segunda carga de la página (estado del servidor, como una rotación A/B):
+# aparece en las visitas 2 y 3, no en la 1. /__reset vuelve a empezar la cuenta.
+v152_loads = 0
+
+
+async def v152_page(request: web.Request) -> web.Response:
+    global v152_loads
+    v152_loads += 1
+    response = web.Response(body=(STATIC / "v152/index.html").read_bytes(), content_type="text/html")
+    uid = request.cookies.get("v152_uid") or uuid.uuid4().hex
+    response.set_cookie("v152_uid", uid, path="/", max_age=365 * 24 * 3600)
+    response.set_cookie("v152_sess", uuid.uuid4().hex, path="/")  # de sesión: sin Max-Age ni Expires
+    response.set_cookie("v152_campaign", "inicio" if v152_loads == 1 else "rotada", path="/")
+    return response
+
+
+async def v152_cached(request: web.Request) -> web.Response:
+    response = web.Response(body=(STATIC / "v152/cached.js").read_bytes(), content_type="application/javascript")
+    response.headers["Cache-Control"] = "public, max-age=3600"
+    return response
+
+
 async def redirect_hop(request: web.Request) -> web.Response:
     raise web.HTTPMovedPermanently(f"http://{CDN}/redirect/final")
 
@@ -212,6 +236,8 @@ async def get_received(request: web.Request) -> web.Response:
 
 
 async def reset(request: web.Request) -> web.Response:
+    global v152_loads
+    v152_loads = 0
     received.clear()
     abuse_reports.clear()
     return web.json_response({"reset": True})
@@ -337,6 +363,13 @@ def build_app() -> web.Application:
             web.get("/v151/sync/{uid}", binary(GIF_1X1, "image/gif")),
             web.get("/v151/ping", empty),
             web.get("/__egress-ip-invalid", egress_ip_invalid),
+            # Comparación de visitas (v1.5.2)
+            web.get("/v152/", v152_page),
+            web.get("/static/v152/v152.js", static("v152/v152.js", "application/javascript")),
+            web.post("/v152/collect", collect),
+            web.get("/v152/welcome-back.gif", binary(GIF_1X1, "image/gif")),
+            web.get("/v152/px", binary(GIF_1X1, "image/gif")),
+            web.get("/v152/cached.js", v152_cached),
             # fixture XSS (F5)
             web.get("/xss/", static("xss/index.html", "text/html")),
             web.get("/static/xss/payloads.js", static("xss/payloads.js", "application/javascript")),

@@ -150,6 +150,8 @@ class Settings:
     interactive_screen: tuple = (1440, 900)
     # Indicador de recursos (v1.4): cada cuánto publica el worker sus contadores de cgroup.
     resources_interval_s: float = 5.0
+    # Comparación de visitas (v1.5.2, docs/adr/040): perfiles A y B en disco (volumen `profiles`, solo del worker).
+    comparison_profiles_dir: str = field(default_factory=lambda: os.environ.get("COMPARISON_PROFILES_DIR", "/var/lib/wpa/profiles"))
 
     @property
     def lease_s(self) -> int:
